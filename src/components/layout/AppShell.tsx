@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
@@ -66,11 +67,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="hidden dark:block h-px bg-gradient-to-r from-transparent via-[var(--brand)] to-transparent opacity-40" />
 
         <div className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-3">
-          {/* Logo/título */}
-          <span className="shrink-0 text-sm font-semibold tracking-tight text-app-text">
-            TGM{" "}
-            <span className="font-normal text-app-muted">Pedidos</span>
-          </span>
+          {/* Logo */}
+          {mounted ? (
+            <Image
+              src={dark ? "/rgm-pedidos-oscuro.PNG" : "/tgm-pedidos-claro.PNG"}
+              alt="TGM Pedidos"
+              height={32}
+              width={140}
+              className="shrink-0 object-contain"
+              priority
+            />
+          ) : (
+            <Image
+              src="/tgm-pedidos-claro.PNG"
+              alt="TGM Pedidos"
+              height={32}
+              width={140}
+              className="shrink-0 object-contain"
+              priority
+            />
+          )}
 
           {/* Nav */}
           <nav className="flex flex-1 flex-wrap gap-0.5">

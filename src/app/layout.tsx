@@ -13,6 +13,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Histórico de pedidos TGM",
   description: "Registro y búsqueda de pedidos de fabricación",
+  icons: { icon: "/faviconTGM.png" },
 };
 
 // Script anti-flash: aplica .dark antes de que React hidrate
