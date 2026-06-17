@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { EditarPedidoModal } from "@/components/EditarPedidoModal";
 import { Banner, PageTitle, inputClass } from "@/components/ui";
 import { dbService } from "@/lib/db/db-service";
-import { resumenMedidas, formatMedidaCm } from "@/lib/display";
+import { resumenMedidas, formatMedida } from "@/lib/display";
 import { useCatalogos } from "@/lib/useCatalogos";
 import type { PedidoConRelaciones } from "@/lib/types";
 
@@ -112,7 +112,7 @@ export default function HistoricoPage() {
             <table className="w-full min-w-[640px] text-sm">
               <thead>
                 <tr className="border-b border-[var(--border)]">
-                  {["Nº Pedido", "Cliente", "Familia", "Medidas", "Aguas / Radio", "Fecha", ""].map((h, i) => (
+                  {["Nº Pedido", "Cliente", "Familia", "Medidas", "Aguas", "Radio", "Fecha", ""].map((h, i) => (
                     <th
                       key={i}
                       className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-app-muted"
@@ -145,14 +145,11 @@ export default function HistoricoPage() {
                       <td className="px-4 py-3 text-app-text">
                         {resumenMedidas(p, p.familia?.nombre ?? "")}
                       </td>
-                      <td className="px-4 py-3 text-xs text-app-muted">
-                        {esRemolque
-                          ? [
-                              p.aguas !== null ? `A ${formatMedidaCm(p.aguas)}` : null,
-                              p.radio !== null ? `R ${resumenMedidas({ largo: p.radio, ancho: null, alto: null, tipo: null }, "")}` : null,
-                            ].filter(Boolean).join(" · ") || "—"
-                          : "—"
-                        }
+                      <td className="px-4 py-3 text-app-muted">
+                        {esRemolque ? (formatMedida(p.aguas) || "—") : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-app-muted">
+                        {esRemolque ? (formatMedida(p.radio) || "—") : "—"}
                       </td>
                       <td className="px-4 py-3 text-app-muted">{p.fecha ?? "—"}</td>
                       <td className="px-3 py-3">
