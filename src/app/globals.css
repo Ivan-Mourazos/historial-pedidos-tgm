@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 /* Dark mode: aplica cuando el elemento (o un ancestro) tiene clase .dark */
 @custom-variant dark (&:where(.dark, .dark *));
@@ -71,7 +70,7 @@
   --color-app-text:   var(--text);
   --color-app-muted:  var(--text-2);
   --color-app-border: var(--border);
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
   --font-mono: 'Cascadia Mono', 'JetBrains Mono', Consolas, monospace;
 }
 
@@ -81,7 +80,6 @@
 body {
   background-color: var(--bg);
   color: var(--text);
-  font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   transition: background-color 0.2s ease, color 0.2s ease;
 }
