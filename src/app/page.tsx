@@ -21,7 +21,7 @@ import {
   normalizarNumeroPedido,
   numeroPedidoEncajaFormato,
 } from "@/lib/pedido-numero";
-import { FAMILIA_REMOLQUES, type Pedido } from "@/lib/types";
+import { FAMILIA_REMOLQUES, type Pedido, type PedidoConRelaciones } from "@/lib/types";
 import { useCatalogos } from "@/lib/useCatalogos";
 
 export default function BuscadorPage() {
@@ -31,6 +31,7 @@ export default function BuscadorPage() {
   const [clienteId, setClienteId] = useState<string | null>(null);
   const [valores, setValores] = useState<CamposTecnicosValores>(camposTecnicosVacios);
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
+  const [pedidosFamilia, setPedidosFamilia] = useState<PedidoConRelaciones[]>([]);
   const [cargandoPedidos, setCargandoPedidos] = useState(false);
   const [clienteIdsDeFamilia, setClienteIdsDeFamilia] = useState<string[]>([]);
 
@@ -62,8 +63,10 @@ export default function BuscadorPage() {
     setValores(camposTecnicosVacios);
     setClienteId(null);
     setConfirmarNumero(false);
+    setPedidosFamilia([]);
     if (!familiaId) return;
     dbService.getClienteIdsDeFamilia(familiaId).then(setClienteIdsDeFamilia);
+    dbService.getPedidosPorFamilia(familiaId).then(setPedidosFamilia);
   }, [familiaId]);
 
   useEffect(() => {
@@ -83,12 +86,16 @@ export default function BuscadorPage() {
   );
   const completos = camposRequeridosCompletos(criterios);
   const exacto = useMemo(
-    () => (completos ? pedidos.find((p) => esCoincidenciaExacta(p, criterios)) ?? null : null),
-    [completos, pedidos, criterios],
+    () => (completos && clienteId ? pedidos.find((p) => esCoincidenciaExacta(p, criterios)) ?? null : null),
+    [completos, clienteId, pedidos, criterios],
   );
   const parecidos = useMemo(
-    () => (exacto ? [] : buscarParecidos(pedidos, criterios)),
-    [exacto, pedidos, criterios],
+    () => (exacto || !completos ? [] : buscarParecidos(pedidos, criterios)),
+    [exacto, completos, pedidos, criterios],
+  );
+  const parecidosGlobal = useMemo(
+    () => (!clienteId && completos ? buscarParecidos(pedidosFamilia, criterios) : []),
+    [clienteId, completos, pedidosFamilia, criterios],
   );
 
   const formatoNumeroOk = numero.trim() === "" || numeroPedidoEncajaFormato(numero);
@@ -222,10 +229,12 @@ export default function BuscadorPage() {
 
         {/* Resultado */}
         <div>
-          {!clienteId || !familiaNombre ? (
-            <Banner tone="neutral">Selecciona cliente e introduce las medidas.</Banner>
-          ) : !completos ? (
-            <Banner tone="neutral">Faltan datos para comprobar coincidencia exacta.</Banner>
+          {!completos ? (
+            <Banner tone="neutral">
+              {!clienteId
+                ? "Introduce las medidas para buscar pedidos similares."
+                : "Faltan datos para comprobar coincidencia exacta."}
+            </Banner>
           ) : cargandoPedidos ? (
             <Banner tone="neutral">Comprobando…</Banner>
           ) : exacto ? (
@@ -263,33 +272,59 @@ export default function BuscadorPage() {
                 Archivo: <span className="font-mono font-medium">{exacto.numero_pedido}.dwg</span>
               </p>
             </div>
-          ) : (
+          ) : clienteId ? (
+            /* Con cliente: resultado exacto o parecidos de ese cliente */
             <div className="grid gap-3">
-              <Banner tone="info">No existe ningún pedido exactamente igual.</Banner>
+              <Banner tone="info">No existe ningún pedido igual para este cliente.</Banner>
               {parecidos.length > 0 && (
                 <Card>
-                  <p className="mb-2 text-sm font-medium text-app-muted">Pedidos parecidos:</p>
+                  <p className="mb-2 text-sm font-medium text-app-muted">Pedidos parecidos del cliente:</p>
                   <ul className="grid gap-0.5 text-sm">
                     {parecidos.map(({ pedido, diferencias }) => (
                       <li
                         key={pedido.id}
                         className="flex flex-wrap items-center gap-x-2 rounded-lg px-2 py-1.5 hover:bg-surface-2"
                       >
-                        <span className="font-mono font-semibold text-app-text">
-                          {pedido.numero_pedido}
-                        </span>
+                        <span className="font-mono font-semibold text-app-text">{pedido.numero_pedido}</span>
                         <span className="text-app-muted">·</span>
-                        <span className="text-app-muted">
-                          {resumenMedidas(pedido, familiaNombre)}
-                        </span>
-                        <span className="ml-auto text-xs text-brand">
-                          {diferencias.join(", ")}
-                        </span>
+                        <span className="text-app-muted">{resumenMedidas(pedido, familiaNombre)}</span>
+                        <span className="ml-auto text-xs text-brand">{diferencias.join(", ")}</span>
                       </li>
                     ))}
                   </ul>
                 </Card>
               )}
+            </div>
+          ) : (
+            /* Sin cliente: parecidos de toda la familia */
+            <div className="grid gap-3">
+              {parecidosGlobal.length > 0 ? (
+                <Card>
+                  <p className="mb-2 text-sm font-medium text-app-muted">
+                    Pedidos similares encontrados ({parecidosGlobal.length}):
+                  </p>
+                  <ul className="grid gap-0.5 text-sm">
+                    {parecidosGlobal.map(({ pedido, diferencias }) => (
+                      <li
+                        key={pedido.id}
+                        className="flex flex-wrap items-center gap-x-2 rounded-lg px-2 py-1.5 hover:bg-surface-2"
+                      >
+                        <span className="font-mono font-semibold text-app-text">{pedido.numero_pedido}</span>
+                        <span className="text-app-muted">·</span>
+                        {"cliente" in pedido && (pedido as PedidoConRelaciones).cliente && (
+                          <span className="text-app-muted text-xs">{(pedido as PedidoConRelaciones).cliente!.nombre}</span>
+                        )}
+                        <span className="text-app-muted">·</span>
+                        <span className="text-app-muted">{resumenMedidas(pedido, familiaNombre)}</span>
+                        <span className="ml-auto text-xs text-brand">{diferencias.join(", ")}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+              ) : (
+                <Banner tone="info">No se encontraron pedidos similares con esas medidas.</Banner>
+              )}
+              <Banner tone="neutral">Selecciona un cliente para comprobar coincidencia exacta y registrar.</Banner>
             </div>
           )}
         </div>

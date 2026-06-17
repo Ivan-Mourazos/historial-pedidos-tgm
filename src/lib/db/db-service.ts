@@ -150,6 +150,13 @@ export const dbService = {
     );
   },
 
+  // Todos los pedidos de una familia (búsqueda sin cliente seleccionado).
+  async getPedidosPorFamilia(familiaId: string): Promise<PedidoConRelaciones[]> {
+    return request<PedidoConRelaciones[]>(
+      `pedidos?select=${encodeURIComponent(PEDIDO_SELECT)}&familia_id=eq.${familiaId}&order=created_at.desc`,
+    );
+  },
+
   async getPedidoByNumero(numero: string): Promise<Pedido | null> {
     const res = await request<Pedido[]>(
       `pedidos?numero_pedido=eq.${encodeURIComponent(numero)}`,
