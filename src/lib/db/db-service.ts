@@ -132,6 +132,14 @@ export const dbService = {
     );
   },
 
+  // IDs de clientes que tienen al menos un pedido en esa familia.
+  async getClienteIdsDeFamilia(familiaId: string): Promise<string[]> {
+    const res = await request<{ cliente_id: string }[]>(
+      `pedidos?select=cliente_id&familia_id=eq.${familiaId}`,
+    );
+    return [...new Set(res.map((r) => r.cliente_id))];
+  },
+
   // Pedidos de un cliente y familia concretos (para búsqueda y parecidos).
   async getPedidosPorClienteFamilia(
     clienteId: string,

@@ -33,6 +33,7 @@ export default function BuscadorPage() {
   const [valores, setValores] = useState<CamposTecnicosValores>(camposTecnicosVacios);
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [cargandoPedidos, setCargandoPedidos] = useState(false);
+  const [clienteIdsDeFamilia, setClienteIdsDeFamilia] = useState<string[]>([]);
 
   // ── Registro inline ───────────────────────────────────────────────────────
   const [numero, setNumero] = useState("");
@@ -51,15 +52,23 @@ export default function BuscadorPage() {
   const familia = cat.familias.find((f) => f.id === familiaId);
   const familiaNombre = familia?.nombre ?? "";
 
+  // Solo clientes que tienen pedidos en la familia seleccionada
+  const clientesDeFamilia = clienteIdsDeFamilia.length > 0
+    ? cat.clientes.filter((c) => clienteIdsDeFamilia.includes(c.id))
+    : cat.clientes;
+
   // Primera familia por defecto
   useEffect(() => {
     if (!familiaId && cat.familias.length > 0) setFamiliaId(cat.familias[0].id);
   }, [cat.familias, familiaId]);
 
-  // Resetear al cambiar familia
+  // Resetear y cargar clientes de la familia al cambiar familia
   useEffect(() => {
     setValores(camposTecnicosVacios);
+    setClienteId(null);
     setConfirmarNumero(false);
+    if (!familiaId) return;
+    dbService.getClienteIdsDeFamilia(familiaId).then(setClienteIdsDeFamilia);
   }, [familiaId]);
 
   // Cargar pedidos del cliente+familia para comparar
@@ -172,7 +181,7 @@ export default function BuscadorPage() {
                 onChange={(e) => setClienteId(e.target.value || null)}
               >
                 <option value="">— Selecciona cliente —</option>
-                {cat.clientes.map((c) => (
+                {clientesDeFamilia.map((c) => (
                   <option key={c.id} value={c.id}>{c.nombre}</option>
                 ))}
               </select>
