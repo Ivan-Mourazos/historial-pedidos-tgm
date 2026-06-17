@@ -51,8 +51,10 @@ export default function NuevoPedidoPage() {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [okMsg, setOkMsg] = useState<string | null>(null);
-  // Confirmación explícita para guardar pese a existir un pedido igual.
+  // Confirmaciones explícitas: duplicado técnico y número ya existente.
   const [confirmarDuplicado, setConfirmarDuplicado] = useState(false);
+  const [confirmarNumero, setConfirmarNumero] = useState(false);
+  const [avisoNumero, setAvisoNumero] = useState<string | null>(null);
 
   const familia = cat.familias.find((f) => f.id === familiaId);
   const familiaNombre = familia?.nombre ?? "";
@@ -66,6 +68,8 @@ export default function NuevoPedidoPage() {
   useEffect(() => {
     setValores(camposTecnicosVacios);
     setConfirmarDuplicado(false);
+    setConfirmarNumero(false);
+    setAvisoNumero(null);
   }, [familiaId]);
 
   // Carga pedidos del cliente+familia para detectar duplicado técnico.
@@ -112,7 +116,8 @@ export default function NuevoPedidoPage() {
     !!familiaId &&
     completos &&
     !guardando &&
-    (!duplicadoTecnico || confirmarDuplicado);
+    (!duplicadoTecnico || confirmarDuplicado) &&
+    (!avisoNumero || confirmarNumero);
 
   async function guardar() {
     setError(null);
@@ -120,18 +125,23 @@ export default function NuevoPedidoPage() {
 
     const numeroNorm = normalizarNumeroPedido(numero);
 
-    // 1. Comprobar número de pedido duplicado.
-    try {
-      const existeNumero = await dbService.getPedidoByNumero(numeroNorm);
-      if (existeNumero) {
-        setError(
-          `Ya existe un pedido con el número ${numeroNorm}. El número de pedido debe ser único.`,
-        );
+    // 1. Comprobar número de pedido ya existente (aviso, no bloqueo).
+    if (!confirmarNumero) {
+      try {
+        const existeNumero = await dbService.getPedidoByNumero(numeroNorm);
+        if (existeNumero) {
+          setAvisoNumero(
+            `El número ${numeroNorm} ya existe (mismo pedido con otra medida). Pulsa de nuevo para añadirlo igualmente.`,
+          );
+          setConfirmarNumero(true);
+          setGuardando(false);
+          return;
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Error comprobando el número");
+        setGuardando(false);
         return;
       }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Error comprobando el número");
-      return;
     }
 
     // 2. Comprobar duplicado técnico (ya calculado). Requiere confirmación.
@@ -208,7 +218,11 @@ export default function NuevoPedidoPage() {
                   !formatoNumeroOk ? "border-amber-400" : ""
                 }`}
                 value={numero}
-                onChange={(e) => setNumero(e.target.value.toUpperCase())}
+                onChange={(e) => {
+                  setNumero(e.target.value.toUpperCase());
+                  setConfirmarNumero(false);
+                  setAvisoNumero(null);
+                }}
                 placeholder="AR2600000"
               />
             </Field>
@@ -283,6 +297,12 @@ export default function NuevoPedidoPage() {
           </Field>
         </div>
       </Card>
+
+      {avisoNumero && (
+        <div className="mb-4">
+          <Banner tone="warning">{avisoNumero}</Banner>
+        </div>
+      )}
 
       {duplicadoTecnico && (
         <div className="mb-4">
