@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Banner, Card, PageTitle, inputClass } from "@/components/ui";
+import { EditarPedidoModal } from "@/components/EditarPedidoModal";
+import { Banner, PageTitle, inputClass } from "@/components/ui";
 import { dbService } from "@/lib/db/db-service";
-import { resumenMedidas, formatMedida, formatMedidaCm } from "@/lib/display";
+import { resumenMedidas, formatMedidaCm } from "@/lib/display";
+import { useCatalogos } from "@/lib/useCatalogos";
 import type { PedidoConRelaciones } from "@/lib/types";
 
 type FiltroFamilia = "TODOS" | "REMOLQUES" | "PUERTAS";
@@ -13,35 +15,47 @@ const tagClass = {
   PUERTAS:   "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300",
 };
 
+function PencilIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+    </svg>
+  );
+}
+
 export default function HistoricoPage() {
+  const cat = useCatalogos();
   const [pedidos, setPedidos] = useState<PedidoConRelaciones[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [familia, setFamilia] = useState<FiltroFamilia>("TODOS");
   const [busqueda, setBusqueda] = useState("");
+  const [editando, setEditando] = useState<PedidoConRelaciones | null>(null);
 
-  useEffect(() => {
+  async function cargar() {
     setCargando(true);
     dbService.getPedidos()
       .then(setPedidos)
       .catch((e) => setError(e instanceof Error ? e.message : "Error"))
       .finally(() => setCargando(false));
-  }, []);
+  }
+
+  useEffect(() => { cargar(); }, []);
 
   const filtrados = useMemo(() => {
     const texto = busqueda.trim().toLowerCase();
-    return pedidos
-      .filter((p) => {
-        if (familia !== "TODOS" && p.familia?.nombre !== familia) return false;
-        if (texto) {
-          const hay = [p.numero_pedido, p.cliente?.nombre, p.tipo,
-            String(p.largo ?? ""), String(p.ancho ?? ""), String(p.alto ?? "")]
-            .join(" ").toLowerCase();
-          if (!hay.includes(texto)) return false;
-        }
-        return true;
-      })
-      .sort((a, b) => a.numero_pedido.localeCompare(b.numero_pedido));
+    return pedidos.filter((p) => {
+      if (familia !== "TODOS" && p.familia?.nombre !== familia) return false;
+      if (texto) {
+        const hay = [p.numero_pedido, p.cliente?.nombre, p.tipo,
+          String(p.largo ?? ""), String(p.ancho ?? ""), String(p.alto ?? "")]
+          .join(" ").toLowerCase();
+        if (!hay.includes(texto)) return false;
+      }
+      return true;
+    });
+    // Sin .sort(): el API ya devuelve created_at desc (más recientes primero)
   }, [pedidos, familia, busqueda]);
 
   const tabs: { key: FiltroFamilia; label: string }[] = [
@@ -98,9 +112,9 @@ export default function HistoricoPage() {
             <table className="w-full min-w-[640px] text-sm">
               <thead>
                 <tr className="border-b border-[var(--border)]">
-                  {["Nº Pedido", "Cliente", "Familia", "Medidas", "Aguas / Radio", "Fecha"].map((h) => (
+                  {["Nº Pedido", "Cliente", "Familia", "Medidas", "Aguas / Radio", "Fecha", ""].map((h, i) => (
                     <th
-                      key={h}
+                      key={i}
                       className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-app-muted"
                     >
                       {h}
@@ -115,8 +129,8 @@ export default function HistoricoPage() {
                   return (
                     <tr
                       key={p.id}
-                      className={`border-b border-[var(--border)] transition-colors hover:bg-surface-2 ${
-                        i === filtrados.length - 1 ? "border-b-0" : ""
+                      className={`transition-colors hover:bg-surface-2 ${
+                        i < filtrados.length - 1 ? "border-b border-[var(--border)]" : ""
                       }`}
                     >
                       <td className="px-4 py-3 font-mono text-sm font-semibold text-app-text">
@@ -135,12 +149,21 @@ export default function HistoricoPage() {
                         {esRemolque
                           ? [
                               p.aguas !== null ? `A ${formatMedidaCm(p.aguas)}` : null,
-                              p.radio !== null ? `R ${formatMedida(p.radio)}` : null,
+                              p.radio !== null ? `R ${resumenMedidas({ largo: p.radio, ancho: null, alto: null, tipo: null }, "")}` : null,
                             ].filter(Boolean).join(" · ") || "—"
                           : "—"
                         }
                       </td>
                       <td className="px-4 py-3 text-app-muted">{p.fecha ?? "—"}</td>
+                      <td className="px-3 py-3">
+                        <button
+                          onClick={() => setEditando(p)}
+                          className="flex h-7 w-7 items-center justify-center rounded-md text-app-muted transition-colors hover:bg-surface-2 hover:text-brand"
+                          aria-label="Editar"
+                        >
+                          <PencilIcon />
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -149,6 +172,25 @@ export default function HistoricoPage() {
           </div>
         )}
       </div>
+
+      {/* Modal edición */}
+      {editando && (
+        <EditarPedidoModal
+          pedido={editando}
+          familias={cat.familias}
+          tecnicos={cat.tecnicos}
+          tiposPuerta={cat.tiposPuerta}
+          onCerrar={() => setEditando(null)}
+          onGuardado={async () => {
+            setEditando(null);
+            await cargar();
+          }}
+          onEliminar={async () => {
+            setEditando(null);
+            await cargar();
+          }}
+        />
+      )}
     </div>
   );
 }
