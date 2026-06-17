@@ -12,6 +12,7 @@ export interface Catalogos {
   cargando: boolean;
   error: string | null;
   recargarClientes: () => Promise<void>;
+  recargarTecnicos: () => Promise<void>;
 }
 
 export function useCatalogos(): Catalogos {
@@ -24,6 +25,10 @@ export function useCatalogos(): Catalogos {
 
   const recargarClientes = useCallback(async () => {
     setClientes(await dbService.getClientes(true));
+  }, []);
+
+  const recargarTecnicos = useCallback(async () => {
+    setTecnicos(await dbService.getTecnicos(true));
   }, []);
 
   useEffect(() => {
@@ -65,5 +70,6 @@ export function useCatalogos(): Catalogos {
     cargando,
     error,
     recargarClientes,
+    recargarTecnicos,
   };
 }

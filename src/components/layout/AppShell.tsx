@@ -5,10 +5,8 @@ import { usePathname } from "next/navigation";
 
 const NAV = [
   { href: "/", label: "Buscador" },
-  { href: "/nuevo", label: "Nuevo pedido" },
   { href: "/historico", label: "Histórico" },
   { href: "/clientes", label: "Clientes" },
-  { href: "/tecnicos", label: "Técnicos" },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {

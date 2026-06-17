@@ -14,8 +14,9 @@
  *   - Muestra un resumen al final.
  */
 
-import { readFileSync } from 'fs';
-import * as XLSX from 'xlsx';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const XLSX = require('xlsx');
 
 // ─── Configuración ──────────────────────────────────────────────────────────
 
