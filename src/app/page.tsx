@@ -151,144 +151,151 @@ export default function BuscadorPage() {
   const puedeGuardar = numero.trim() !== "" && !!clienteId && !!familiaId && completos && !guardando;
 
   return (
-    <div className="mx-auto max-w-2xl">
-      {/* Selector de familia */}
-      <div className="mb-4 flex gap-2">
-        {cat.familias.map((f) => (
-          <button
-            key={f.id}
-            onClick={() => setFamiliaId(f.id)}
-            className={`rounded-lg px-4 py-2 text-sm font-semibold tracking-wide transition-all ${
-              familiaId === f.id
-                ? "bg-brand text-white shadow-sm"
-                : "border border-[var(--border-strong)] bg-surface text-app-muted hover:bg-surface-2 hover:text-app-text"
-            }`}
-          >
-            {f.nombre}
-          </button>
-        ))}
-      </div>
+    <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
 
-      {/* Formulario búsqueda */}
-      <Card className="mb-4 relative">
-        {hayAlgoDato && (
-          <button
-            onClick={limpiarBusqueda}
-            className="absolute right-3 top-3 flex items-center gap-1 rounded-md px-2 py-1 text-xs text-app-muted transition-colors hover:bg-surface-2 hover:text-app-text"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-            Limpiar
-          </button>
-        )}
-        <div className="grid gap-4">
-          <div>
-            <span className={labelClass}>Cliente</span>
-            <div className="flex flex-wrap items-center gap-2">
-              <select
-                className={`${inputClass} max-w-xs`}
-                value={clienteId ?? ""}
-                onChange={(e) => setClienteId(e.target.value || null)}
-              >
-                <option value="">— Selecciona cliente —</option>
-                {clientesDeFamilia.map((c) => (
-                  <option key={c.id} value={c.id}>{c.nombre}</option>
-                ))}
-              </select>
-              <Button variant="secondary" onClick={() => setModalCliente(true)}>
-                + Nuevo
-              </Button>
-            </div>
-          </div>
-
-          {familiaNombre && (
-            <CamposTecnicosFamilia
-              familiaNombre={familiaNombre}
-              valores={valores}
-              onChange={setCampo}
-              tiposPuerta={cat.tiposPuerta}
-            />
-          )}
+      {/* ── Columna izquierda: selector + formulario ── */}
+      <div>
+        {/* Selector de familia */}
+        <div className="mb-4 flex gap-2">
+          {cat.familias.map((f) => (
+            <button
+              key={f.id}
+              onClick={() => setFamiliaId(f.id)}
+              className={`rounded-lg px-4 py-2 text-sm font-semibold tracking-wide transition-all ${
+                familiaId === f.id
+                  ? "bg-brand text-white shadow-sm"
+                  : "border border-[var(--border-strong)] bg-surface text-app-muted hover:bg-surface-2 hover:text-app-text"
+              }`}
+            >
+              {f.nombre}
+            </button>
+          ))}
         </div>
-      </Card>
 
-      {/* Resultado */}
-      <div className="mb-4">
-        {!clienteId || !familiaNombre ? (
-          <Banner tone="neutral">Selecciona cliente e introduce las medidas.</Banner>
-        ) : !completos ? (
-          <Banner tone="neutral">Faltan datos para comprobar coincidencia exacta.</Banner>
-        ) : cargandoPedidos ? (
-          <Banner tone="neutral">Comprobando…</Banner>
-        ) : exacto ? (
-          <div
-            className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/30"
-            style={{ boxShadow: "var(--shadow-sm)" }}
-          >
-            <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
-              Ya existe un pedido igual
-            </p>
-            <div className="mt-2 grid gap-1 text-sm">
-              <p className="text-emerald-900 dark:text-emerald-200">
-                <span className="text-emerald-600 dark:text-emerald-400">Pedido:</span>{" "}
-                <span className="font-mono text-base font-bold">{exacto.numero_pedido}</span>
-              </p>
-              <p className="text-emerald-900 dark:text-emerald-200">
-                <span className="text-emerald-600 dark:text-emerald-400">Medidas:</span>{" "}
-                {resumenMedidas(exacto, familiaNombre)}
-              </p>
-              {familiaNombre === FAMILIA_REMOLQUES ? (
-                <p className="text-emerald-900 dark:text-emerald-200">
-                  <span className="text-emerald-600 dark:text-emerald-400">Aguas:</span>{" "}
-                  {formatMedidaCm(exacto.aguas)}{" · "}
-                  <span className="text-emerald-600 dark:text-emerald-400">Radio:</span>{" "}
-                  {formatMedidaCm(exacto.radio)}
-                </p>
-              ) : (
-                <p className="text-emerald-900 dark:text-emerald-200">
-                  <span className="text-emerald-600 dark:text-emerald-400">Tipo:</span>{" "}
-                  {exacto.tipo ?? "—"}
-                </p>
-              )}
-            </div>
-            <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-500">
-              Archivo: <span className="font-mono font-medium">{exacto.numero_pedido}.dwg</span>
-            </p>
-          </div>
-        ) : (
-          <div className="grid gap-3">
-            <Banner tone="info">No existe ningún pedido exactamente igual.</Banner>
-            {parecidos.length > 0 && (
-              <Card>
-                <p className="mb-2 text-sm font-medium text-app-muted">Pedidos parecidos:</p>
-                <ul className="grid gap-0.5 text-sm">
-                  {parecidos.map(({ pedido, diferencias }) => (
-                    <li
-                      key={pedido.id}
-                      className="flex flex-wrap items-center gap-x-2 rounded-lg px-2 py-1.5 hover:bg-surface-2"
-                    >
-                      <span className="font-mono font-semibold text-app-text">
-                        {pedido.numero_pedido}
-                      </span>
-                      <span className="text-app-muted">·</span>
-                      <span className="text-app-muted">
-                        {resumenMedidas(pedido, familiaNombre)}
-                      </span>
-                      <span className="ml-auto text-xs text-brand">
-                        {diferencias.join(", ")}
-                      </span>
-                    </li>
+        {/* Formulario búsqueda */}
+        <Card className="relative">
+          {hayAlgoDato && (
+            <button
+              onClick={limpiarBusqueda}
+              className="absolute right-3 top-3 flex items-center gap-1 rounded-md px-2 py-1 text-xs text-app-muted transition-colors hover:bg-surface-2 hover:text-app-text"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+              Limpiar
+            </button>
+          )}
+          <div className="grid gap-4">
+            <div>
+              <span className={labelClass}>Cliente</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  className={`${inputClass} flex-1`}
+                  value={clienteId ?? ""}
+                  onChange={(e) => setClienteId(e.target.value || null)}
+                >
+                  <option value="">— Selecciona cliente —</option>
+                  {clientesDeFamilia.map((c) => (
+                    <option key={c.id} value={c.id}>{c.nombre}</option>
                   ))}
-                </ul>
-              </Card>
+                </select>
+                <Button variant="secondary" onClick={() => setModalCliente(true)}>
+                  + Nuevo
+                </Button>
+              </div>
+            </div>
+
+            {familiaNombre && (
+              <CamposTecnicosFamilia
+                familiaNombre={familiaNombre}
+                valores={valores}
+                onChange={setCampo}
+                tiposPuerta={cat.tiposPuerta}
+              />
             )}
           </div>
-        )}
+        </Card>
       </div>
 
-      {/* Registro inline */}
-      {completos && !exacto && clienteId && (
+      {/* ── Columna derecha: resultado + registro ── */}
+      <div className="mt-4 grid gap-4 lg:mt-[3.25rem]">
+
+        {/* Resultado */}
+        <div>
+          {!clienteId || !familiaNombre ? (
+            <Banner tone="neutral">Selecciona cliente e introduce las medidas.</Banner>
+          ) : !completos ? (
+            <Banner tone="neutral">Faltan datos para comprobar coincidencia exacta.</Banner>
+          ) : cargandoPedidos ? (
+            <Banner tone="neutral">Comprobando…</Banner>
+          ) : exacto ? (
+            <div
+              className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/30"
+              style={{ boxShadow: "var(--shadow-sm)" }}
+            >
+              <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+                Ya existe un pedido igual
+              </p>
+              <div className="mt-2 grid gap-1 text-sm">
+                <p className="text-emerald-900 dark:text-emerald-200">
+                  <span className="text-emerald-600 dark:text-emerald-400">Pedido:</span>{" "}
+                  <span className="font-mono text-base font-bold">{exacto.numero_pedido}</span>
+                </p>
+                <p className="text-emerald-900 dark:text-emerald-200">
+                  <span className="text-emerald-600 dark:text-emerald-400">Medidas:</span>{" "}
+                  {resumenMedidas(exacto, familiaNombre)}
+                </p>
+                {familiaNombre === FAMILIA_REMOLQUES ? (
+                  <p className="text-emerald-900 dark:text-emerald-200">
+                    <span className="text-emerald-600 dark:text-emerald-400">Aguas:</span>{" "}
+                    {formatMedidaCm(exacto.aguas)}{" · "}
+                    <span className="text-emerald-600 dark:text-emerald-400">Radio:</span>{" "}
+                    {formatMedidaCm(exacto.radio)}
+                  </p>
+                ) : (
+                  <p className="text-emerald-900 dark:text-emerald-200">
+                    <span className="text-emerald-600 dark:text-emerald-400">Tipo:</span>{" "}
+                    {exacto.tipo ?? "—"}
+                  </p>
+                )}
+              </div>
+              <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-500">
+                Archivo: <span className="font-mono font-medium">{exacto.numero_pedido}.dwg</span>
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-3">
+              <Banner tone="info">No existe ningún pedido exactamente igual.</Banner>
+              {parecidos.length > 0 && (
+                <Card>
+                  <p className="mb-2 text-sm font-medium text-app-muted">Pedidos parecidos:</p>
+                  <ul className="grid gap-0.5 text-sm">
+                    {parecidos.map(({ pedido, diferencias }) => (
+                      <li
+                        key={pedido.id}
+                        className="flex flex-wrap items-center gap-x-2 rounded-lg px-2 py-1.5 hover:bg-surface-2"
+                      >
+                        <span className="font-mono font-semibold text-app-text">
+                          {pedido.numero_pedido}
+                        </span>
+                        <span className="text-app-muted">·</span>
+                        <span className="text-app-muted">
+                          {resumenMedidas(pedido, familiaNombre)}
+                        </span>
+                        <span className="ml-auto text-xs text-brand">
+                          {diferencias.join(", ")}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Registro inline */}
+        {completos && !exacto && clienteId && (
         <Card>
           <p className="mb-3 text-sm font-semibold text-app-text">
             Registrar como nuevo pedido
@@ -356,7 +363,9 @@ export default function BuscadorPage() {
             </Button>
           </div>
         </Card>
-      )}
+        )}
+
+      </div>{/* fin columna derecha */}
 
       {modalCliente && (
         <CrearEntidadModal
