@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Banner, Card, PageTitle, inputClass } from "@/components/ui";
 import { dbService } from "@/lib/db/db-service";
-import { formatMedida, formatMedidaCm } from "@/lib/display";
+import { resumenMedidas, formatMedida, formatMedidaCm } from "@/lib/display";
 import type { PedidoConRelaciones } from "@/lib/types";
 
 type FiltroFamilia = "TODOS" | "REMOLQUES" | "PUERTAS";
@@ -129,12 +129,7 @@ export default function HistoricoPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-app-text">
-                        {esRemolque
-                          ? [p.largo, p.ancho, p.alto].map((v) => formatMedida(v) || "—").join(" × ")
-                          : p.tipo
-                            ? `${p.tipo} — ${[p.ancho, p.alto].map((v) => formatMedida(v) || "—").join(" × ")}`
-                            : [p.ancho, p.alto].map((v) => formatMedida(v) || "—").join(" × ")
-                        }
+                        {resumenMedidas(p, p.familia?.nombre ?? "")}
                       </td>
                       <td className="px-4 py-3 text-xs text-app-muted">
                         {esRemolque

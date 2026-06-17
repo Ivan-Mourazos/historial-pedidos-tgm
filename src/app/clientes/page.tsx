@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Banner, PageTitle, inputClass } from "@/components/ui";
 import { dbService } from "@/lib/db/db-service";
-import { formatMedida } from "@/lib/display";
+import { resumenMedidas } from "@/lib/display";
 import type { Cliente, PedidoConRelaciones } from "@/lib/types";
 
 interface ClienteConPedidos extends Cliente {
@@ -144,12 +144,7 @@ export default function ClientesPage() {
                               </span>
                             </td>
                             <td className="px-4 py-2 text-app-text">
-                              {esRemolque
-                                ? [p.largo, p.ancho, p.alto].map((v) => formatMedida(v) || "—").join(" × ")
-                                : p.tipo
-                                  ? `${p.tipo} — ${[p.ancho, p.alto].map((v) => formatMedida(v) || "—").join(" × ")}`
-                                  : [p.ancho, p.alto].map((v) => formatMedida(v) || "—").join(" × ")
-                              }
+                              {resumenMedidas(p, p.familia?.nombre ?? "")}
                             </td>
                             <td className="px-4 py-2 text-app-muted">{p.fecha ?? "—"}</td>
                           </tr>
