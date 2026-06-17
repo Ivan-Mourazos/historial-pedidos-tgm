@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Banner, PageTitle } from "@/components/ui";
+import { Banner, PageTitle, inputClass } from "@/components/ui";
 import { dbService } from "@/lib/db/db-service";
 import { formatMedida } from "@/lib/display";
 import type { Cliente, PedidoConRelaciones } from "@/lib/types";
@@ -21,6 +21,7 @@ export default function ClientesPage() {
   const [pedidos, setPedidos] = useState<PedidoConRelaciones[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [busqueda, setBusqueda] = useState("");
 
   useEffect(() => {
     setCargando(true);
@@ -41,6 +42,10 @@ export default function ClientesPage() {
       .finally(() => setCargando(false));
   }, []);
 
+  const clientesFiltrados = clientes.filter((c) =>
+    c.nombre.toLowerCase().includes(busqueda.toLowerCase().trim()),
+  );
+
   function toggle(id: string) {
     setClientes((prev) =>
       prev.map((c) => (c.id === id ? { ...c, expandido: !c.expandido } : c)),
@@ -51,16 +56,25 @@ export default function ClientesPage() {
     <div>
       <PageTitle
         title="Clientes"
-        subtitle={`${clientes.length} clientes · ${pedidos.length} pedidos en total`}
+        subtitle={`${clientesFiltrados.length} clientes · ${pedidos.length} pedidos en total`}
       />
 
       {error && <div className="mb-4"><Banner tone="warning">{error}</Banner></div>}
+
+      <div className="mb-4">
+        <input
+          className={`${inputClass} max-w-xs`}
+          placeholder="Buscar cliente…"
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+        />
+      </div>
 
       {cargando ? (
         <p className="text-sm text-app-muted">Cargando…</p>
       ) : (
         <div className="grid gap-1.5">
-          {clientes.map((c) => (
+          {clientesFiltrados.map((c) => (
             <div
               key={c.id}
               className="overflow-hidden rounded-xl border border-[var(--border)] bg-surface"
