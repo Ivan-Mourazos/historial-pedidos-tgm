@@ -15,6 +15,14 @@ const tagClass = {
   PUERTAS:   "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300",
 };
 
+function Th({ children }: { children?: React.ReactNode }) {
+  return (
+    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-app-muted">
+      {children}
+    </th>
+  );
+}
+
 function PencilIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -109,23 +117,27 @@ export default function HistoricoPage() {
           <p className="px-4 py-6 text-sm text-app-muted">No hay pedidos que coincidan.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-sm">
+            <table className="w-full min-w-[580px] text-sm">
               <thead>
                 <tr className="border-b border-[var(--border)]">
-                  {["Nº Pedido", "Cliente", "Familia", "Medidas", "Aguas", "Radio", "Fecha", ""].map((h, i) => (
-                    <th
-                      key={i}
-                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-app-muted"
-                    >
-                      {h}
-                    </th>
-                  ))}
+                  {/* Columnas fijas */}
+                  <Th>Nº Pedido</Th>
+                  <Th>Cliente</Th>
+                  {/* Columnas según familia */}
+                  {familia === "TODOS" && <Th>Familia</Th>}
+                  {familia === "PUERTAS" && <Th>Tipo</Th>}
+                  <Th>Medidas</Th>
+                  {familia !== "PUERTAS" && <Th>Aguas</Th>}
+                  {familia !== "PUERTAS" && <Th>Radio</Th>}
+                  <Th>Fecha</Th>
+                  <th />
                 </tr>
               </thead>
               <tbody>
                 {filtrados.map((p, i) => {
-                  const esRemolque = p.familia?.nombre === "REMOLQUES";
-                  const tag = tagClass[(p.familia?.nombre as keyof typeof tagClass)] ?? tagClass.REMOLQUES;
+                  const fNombre = p.familia?.nombre ?? "";
+                  const esRemolque = fNombre === "REMOLQUES";
+                  const tag = tagClass[(fNombre as keyof typeof tagClass)] ?? tagClass.REMOLQUES;
                   return (
                     <tr
                       key={p.id}
@@ -137,20 +149,37 @@ export default function HistoricoPage() {
                         {p.numero_pedido}
                       </td>
                       <td className="px-4 py-3 text-app-text">{p.cliente?.nombre ?? "—"}</td>
-                      <td className="px-4 py-3">
-                        <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${tag}`}>
-                          {p.familia?.nombre ?? "—"}
-                        </span>
-                      </td>
+
+                      {familia === "TODOS" && (
+                        <td className="px-4 py-3">
+                          <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${tag}`}>
+                            {fNombre || "—"}
+                          </span>
+                        </td>
+                      )}
+
+                      {familia === "PUERTAS" && (
+                        <td className="px-4 py-3 text-app-muted">{p.tipo ?? "—"}</td>
+                      )}
+
                       <td className="px-4 py-3 text-app-text">
-                        {resumenMedidas(p, p.familia?.nombre ?? "")}
+                        {familia === "PUERTAS"
+                          ? [p.ancho, p.alto].map((v) => formatMedida(v) || "—").join(" × ")
+                          : resumenMedidas(p, fNombre)
+                        }
                       </td>
-                      <td className="px-4 py-3 text-app-muted">
-                        {esRemolque ? (formatMedida(p.aguas) || "—") : "—"}
-                      </td>
-                      <td className="px-4 py-3 text-app-muted">
-                        {esRemolque ? (formatMedida(p.radio) || "—") : "—"}
-                      </td>
+
+                      {familia !== "PUERTAS" && (
+                        <td className="px-4 py-3 text-app-muted">
+                          {esRemolque ? (formatMedida(p.aguas) || "—") : "—"}
+                        </td>
+                      )}
+                      {familia !== "PUERTAS" && (
+                        <td className="px-4 py-3 text-app-muted">
+                          {esRemolque ? (formatMedida(p.radio) || "—") : "—"}
+                        </td>
+                      )}
+
                       <td className="px-4 py-3 text-app-muted">{p.fecha ?? "—"}</td>
                       <td className="px-3 py-3">
                         <button
