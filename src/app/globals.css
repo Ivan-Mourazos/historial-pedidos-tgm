@@ -1,18 +1,112 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
+/* Dark mode: aplica cuando el elemento (o un ancestro) tiene clase .dark */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── Paleta Light ─────────────────────────────────────── */
 :root {
-  --background: #f1f5f9;
-  --foreground: #0f172a;
+  --brand:          #f37021;
+  --brand-hover:    #e06010;
+  --brand-glow:     rgba(243, 112, 33, 0.16);
+
+  --bg:             #f8fafc;
+  --surface:        #ffffff;
+  --surface-2:      #f1f5f9;
+  --input-bg:       #f1f5f9;
+
+  --text:           #1e293b;
+  --text-2:         #475569;
+
+  --border:         #e2e8f0;
+  --border-strong:  #cbd5e1;
+
+  --shadow-sm:  0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md:  0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg:  0 10px 15px -3px rgb(0 0 0 / 0.1);
+
+  color-scheme: light dark;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: Arial, Helvetica, sans-serif;
-  --font-mono: "Cascadia Mono", Consolas, monospace;
+/* ── Paleta Dark (mismo sistema que RPS / Toldos Gómez) ── */
+.dark {
+  --brand:          #ff9349;
+  --brand-hover:    #ff7a28;
+  --brand-glow:     rgba(255, 147, 73, 0.35);
+
+  --bg:             #050608;
+  --surface:        #12161f;
+  --surface-2:      #1c2433;
+  --input-bg:       #1a2130;
+
+  --text:           #f3f5f9;
+  --text-2:         #94a3b8;
+
+  --border:         rgba(148, 163, 184, 0.14);
+  --border-strong:  rgba(148, 163, 184, 0.26);
+
+  --highlight:      rgba(255, 255, 255, 0.09);
+
+  --shadow-sm:
+    inset 0 1px 0 var(--highlight),
+    0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md:
+    inset 0 1px 0 var(--highlight),
+    0 2px 4px rgba(0, 0, 0, 0.35),
+    0 8px 20px -6px rgba(0, 0, 0, 0.55);
+  --shadow-lg:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 4px 8px rgba(0, 0, 0, 0.4),
+    0 20px 48px -12px rgba(0, 0, 0, 0.7);
+
+  color-scheme: dark;
 }
+
+/* ── Tailwind tokens (accesibles como bg-surface, text-app-text, etc.) ── */
+@theme inline {
+  --color-brand:      var(--brand);
+  --color-surface:    var(--surface);
+  --color-surface-2:  var(--surface-2);
+  --color-app-bg:     var(--bg);
+  --color-app-text:   var(--text);
+  --color-app-muted:  var(--text-2);
+  --color-app-border: var(--border);
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Cascadia Mono', 'JetBrains Mono', Consolas, monospace;
+}
+
+/* ── Base ─────────────────────────────────────────────── */
+* { box-sizing: border-box; }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
+
+/* ── Ambiente oscuro (gradiente + grano, igual que RPS) ── */
+.dark body {
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(ellipse 100% 60% at 50% -18%, rgba(255, 147, 73, 0.10), transparent 52%),
+    radial-gradient(ellipse 45% 35% at 100% 0%, rgba(99, 102, 241, 0.05), transparent 45%),
+    linear-gradient(180deg, #0c0e14 0%, #050608 55%, #030405 100%);
+}
+
+.dark body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ── Scrollbar ─────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--brand); }

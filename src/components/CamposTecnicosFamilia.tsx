@@ -1,14 +1,9 @@
 "use client";
 
-import {
-  FAMILIA_PUERTAS,
-  FAMILIA_REMOLQUES,
-  type TipoPuerta,
-} from "@/lib/types";
+import { FAMILIA_PUERTAS, FAMILIA_REMOLQUES, type TipoPuerta } from "@/lib/types";
 import { esMedidaValida } from "@/lib/normalize";
 import { Field, inputClass } from "./ui";
 
-// Estado de los campos técnicos como texto (admite coma decimal).
 export interface CamposTecnicosValores {
   largo: string;
   ancho: string;
@@ -38,11 +33,11 @@ function MedidaInput({
   onChange: (v: string) => void;
   hint?: string;
 }) {
-  const invalido = !esMedidaValida(value);
+  const invalido = value !== "" && !esMedidaValida(value);
   return (
     <Field label={label} hint={hint}>
       <input
-        className={`${inputClass} ${invalido ? "border-red-400" : ""}`}
+        className={`${inputClass} ${invalido ? "!border-red-500 !focus:ring-red-500/20" : ""}`}
         inputMode="decimal"
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -66,32 +61,20 @@ export function CamposTecnicosFamilia({
   if (familiaNombre === FAMILIA_REMOLQUES) {
     return (
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <MedidaInput
-          label="Largo"
-          value={valores.largo}
-          onChange={(v) => onChange("largo", v)}
-        />
-        <MedidaInput
-          label="Ancho"
-          value={valores.ancho}
-          onChange={(v) => onChange("ancho", v)}
-        />
-        <MedidaInput
-          label="Altura"
-          value={valores.alto}
-          onChange={(v) => onChange("alto", v)}
-        />
+        <MedidaInput label="Largo" value={valores.largo} onChange={(v) => onChange("largo", v)} />
+        <MedidaInput label="Ancho" value={valores.ancho} onChange={(v) => onChange("ancho", v)} />
+        <MedidaInput label="Altura" value={valores.alto} onChange={(v) => onChange("alto", v)} />
         <MedidaInput
           label="Aguas (cm)"
           value={valores.aguas}
           onChange={(v) => onChange("aguas", v)}
-          hint="Opcional. Vacío solo coincide con vacío."
+          hint="Opcional — vacío solo coincide con vacío"
         />
         <MedidaInput
           label="Radio"
           value={valores.radio}
           onChange={(v) => onChange("radio", v)}
-          hint="Opcional. Vacío solo coincide con vacío."
+          hint="Opcional — vacío solo coincide con vacío"
         />
       </div>
     );
@@ -108,22 +91,12 @@ export function CamposTecnicosFamilia({
           >
             <option value="">— Selecciona tipo —</option>
             {tiposPuerta.map((t) => (
-              <option key={t.id} value={t.nombre}>
-                {t.nombre}
-              </option>
+              <option key={t.id} value={t.nombre}>{t.nombre}</option>
             ))}
           </select>
         </Field>
-        <MedidaInput
-          label="Ancho"
-          value={valores.ancho}
-          onChange={(v) => onChange("ancho", v)}
-        />
-        <MedidaInput
-          label="Alto"
-          value={valores.alto}
-          onChange={(v) => onChange("alto", v)}
-        />
+        <MedidaInput label="Ancho" value={valores.ancho} onChange={(v) => onChange("ancho", v)} />
+        <MedidaInput label="Alto" value={valores.alto} onChange={(v) => onChange("alto", v)} />
       </div>
     );
   }

@@ -34,11 +34,23 @@ export function CrearEntidadModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-sm rounded-lg bg-white p-5 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+      <div
+        className="w-full max-w-sm rounded-xl border border-[var(--border-strong)] bg-surface p-5"
+        style={{ boxShadow: "var(--shadow-lg)" }}
+      >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-slate-900">{titulo}</h2>
-          <button className="text-slate-400 hover:text-slate-700" onClick={onCerrar}>✕</button>
+          <h2 className="text-base font-semibold text-app-text">{titulo}</h2>
+          <button
+            className="rounded-md p-1 text-app-muted transition-colors hover:bg-surface-2 hover:text-app-text"
+            onClick={onCerrar}
+            aria-label="Cerrar"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
         {error && <div className="mb-3"><Banner tone="warning">{error}</Banner></div>}
         <Field label={etiqueta}>

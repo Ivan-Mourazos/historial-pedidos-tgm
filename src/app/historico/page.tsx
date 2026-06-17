@@ -8,6 +8,11 @@ import type { PedidoConRelaciones } from "@/lib/types";
 
 type FiltroFamilia = "TODOS" | "REMOLQUES" | "PUERTAS";
 
+const tagClass = {
+  REMOLQUES: "bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300",
+  PUERTAS:   "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300",
+};
+
 export default function HistoricoPage() {
   const [pedidos, setPedidos] = useState<PedidoConRelaciones[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -29,46 +34,45 @@ export default function HistoricoPage() {
       .filter((p) => {
         if (familia !== "TODOS" && p.familia?.nombre !== familia) return false;
         if (texto) {
-          const haystack = [
-            p.numero_pedido,
-            p.cliente?.nombre,
-            p.tipo,
-            String(p.largo ?? ""),
-            String(p.ancho ?? ""),
-            String(p.alto ?? ""),
-          ].join(" ").toLowerCase();
-          if (!haystack.includes(texto)) return false;
+          const hay = [p.numero_pedido, p.cliente?.nombre, p.tipo,
+            String(p.largo ?? ""), String(p.ancho ?? ""), String(p.alto ?? "")]
+            .join(" ").toLowerCase();
+          if (!hay.includes(texto)) return false;
         }
         return true;
       })
       .sort((a, b) => a.numero_pedido.localeCompare(b.numero_pedido));
   }, [pedidos, familia, busqueda]);
 
-  const tabs: FiltroFamilia[] = ["TODOS", "REMOLQUES", "PUERTAS"];
+  const tabs: { key: FiltroFamilia; label: string }[] = [
+    { key: "TODOS", label: "Todos" },
+    { key: "REMOLQUES", label: "Remolques" },
+    { key: "PUERTAS", label: "Puertas" },
+  ];
 
   return (
     <div>
-      <PageTitle
-        title="Histórico de pedidos"
-        subtitle={`${filtrados.length} pedidos`}
-      />
+      <PageTitle title="Histórico de pedidos" subtitle={`${filtrados.length} pedidos`} />
 
       {error && <div className="mb-4"><Banner tone="warning">{error}</Banner></div>}
 
       {/* Filtros */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="flex gap-1">
+        <div
+          className="flex rounded-lg border border-[var(--border-strong)] bg-surface p-0.5"
+          style={{ boxShadow: "var(--shadow-sm)" }}
+        >
           {tabs.map((t) => (
             <button
-              key={t}
-              onClick={() => setFamilia(t)}
+              key={t.key}
+              onClick={() => setFamilia(t.key)}
               className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                familia === t
-                  ? "bg-slate-900 text-white"
-                  : "border border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                familia === t.key
+                  ? "bg-brand text-white shadow-sm"
+                  : "text-app-muted hover:text-app-text"
               }`}
             >
-              {t === "TODOS" ? "Todos" : t.charAt(0) + t.slice(1).toLowerCase()}
+              {t.label}
             </button>
           ))}
         </div>
@@ -80,66 +84,76 @@ export default function HistoricoPage() {
         />
       </div>
 
-      <Card className="overflow-x-auto">
+      {/* Tabla */}
+      <div
+        className="overflow-hidden rounded-xl border border-[var(--border)] bg-surface"
+        style={{ boxShadow: "var(--shadow-sm)" }}
+      >
         {cargando ? (
-          <p className="text-sm text-slate-500">Cargando…</p>
+          <p className="px-4 py-6 text-sm text-app-muted">Cargando…</p>
         ) : filtrados.length === 0 ? (
-          <p className="text-sm text-slate-500">No hay pedidos que coincidan.</p>
+          <p className="px-4 py-6 text-sm text-app-muted">No hay pedidos que coincidan.</p>
         ) : (
-          <table className="w-full min-w-[640px] text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-400">
-                <th className="py-2 pr-4 font-medium">Nº Pedido</th>
-                <th className="py-2 pr-4 font-medium">Cliente</th>
-                <th className="py-2 pr-4 font-medium">Familia</th>
-                <th className="py-2 pr-4 font-medium">Medidas</th>
-                <th className="py-2 pr-4 font-medium">Aguas / Radio</th>
-                <th className="py-2 font-medium">Fecha</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtrados.map((p) => {
-                const esRemolque = p.familia?.nombre === "REMOLQUES";
-                return (
-                  <tr key={p.id} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="py-2 pr-4 font-mono font-semibold text-slate-900">
-                      {p.numero_pedido}
-                    </td>
-                    <td className="py-2 pr-4 text-slate-700">{p.cliente?.nombre ?? "—"}</td>
-                    <td className="py-2 pr-4">
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        esRemolque
-                          ? "bg-blue-100 text-blue-800"
-                          : "bg-amber-100 text-amber-800"
-                      }`}>
-                        {p.familia?.nombre ?? "—"}
-                      </span>
-                    </td>
-                    <td className="py-2 pr-4 text-slate-700">
-                      {esRemolque
-                        ? [p.largo, p.ancho, p.alto].map((v) => formatMedida(v) || "—").join(" × ")
-                        : p.tipo
-                          ? `${p.tipo} — ${[p.ancho, p.alto].map((v) => formatMedida(v) || "—").join(" × ")}`
-                          : [p.ancho, p.alto].map((v) => formatMedida(v) || "—").join(" × ")
-                      }
-                    </td>
-                    <td className="py-2 pr-4 text-slate-500 text-xs">
-                      {esRemolque
-                        ? [
-                            p.aguas !== null ? `Aguas ${formatMedidaCm(p.aguas)}` : null,
-                            p.radio !== null ? `Radio ${formatMedida(p.radio)}` : null,
-                          ].filter(Boolean).join(" · ") || "—"
-                        : "—"
-                      }
-                    </td>
-                    <td className="py-2 text-slate-500">{p.fecha ?? "—"}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-sm">
+              <thead>
+                <tr className="border-b border-[var(--border)]">
+                  {["Nº Pedido", "Cliente", "Familia", "Medidas", "Aguas / Radio", "Fecha"].map((h) => (
+                    <th
+                      key={h}
+                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-app-muted"
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtrados.map((p, i) => {
+                  const esRemolque = p.familia?.nombre === "REMOLQUES";
+                  const tag = tagClass[(p.familia?.nombre as keyof typeof tagClass)] ?? tagClass.REMOLQUES;
+                  return (
+                    <tr
+                      key={p.id}
+                      className={`border-b border-[var(--border)] transition-colors hover:bg-surface-2 ${
+                        i === filtrados.length - 1 ? "border-b-0" : ""
+                      }`}
+                    >
+                      <td className="px-4 py-3 font-mono text-sm font-semibold text-app-text">
+                        {p.numero_pedido}
+                      </td>
+                      <td className="px-4 py-3 text-app-text">{p.cliente?.nombre ?? "—"}</td>
+                      <td className="px-4 py-3">
+                        <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${tag}`}>
+                          {p.familia?.nombre ?? "—"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-app-text">
+                        {esRemolque
+                          ? [p.largo, p.ancho, p.alto].map((v) => formatMedida(v) || "—").join(" × ")
+                          : p.tipo
+                            ? `${p.tipo} — ${[p.ancho, p.alto].map((v) => formatMedida(v) || "—").join(" × ")}`
+                            : [p.ancho, p.alto].map((v) => formatMedida(v) || "—").join(" × ")
+                        }
+                      </td>
+                      <td className="px-4 py-3 text-xs text-app-muted">
+                        {esRemolque
+                          ? [
+                              p.aguas !== null ? `A ${formatMedidaCm(p.aguas)}` : null,
+                              p.radio !== null ? `R ${formatMedida(p.radio)}` : null,
+                            ].filter(Boolean).join(" · ") || "—"
+                          : "—"
+                        }
+                      </td>
+                      <td className="px-4 py-3 text-app-muted">{p.fecha ?? "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
-      </Card>
+      </div>
     </div>
   );
 }

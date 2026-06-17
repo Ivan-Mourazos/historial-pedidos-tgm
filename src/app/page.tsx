@@ -27,7 +27,6 @@ import { useCatalogos } from "@/lib/useCatalogos";
 export default function BuscadorPage() {
   const cat = useCatalogos();
 
-  // ── Búsqueda ──────────────────────────────────────────────────────────────
   const [familiaId, setFamiliaId] = useState<string>("");
   const [clienteId, setClienteId] = useState<string | null>(null);
   const [valores, setValores] = useState<CamposTecnicosValores>(camposTecnicosVacios);
@@ -35,7 +34,6 @@ export default function BuscadorPage() {
   const [cargandoPedidos, setCargandoPedidos] = useState(false);
   const [clienteIdsDeFamilia, setClienteIdsDeFamilia] = useState<string[]>([]);
 
-  // ── Registro inline ───────────────────────────────────────────────────────
   const [numero, setNumero] = useState("");
   const [fecha, setFecha] = useState("");
   const [tecnicoId, setTecnicoId] = useState("");
@@ -45,24 +43,21 @@ export default function BuscadorPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [confirmarNumero, setConfirmarNumero] = useState(false);
 
-  // ── Modales ───────────────────────────────────────────────────────────────
   const [modalCliente, setModalCliente] = useState(false);
   const [modalTecnico, setModalTecnico] = useState(false);
 
   const familia = cat.familias.find((f) => f.id === familiaId);
   const familiaNombre = familia?.nombre ?? "";
 
-  // Solo clientes que tienen pedidos en la familia seleccionada
-  const clientesDeFamilia = clienteIdsDeFamilia.length > 0
-    ? cat.clientes.filter((c) => clienteIdsDeFamilia.includes(c.id))
-    : cat.clientes;
+  const clientesDeFamilia =
+    clienteIdsDeFamilia.length > 0
+      ? cat.clientes.filter((c) => clienteIdsDeFamilia.includes(c.id))
+      : cat.clientes;
 
-  // Primera familia por defecto
   useEffect(() => {
     if (!familiaId && cat.familias.length > 0) setFamiliaId(cat.familias[0].id);
   }, [cat.familias, familiaId]);
 
-  // Resetear y cargar clientes de la familia al cambiar familia
   useEffect(() => {
     setValores(camposTecnicosVacios);
     setClienteId(null);
@@ -71,7 +66,6 @@ export default function BuscadorPage() {
     dbService.getClienteIdsDeFamilia(familiaId).then(setClienteIdsDeFamilia);
   }, [familiaId]);
 
-  // Cargar pedidos del cliente+familia para comparar
   useEffect(() => {
     if (!clienteId || !familiaId) { setPedidos([]); return; }
     let activo = true;
@@ -89,11 +83,11 @@ export default function BuscadorPage() {
   );
   const completos = camposRequeridosCompletos(criterios);
   const exacto = useMemo(
-    () => completos ? pedidos.find((p) => esCoincidenciaExacta(p, criterios)) ?? null : null,
+    () => (completos ? pedidos.find((p) => esCoincidenciaExacta(p, criterios)) ?? null : null),
     [completos, pedidos, criterios],
   );
   const parecidos = useMemo(
-    () => exacto ? [] : buscarParecidos(pedidos, criterios),
+    () => (exacto ? [] : buscarParecidos(pedidos, criterios)),
     [exacto, pedidos, criterios],
   );
 
@@ -103,7 +97,6 @@ export default function BuscadorPage() {
     setValores((v) => ({ ...v, [campo]: valor }));
   }
 
-  // ── Guardar pedido ─────────────────────────────────────────────────────────
   async function guardar() {
     setErrorMsg(null);
     setOkMsg(null);
@@ -144,24 +137,20 @@ export default function BuscadorPage() {
     }
   }
 
-  const puedeGuardar =
-    numero.trim() !== "" && !!clienteId && !!familiaId && completos && !guardando;
-
-  const clienteActual = cat.clientes.find((c) => c.id === clienteId);
-  const tecnicoActual = cat.tecnicos.find((t) => t.id === tecnicoId);
+  const puedeGuardar = numero.trim() !== "" && !!clienteId && !!familiaId && completos && !guardando;
 
   return (
-    <div className="max-w-2xl mx-auto">
-      {/* ── Cabecera familia ── */}
+    <div className="mx-auto max-w-2xl">
+      {/* Selector de familia */}
       <div className="mb-4 flex gap-2">
         {cat.familias.map((f) => (
           <button
             key={f.id}
             onClick={() => setFamiliaId(f.id)}
-            className={`rounded-md px-4 py-2 text-sm font-semibold transition-colors ${
+            className={`rounded-lg px-4 py-2 text-sm font-semibold tracking-wide transition-all ${
               familiaId === f.id
-                ? "bg-slate-900 text-white"
-                : "border border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                ? "bg-brand text-white shadow-sm"
+                : "border border-[var(--border-strong)] bg-surface text-app-muted hover:bg-surface-2 hover:text-app-text"
             }`}
           >
             {f.nombre}
@@ -169,9 +158,9 @@ export default function BuscadorPage() {
         ))}
       </div>
 
+      {/* Formulario búsqueda */}
       <Card className="mb-4">
         <div className="grid gap-4">
-          {/* Cliente */}
           <div>
             <span className={labelClass}>Cliente</span>
             <div className="flex flex-wrap items-center gap-2">
@@ -191,7 +180,6 @@ export default function BuscadorPage() {
             </div>
           </div>
 
-          {/* Campos técnicos */}
           {familiaNombre && (
             <CamposTecnicosFamilia
               familiaNombre={familiaNombre}
@@ -203,7 +191,7 @@ export default function BuscadorPage() {
         </div>
       </Card>
 
-      {/* ── Resultado búsqueda ── */}
+      {/* Resultado */}
       <div className="mb-4">
         {!clienteId || !familiaNombre ? (
           <Banner tone="neutral">Selecciona cliente e introduce las medidas.</Banner>
@@ -212,44 +200,62 @@ export default function BuscadorPage() {
         ) : cargandoPedidos ? (
           <Banner tone="neutral">Comprobando…</Banner>
         ) : exacto ? (
-          <Card className="border-green-300 bg-green-50">
-            <p className="text-base font-semibold text-green-800">Ya existe un pedido igual</p>
-            <div className="mt-2 grid gap-1 text-sm text-green-900">
-              <p>
-                <span className="font-medium">Pedido:</span>{" "}
+          <div
+            className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/30"
+            style={{ boxShadow: "var(--shadow-sm)" }}
+          >
+            <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+              Ya existe un pedido igual
+            </p>
+            <div className="mt-2 grid gap-1 text-sm">
+              <p className="text-emerald-900 dark:text-emerald-200">
+                <span className="text-emerald-600 dark:text-emerald-400">Pedido:</span>{" "}
                 <span className="font-mono text-base font-bold">{exacto.numero_pedido}</span>
               </p>
-              <p>
-                <span className="font-medium">Medidas:</span>{" "}
+              <p className="text-emerald-900 dark:text-emerald-200">
+                <span className="text-emerald-600 dark:text-emerald-400">Medidas:</span>{" "}
                 {resumenMedidas(exacto, familiaNombre)}
               </p>
               {familiaNombre === FAMILIA_REMOLQUES ? (
-                <p>
-                  <span className="font-medium">Aguas:</span> {formatMedidaCm(exacto.aguas)}
-                  {" · "}
-                  <span className="font-medium">Radio:</span> {formatMedidaCm(exacto.radio)}
+                <p className="text-emerald-900 dark:text-emerald-200">
+                  <span className="text-emerald-600 dark:text-emerald-400">Aguas:</span>{" "}
+                  {formatMedidaCm(exacto.aguas)}{" · "}
+                  <span className="text-emerald-600 dark:text-emerald-400">Radio:</span>{" "}
+                  {formatMedidaCm(exacto.radio)}
                 </p>
               ) : (
-                <p><span className="font-medium">Tipo:</span> {exacto.tipo ?? "—"}</p>
+                <p className="text-emerald-900 dark:text-emerald-200">
+                  <span className="text-emerald-600 dark:text-emerald-400">Tipo:</span>{" "}
+                  {exacto.tipo ?? "—"}
+                </p>
               )}
             </div>
-            <p className="mt-2 text-xs text-green-700">
-              Archivo: <span className="font-mono">{exacto.numero_pedido}.dwg</span>
+            <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-500">
+              Archivo: <span className="font-mono font-medium">{exacto.numero_pedido}.dwg</span>
             </p>
-          </Card>
+          </div>
         ) : (
           <div className="grid gap-3">
             <Banner tone="info">No existe ningún pedido exactamente igual.</Banner>
             {parecidos.length > 0 && (
               <Card>
-                <p className="mb-2 text-sm font-medium text-slate-600">Pedidos parecidos para revisar:</p>
-                <ul className="grid gap-1 text-sm">
+                <p className="mb-2 text-sm font-medium text-app-muted">Pedidos parecidos:</p>
+                <ul className="grid gap-0.5 text-sm">
                   {parecidos.map(({ pedido, diferencias }) => (
-                    <li key={pedido.id} className="flex flex-wrap items-center gap-x-2 border-b border-slate-100 py-1 last:border-0">
-                      <span className="font-mono text-slate-900">{pedido.numero_pedido}</span>
-                      <span className="text-slate-400">—</span>
-                      <span className="text-slate-700">{resumenMedidas(pedido, familiaNombre)}</span>
-                      <span className="text-amber-700 text-xs">({diferencias.join(", ")})</span>
+                    <li
+                      key={pedido.id}
+                      className="flex flex-wrap items-center gap-x-2 rounded-lg px-2 py-1.5 hover:bg-surface-2"
+                    >
+                      <span className="font-mono font-semibold text-app-text">
+                        {pedido.numero_pedido}
+                      </span>
+                      <span className="text-app-muted">·</span>
+                      <span className="text-app-muted">
+                        {resumenMedidas(pedido, familiaNombre)}
+                      </span>
+                      <span className="ml-auto text-xs text-brand">
+                        {diferencias.join(", ")}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -259,10 +265,12 @@ export default function BuscadorPage() {
         )}
       </div>
 
-      {/* ── Registro inline (solo si los campos están completos y no hay exacto) ── */}
+      {/* Registro inline */}
       {completos && !exacto && clienteId && (
-        <Card className="border-slate-300">
-          <p className="mb-3 text-sm font-semibold text-slate-700">Registrar como nuevo pedido</p>
+        <Card>
+          <p className="mb-3 text-sm font-semibold text-app-text">
+            Registrar como nuevo pedido
+          </p>
 
           {okMsg && <div className="mb-3"><Banner tone="success">{okMsg}</Banner></div>}
           {errorMsg && <div className="mb-3"><Banner tone="warning">{errorMsg}</Banner></div>}
@@ -273,9 +281,13 @@ export default function BuscadorPage() {
               hint={!formatoNumeroOk ? AVISO_FORMATO_PEDIDO : "Ej. AR2600000"}
             >
               <input
-                className={`${inputClass} font-mono ${!formatoNumeroOk ? "border-amber-400" : ""}`}
+                className={`${inputClass} font-mono ${!formatoNumeroOk ? "!border-amber-500" : ""}`}
                 value={numero}
-                onChange={(e) => { setNumero(e.target.value.toUpperCase()); setConfirmarNumero(false); setErrorMsg(null); }}
+                onChange={(e) => {
+                  setNumero(e.target.value.toUpperCase());
+                  setConfirmarNumero(false);
+                  setErrorMsg(null);
+                }}
                 placeholder="AR2600000"
               />
             </Field>
@@ -324,7 +336,6 @@ export default function BuscadorPage() {
         </Card>
       )}
 
-      {/* ── Modales ── */}
       {modalCliente && (
         <CrearEntidadModal
           titulo="Nuevo cliente"

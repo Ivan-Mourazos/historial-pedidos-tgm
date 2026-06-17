@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+// Usando tokens CSS de globals.css (--surface, --border, etc.) para sincronía con RPS
+
 export function Card({
   children,
   className = "",
@@ -9,7 +11,7 @@ export function Card({
 }) {
   return (
     <div
-      className={`rounded-lg border border-slate-200 bg-white p-4 shadow-sm ${className}`}
+      className={`rounded-xl border bg-surface p-4 border-[var(--border)] shadow-[var(--shadow-sm)] ${className}`}
     >
       {children}
     </div>
@@ -26,11 +28,11 @@ export function PageTitle({
   actions?: ReactNode;
 }) {
   return (
-    <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">{title}</h1>
+        <h1 className="text-xl font-semibold tracking-tight text-app-text">{title}</h1>
         {subtitle && (
-          <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p>
+          <p className="mt-0.5 text-sm text-app-muted">{subtitle}</p>
         )}
       </div>
       {actions}
@@ -39,10 +41,10 @@ export function PageTitle({
 }
 
 export const inputClass =
-  "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500";
+  "w-full rounded-lg border border-[var(--border-strong)] bg-[var(--input-bg)] px-3 py-2 text-sm text-app-text outline-none transition-colors placeholder:text-app-muted focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand-glow)]";
 
 export const labelClass =
-  "mb-1 block text-sm font-medium text-slate-700";
+  "mb-1.5 block text-sm font-medium text-app-text";
 
 export function Field({
   label,
@@ -57,7 +59,9 @@ export function Field({
     <label className="block">
       <span className={labelClass}>{label}</span>
       {children}
-      {hint && <span className="mt-1 block text-xs text-slate-400">{hint}</span>}
+      {hint && (
+        <span className="mt-1 block text-xs text-app-muted">{hint}</span>
+      )}
     </label>
   );
 }
@@ -75,15 +79,17 @@ export function Button({
   variant?: ButtonVariant;
 } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   const variants: Record<ButtonVariant, string> = {
-    primary: "bg-slate-900 text-white hover:bg-slate-700",
+    primary:
+      "bg-brand text-white shadow-sm hover:bg-[var(--brand-hover)] active:scale-[0.98]",
     secondary:
-      "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100",
-    danger: "bg-red-600 text-white hover:bg-red-500",
+      "border border-[var(--border-strong)] bg-surface-2 text-app-text shadow-sm hover:bg-[var(--border)] active:scale-[0.98]",
+    danger:
+      "bg-red-600 text-white shadow-sm hover:bg-red-500 active:scale-[0.98]",
   };
   return (
     <button
       type={type}
-      className={`inline-flex items-center justify-center rounded-md px-3.5 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant]} ${className}`}
+      className={`inline-flex items-center justify-center rounded-lg px-3.5 py-2 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant]} ${className}`}
       {...props}
     >
       {children}
@@ -101,13 +107,13 @@ export function Banner({
   children: ReactNode;
 }) {
   const tones: Record<BannerTone, string> = {
-    info: "border-blue-200 bg-blue-50 text-blue-800",
-    success: "border-green-200 bg-green-50 text-green-800",
-    warning: "border-amber-200 bg-amber-50 text-amber-900",
-    neutral: "border-slate-200 bg-slate-50 text-slate-700",
+    info:    "border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300",
+    success: "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300",
+    warning: "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300",
+    neutral: "border-[var(--border-strong)] bg-surface-2 text-app-muted",
   };
   return (
-    <div className={`rounded-md border px-4 py-3 text-sm ${tones[tone]}`}>
+    <div className={`rounded-lg border px-4 py-3 text-sm ${tones[tone]}`}>
       {children}
     </div>
   );
