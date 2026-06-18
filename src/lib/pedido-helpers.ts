@@ -36,7 +36,7 @@ export function camposTecnicosParaGuardar(
 } {
   if (familiaNombre === FAMILIA_REMOLQUES) {
     return {
-      tipo: null,
+      tipo: valores.tipo.trim() === "" ? null : valores.tipo.trim(),
       largo: parseMedida(valores.largo),
       ancho: parseMedida(valores.ancho),
       alto: parseMedida(valores.alto),

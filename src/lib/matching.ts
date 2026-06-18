@@ -36,20 +36,15 @@ function tipoNormalizado(t: string | null): string {
   return (t ?? "").trim().toLowerCase();
 }
 
-// ¿Están completos todos los campos requeridos para comprobar coincidencia exacta?
-// Nota: en remolques, aguas/radio vacío es un valor válido (no "incompleto"),
-// por eso NO se exigen rellenos.
+// ¿Están completos los campos mínimos para buscar?
+// Aguas/radio son siempre opcionales. No requiere cliente.
 export function camposRequeridosCompletos(c: CriteriosBusqueda): boolean {
-  if (!c.clienteId) return false;
-
   if (c.familiaNombre === FAMILIA_REMOLQUES) {
     return c.largo !== null && c.ancho !== null && c.alto !== null;
   }
 
   if (c.familiaNombre === FAMILIA_PUERTAS) {
-    return (
-      tipoNormalizado(c.tipo) !== "" && c.ancho !== null && c.alto !== null
-    );
+    return tipoNormalizado(c.tipo) !== "" && c.ancho !== null && c.alto !== null;
   }
 
   return false;
@@ -98,20 +93,18 @@ function dentroDeTolerancia(
   return Math.abs(a - b) <= TOLERANCIA_CM;
 }
 
-// Pedidos parecidos: mismo cliente + misma familia, medidas dentro de ±1 cm.
-// Devuelve también la lista de campos que difieren para mostrar al usuario.
-// Excluye los que ya son coincidencia exacta.
+// Pedidos parecidos: misma familia, medidas principales dentro de ±1 cm.
+// Si hay clienteId filtra por ese cliente; si no, busca en todos.
+// Aguas/radio solo se comparan si el usuario los rellenó.
 export function buscarParecidos(
   pedidos: Pedido[],
   c: CriteriosBusqueda,
 ): PedidoParecido[] {
-  if (!c.clienteId) return [];
-
   const resultado: PedidoParecido[] = [];
 
   for (const p of pedidos) {
-    if (p.cliente_id !== c.clienteId) continue;
-    if (esCoincidenciaExacta(p, c)) continue;
+    if (c.clienteId && p.cliente_id !== c.clienteId) continue;
+    if (c.clienteId && esCoincidenciaExacta(p, c)) continue;
 
     const diferencias: string[] = [];
 
@@ -120,29 +113,94 @@ export function buscarParecidos(
       if (!dentroDeTolerancia(p.ancho, c.ancho)) continue;
       if (!dentroDeTolerancia(p.alto, c.alto)) continue;
 
-      if (!igualMedida(p.largo, c.largo)) diferencias.push("largo diferente");
-      if (!igualMedida(p.ancho, c.ancho)) diferencias.push("ancho diferente");
-      if (!igualMedida(p.alto, c.alto)) diferencias.push("altura diferente");
-      if (!igualMedida(p.aguas, c.aguas)) diferencias.push("aguas diferente");
-      if (!igualMedida(p.radio, c.radio)) diferencias.push("radio diferente");
+      if (!igualMedida(p.largo, c.largo)) diferencias.push("largo");
+      if (!igualMedida(p.ancho, c.ancho)) diferencias.push("ancho");
+      if (!igualMedida(p.alto, c.alto)) diferencias.push("alto");
+      // Aguas/radio: si el usuario los especificó, excluir registros sin ese campo y filtrar por tolerancia
+      if (c.aguas !== null) {
+        if (p.aguas === null) continue;
+        if (!dentroDeTolerancia(p.aguas, c.aguas)) continue;
+        if (!igualMedida(p.aguas, c.aguas)) diferencias.push("aguas");
+      }
+      if (c.radio !== null) {
+        if (p.radio === null) continue;
+        if (!dentroDeTolerancia(p.radio, c.radio)) continue;
+        if (!igualMedida(p.radio, c.radio)) diferencias.push("radio");
+      }
     } else if (c.familiaNombre === FAMILIA_PUERTAS) {
       if (!dentroDeTolerancia(p.ancho, c.ancho)) continue;
       if (!dentroDeTolerancia(p.alto, c.alto)) continue;
 
-      if (tipoNormalizado(p.tipo) !== tipoNormalizado(c.tipo))
-        diferencias.push("tipo diferente");
-      if (!igualMedida(p.ancho, c.ancho)) diferencias.push("ancho diferente");
-      if (!igualMedida(p.alto, c.alto)) diferencias.push("alto diferente");
+      if (tipoNormalizado(p.tipo) !== tipoNormalizado(c.tipo)) diferencias.push("tipo");
+      if (!igualMedida(p.ancho, c.ancho)) diferencias.push("ancho");
+      if (!igualMedida(p.alto, c.alto)) diferencias.push("alto");
     } else {
       continue;
     }
 
-    // Solo lo consideramos "parecido" si efectivamente difiere en algo
-    // (si no difiere en nada sería exacto, ya filtrado arriba).
-    if (diferencias.length > 0) {
-      resultado.push({ pedido: p, diferencias });
-    }
+    resultado.push({ pedido: p, diferencias });
   }
 
   return resultado;
+}
+
+// Búsqueda en tiempo real con criterios parciales (cualquier campo puede ser null).
+// Muestra resultados a medida que el usuario rellena campos.
+// Cuando aguas/radio son especificados, excluye registros sin esos campos.
+export function buscarConCriteriosParciales(
+  pedidos: Pedido[],
+  c: CriteriosBusqueda,
+): Pedido[] {
+  const hayCriterio =
+    c.familiaNombre === FAMILIA_REMOLQUES
+      ? c.largo !== null || c.ancho !== null || c.alto !== null || c.aguas !== null || c.radio !== null
+      : c.tipo !== null || c.ancho !== null || c.alto !== null;
+
+  if (!hayCriterio) return [];
+
+  return pedidos.filter((p) => {
+    if (c.clienteId && p.cliente_id !== c.clienteId) return false;
+
+    if (c.familiaNombre === FAMILIA_REMOLQUES) {
+      if (c.tipo && tipoNormalizado(c.tipo) !== "" && tipoNormalizado(p.tipo) !== tipoNormalizado(c.tipo)) return false;
+      if (c.largo !== null && !dentroDeTolerancia(p.largo, c.largo)) return false;
+      if (c.ancho !== null && !dentroDeTolerancia(p.ancho, c.ancho)) return false;
+      if (c.alto !== null && !dentroDeTolerancia(p.alto, c.alto)) return false;
+      if (c.aguas !== null) {
+        if (p.aguas === null) return false;
+        if (!dentroDeTolerancia(p.aguas, c.aguas)) return false;
+      }
+      if (c.radio !== null) {
+        if (p.radio === null) return false;
+        if (!dentroDeTolerancia(p.radio, c.radio)) return false;
+      }
+    } else if (c.familiaNombre === FAMILIA_PUERTAS) {
+      if (c.tipo && tipoNormalizado(c.tipo) !== "" && tipoNormalizado(p.tipo) !== tipoNormalizado(c.tipo)) return false;
+      if (c.ancho !== null && !dentroDeTolerancia(p.ancho, c.ancho)) return false;
+      if (c.alto !== null && !dentroDeTolerancia(p.alto, c.alto)) return false;
+    } else {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+// Calcula qué campos difieren entre un pedido y los criterios actuales.
+// Solo compara campos que el usuario ha rellenado (no nulos en criterios).
+export function calcularDiferencias(pedido: Pedido, c: CriteriosBusqueda): string[] {
+  const diffs: string[] = [];
+  if (c.familiaNombre === FAMILIA_REMOLQUES) {
+    if (c.tipo && tipoNormalizado(pedido.tipo) !== tipoNormalizado(c.tipo)) diffs.push("tipo");
+    if (c.largo !== null && !igualMedida(pedido.largo, c.largo)) diffs.push("largo");
+    if (c.ancho !== null && !igualMedida(pedido.ancho, c.ancho)) diffs.push("ancho");
+    if (c.alto !== null && !igualMedida(pedido.alto, c.alto)) diffs.push("alto");
+    if (c.aguas !== null && !igualMedida(pedido.aguas, c.aguas)) diffs.push("aguas");
+    if (c.radio !== null && !igualMedida(pedido.radio, c.radio)) diffs.push("radio");
+  } else if (c.familiaNombre === FAMILIA_PUERTAS) {
+    if (c.tipo && tipoNormalizado(pedido.tipo) !== tipoNormalizado(c.tipo)) diffs.push("tipo");
+    if (c.ancho !== null && !igualMedida(pedido.ancho, c.ancho)) diffs.push("ancho");
+    if (c.alto !== null && !igualMedida(pedido.alto, c.alto)) diffs.push("alto");
+  }
+  return diffs;
 }
