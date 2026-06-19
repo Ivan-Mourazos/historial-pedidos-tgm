@@ -22,6 +22,7 @@ export default function ClientesPage() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState("");
+  const [verComentario, setVerComentario] = useState<PedidoConRelaciones | null>(null);
 
   useEffect(() => {
     setCargando(true);
@@ -114,7 +115,7 @@ export default function ClientesPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-[var(--border)] bg-surface-2">
-                        {["Nº Pedido", "Familia", "Medidas", "Fecha"].map((h) => (
+                        {["Nº Pedido", "Familia", "Medidas", "Fecha", "Observaciones"].map((h) => (
                           <th
                             key={h}
                             className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wider text-app-muted"
@@ -147,6 +148,18 @@ export default function ClientesPage() {
                               {resumenMedidas(p, p.familia?.nombre ?? "")}
                             </td>
                             <td className="px-4 py-2 text-app-muted">{formatFecha(p.fecha)}</td>
+                            <td className="px-4 py-2">
+                              {p.observaciones ? (
+                                <button
+                                  onClick={() => setVerComentario(p)}
+                                  className="text-sm font-medium text-brand hover:underline"
+                                >
+                                  Ver comentario
+                                </button>
+                              ) : (
+                                <span className="text-app-muted">—</span>
+                              )}
+                            </td>
                           </tr>
                         );
                       })}
@@ -162,6 +175,41 @@ export default function ClientesPage() {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Modal ver comentario */}
+      {verComentario && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm"
+          onClick={() => setVerComentario(null)}
+        >
+          <div
+            className="w-full max-w-lg rounded-xl border border-[var(--border-strong)] bg-surface p-5"
+            style={{ boxShadow: "var(--shadow-lg)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-app-text">Comentario</h2>
+                <p className="mt-0.5 font-mono text-sm text-app-muted">
+                  {verComentario.numero_pedido}
+                </p>
+              </div>
+              <button
+                className="rounded-md p-1 text-app-muted transition-colors hover:bg-surface-2 hover:text-app-text"
+                onClick={() => setVerComentario(null)}
+                aria-label="Cerrar"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <p className="whitespace-pre-wrap break-words text-sm text-app-text">
+              {verComentario.observaciones}
+            </p>
+          </div>
         </div>
       )}
     </div>

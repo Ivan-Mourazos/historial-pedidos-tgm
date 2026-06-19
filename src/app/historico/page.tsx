@@ -40,6 +40,7 @@ export default function HistoricoPage() {
   const [familia, setFamilia] = useState<FiltroFamilia>("TODOS");
   const [busqueda, setBusqueda] = useState("");
   const [editando, setEditando] = useState<PedidoConRelaciones | null>(null);
+  const [verComentario, setVerComentario] = useState<PedidoConRelaciones | null>(null);
 
   async function cargar() {
     setCargando(true);
@@ -130,6 +131,7 @@ export default function HistoricoPage() {
                   {familia !== "PUERTAS" && <Th>Aguas</Th>}
                   {familia !== "PUERTAS" && <Th>Radio</Th>}
                   <Th>Fecha</Th>
+                  <Th>Observaciones</Th>
                   <th />
                 </tr>
               </thead>
@@ -181,6 +183,18 @@ export default function HistoricoPage() {
                       )}
 
                       <td className="px-4 py-3 text-app-muted">{formatFecha(p.fecha)}</td>
+                      <td className="px-4 py-3">
+                        {p.observaciones ? (
+                          <button
+                            onClick={() => setVerComentario(p)}
+                            className="text-sm font-medium text-brand hover:underline"
+                          >
+                            Ver comentario
+                          </button>
+                        ) : (
+                          <span className="text-app-muted">—</span>
+                        )}
+                      </td>
                       <td className="px-3 py-3">
                         <button
                           onClick={() => setEditando(p)}
@@ -216,6 +230,41 @@ export default function HistoricoPage() {
             await cargar();
           }}
         />
+      )}
+
+      {/* Modal ver comentario */}
+      {verComentario && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm"
+          onClick={() => setVerComentario(null)}
+        >
+          <div
+            className="w-full max-w-lg rounded-xl border border-[var(--border-strong)] bg-surface p-5"
+            style={{ boxShadow: "var(--shadow-lg)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-app-text">Comentario</h2>
+                <p className="mt-0.5 font-mono text-sm text-app-muted">
+                  {verComentario.numero_pedido}
+                </p>
+              </div>
+              <button
+                className="rounded-md p-1 text-app-muted transition-colors hover:bg-surface-2 hover:text-app-text"
+                onClick={() => setVerComentario(null)}
+                aria-label="Cerrar"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <p className="whitespace-pre-wrap break-words text-sm text-app-text">
+              {verComentario.observaciones}
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );

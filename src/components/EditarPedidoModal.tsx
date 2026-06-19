@@ -162,6 +162,8 @@ export function EditarPedidoModal({
               valores={valores}
               onChange={setCampo}
               tiposPuerta={tiposPuerta}
+              freeInput
+              tiposRemolqueExtra={pedido.tipo ? [pedido.tipo] : []}
             />
           </div>
 
