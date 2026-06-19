@@ -9,18 +9,23 @@ Web interna para **registrar pedidos realizados** y **buscar si ya existe un ped
 
 - Next.js 16 (App Router) + React 19 + TypeScript
 - Tailwind CSS 4
-- Supabase (PostgreSQL) vía PostgREST, **schema dedicado `historico`**
+- SQL Server (driver `mssql`), **schema dedicado `historico`** en la base `HIST_PEDIDOS`
+
+El acceso a datos es **server-side**: los componentes llaman a `dbService`, que envía
+cada operación al endpoint RPC [`src/app/api/db/route.ts`](src/app/api/db/route.ts), y
+este ejecuta la query contra SQL Server con `mssql`. SQL Server no es accesible desde el
+navegador, por eso toda la BD vive detrás del servidor.
 
 ## Puesta en marcha de la base de datos (una sola vez)
 
-1. Abre el **SQL Editor** de Supabase (proyecto `thwtfrwjmivugxvwtore`, el mismo que usa la app de remolques).
-2. Ejecuta el contenido de [`db/schema.postgres.sql`](db/schema.postgres.sql).
-   Crea el schema `historico`, las tablas, índices, permisos y los datos iniciales
-   (familias `REMOLQUES` y `PUERTAS`, y tipos de puerta).
-3. **Importante:** ve a **Project Settings → API → Exposed schemas** y añade `historico`
-   a la lista. Sin este paso la API REST devolverá 404/406.
+1. Ejecuta [`db/schema.sqlserver.sql`](db/schema.sqlserver.sql) contra la base `HIST_PEDIDOS`
+   (desde SSMS o `sqlcmd`). Crea el schema `historico`, las tablas, índices y los datos
+   iniciales (familias `REMOLQUES` y `PUERTAS`, y tipos de puerta). **Ejecútalo una sola vez.**
+2. Da permisos al login de la app sobre el schema:
+   `GRANT SELECT, INSERT, UPDATE, DELETE ON SCHEMA::historico TO <usuario>;`
 
-> Referencia de migración futura a SQL Server: [`db/schema.sqlserver.sql`](db/schema.sqlserver.sql).
+> El DDL para PostgreSQL/Supabase queda como referencia histórica en
+> [`db/schema.postgres.sql`](db/schema.postgres.sql).
 
 ## Desarrollo
 
@@ -31,9 +36,8 @@ pnpm dev
 
 App en http://localhost:3000
 
-La conexión usa por defecto los mismos datos que la app de remolques (incrustados en
-[`src/lib/db/client.ts`](src/lib/db/client.ts)). Se pueden sobreescribir con un `.env`
-(ver [`.env.example`](.env.example)).
+La conexión a SQL Server se configura con variables de entorno en un `.env.local`
+(ver [`.env.example`](.env.example)): host, puerto, base, usuario y contraseña.
 
 ## Estructura
 
@@ -45,9 +49,10 @@ src/
     historico/        Listado con filtros y edición
     clientes/         Gestión de clientes
     tecnicos/         Gestión de técnicos
+    api/db/           Endpoint RPC server-side (ejecuta las queries con mssql)
   components/         Shell, formularios por familia, modal de edición, UI
   lib/
-    db/               Cliente PostgREST + servicio de datos
+    db/               Conexión SQL Server, servicio server-side y proxy de cliente
     matching.ts       Coincidencia exacta y pedidos parecidos
     normalize.ts      Normalización de clientes y medidas (coma decimal)
     pedido-numero.ts  Validación del número de pedido

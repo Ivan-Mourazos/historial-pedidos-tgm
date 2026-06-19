@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { EditarPedidoModal } from "@/components/EditarPedidoModal";
 import { Banner, PageTitle, inputClass } from "@/components/ui";
 import { dbService } from "@/lib/db/db-service";
-import { resumenMedidas, formatMedida } from "@/lib/display";
+import { resumenMedidas, formatMedida, formatFecha } from "@/lib/display";
 import { useCatalogos } from "@/lib/useCatalogos";
 import type { PedidoConRelaciones } from "@/lib/types";
 
@@ -180,7 +180,7 @@ export default function HistoricoPage() {
                         </td>
                       )}
 
-                      <td className="px-4 py-3 text-app-muted">{p.fecha ?? "—"}</td>
+                      <td className="px-4 py-3 text-app-muted">{formatFecha(p.fecha)}</td>
                       <td className="px-3 py-3">
                         <button
                           onClick={() => setEditando(p)}

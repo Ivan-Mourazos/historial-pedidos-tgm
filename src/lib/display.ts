@@ -22,4 +22,14 @@ export function resumenMedidas(
   return vals.length ? vals.map((v) => formatMedida(v)).join(" × ") : "—";
 }
 
+// Fecha en formato español DD/MM/AAAA a partir del "YYYY-MM-DD" almacenado.
+// Devuelve "—" si es nula y deja el valor tal cual si no encaja con el patrón.
+export function formatFecha(fecha: string | null | undefined): string {
+  if (!fecha) return "—";
+  const m = fecha.slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return fecha;
+  const [, y, mes, d] = m;
+  return `${d}/${mes}/${y}`;
+}
+
 export { formatMedida, formatMedidaCm };
