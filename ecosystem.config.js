@@ -13,7 +13,7 @@ module.exports = {
       // Llamamos al binario de Next directamente (no a pnpm) para que PM2
       // gestione un único proceso de Node.
       script: "node_modules/next/dist/bin/next",
-      args: "start -p 3000",
+      args: "start -p 4100",
       cwd: __dirname,
       instances: 1,
       exec_mode: "fork",
@@ -21,7 +21,7 @@ module.exports = {
       max_memory_restart: "512M",
       env: {
         NODE_ENV: "production",
-        PORT: "3000",
+        PORT: "4100",
       },
     },
   ],
