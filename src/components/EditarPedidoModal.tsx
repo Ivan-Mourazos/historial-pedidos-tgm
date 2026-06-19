@@ -106,9 +106,10 @@ export function EditarPedidoModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-sm">
+      <div className="flex min-h-full items-center justify-center p-4">
       <div
-        className="my-8 w-full max-w-2xl rounded-xl border border-[var(--border-strong)] bg-surface p-5"
+        className="w-full max-w-2xl rounded-xl border border-[var(--border-strong)] bg-surface p-5"
         style={{ boxShadow: "var(--shadow-lg)" }}
       >
         {/* Cabecera */}
@@ -218,6 +219,7 @@ export function EditarPedidoModal({
             </Button>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
