@@ -6,6 +6,8 @@ import {
   camposTecnicosVacios,
   type CamposTecnicosValores,
 } from "@/components/CamposTecnicosFamilia";
+import { AbrirExcelButton } from "@/components/AbrirExcelButton";
+import { AbrirZwcadButton } from "@/components/AbrirZwcadButton";
 import { CrearEntidadModal } from "@/components/CrearEntidadModal";
 import { Banner, Button, Card, Field, inputClass, labelClass } from "@/components/ui";
 import { dbService } from "@/lib/db/db-service";
@@ -70,6 +72,15 @@ export default function BuscadorPage() {
   const [tiposRemolqueExtra, setTiposRemolqueExtra] = useState<string[]>([]);
   const [mostrarRegistro, setMostrarRegistro]   = useState(false);
 
+  const familiasOrdenadas = useMemo(
+    () => [...cat.familias].sort((a, b) => {
+      const orden = (nombre: string) => (
+        nombre === "REMOLQUES" ? 0 : nombre === "PUERTAS" ? 1 : 2
+      );
+      return orden(a.nombre) - orden(b.nombre) || a.nombre.localeCompare(b.nombre);
+    }),
+    [cat.familias],
+  );
   const familia       = cat.familias.find((f) => f.id === familiaId);
   const familiaNombre = familia?.nombre ?? "";
   const esRemolques   = familiaNombre === FAMILIA_REMOLQUES;
@@ -78,10 +89,18 @@ export default function BuscadorPage() {
     clienteIdsDeFamilia.length > 0
       ? cat.clientes.filter((c) => clienteIdsDeFamilia.includes(c.id))
       : cat.clientes;
+  const pedidosParaOpciones = useMemo(
+    () => (
+      clienteId
+        ? pedidosFamilia.filter((p) => p.cliente_id === clienteId)
+        : pedidosFamilia
+    ),
+    [clienteId, pedidosFamilia],
+  );
 
   useEffect(() => {
-    if (!familiaId && cat.familias.length > 0) setFamiliaId(cat.familias[0].id);
-  }, [cat.familias, familiaId]);
+    if (!familiaId && familiasOrdenadas.length > 0) setFamiliaId(familiasOrdenadas[0].id);
+  }, [familiasOrdenadas, familiaId]);
 
   useEffect(() => {
     setValores(camposTecnicosVacios);
@@ -200,7 +219,7 @@ export default function BuscadorPage() {
           className="flex rounded-lg border border-[var(--border-strong)] bg-surface p-0.5"
           style={{ boxShadow: "var(--shadow-sm)" }}
         >
-          {cat.familias.map((f) => (
+          {familiasOrdenadas.map((f) => (
             <button
               key={f.id}
               onClick={() => setFamiliaId(f.id)}
@@ -256,7 +275,7 @@ export default function BuscadorPage() {
               valores={valores}
               onChange={setCampo}
               tiposPuerta={cat.tiposPuerta}
-              pedidosFamilia={pedidosFamilia}
+              pedidosFamilia={pedidosParaOpciones}
               inline
             />
           )}
@@ -316,6 +335,7 @@ export default function BuscadorPage() {
                     <Th>Altura</Th>
                     <Th>Aguas</Th>
                     <Th>Radio</Th>
+                    <Th className="w-[190px]">Archivos</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -373,6 +393,25 @@ export default function BuscadorPage() {
                         {tdVal("alto",  "alto",  criterios.alto  !== null)}
                         {tdVal("aguas", "aguas", criterios.aguas !== null)}
                         {tdVal("radio", "radio", criterios.radio !== null)}
+                        <td className="w-[190px] px-4 py-3">
+                          <div className="flex h-8 items-center gap-2">
+                            <div className="flex w-[86px] items-center justify-start">
+                            <AbrirExcelButton
+                              numeroPedido={pr.numero_pedido}
+                              familiaNombre={familiaNombre}
+                              tipo={pr.tipo}
+                              className="w-[86px]"
+                            />
+                            </div>
+                            <div className="flex w-[86px] items-center justify-start">
+                              <AbrirZwcadButton
+                                numeroPedido={pr.numero_pedido}
+                                label="CAD"
+                                className="w-[86px]"
+                              />
+                            </div>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}
@@ -387,6 +426,7 @@ export default function BuscadorPage() {
                     <Th>Tipo</Th>
                     <Th>Ancho</Th>
                     <Th>Alto</Th>
+                    <Th className="w-[100px]">CAD</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -444,6 +484,13 @@ export default function BuscadorPage() {
                         }`}>
                           {pr.alto !== null ? `${formatMedida(pr.alto)} cm` : "—"}
                         </td>
+                        <td className="w-[100px] px-4 py-3">
+                          <AbrirZwcadButton
+                            numeroPedido={pr.numero_pedido}
+                            label="CAD"
+                            className="w-[86px]"
+                          />
+                        </td>
                       </tr>
                     );
                   })}
@@ -481,13 +528,22 @@ export default function BuscadorPage() {
                 <span className="text-emerald-400">Coincidencia exacta —</span>
                 <span className="font-mono font-semibold text-emerald-300">{exacto.numero_pedido}.dwg</span>
               </div>
-              <button
-                type="button"
-                onClick={() => setMostrarRegistro(true)}
-                className="cursor-pointer text-xs text-app-muted underline underline-offset-2 hover:text-app-text hover:no-underline"
-              >
-                Registrar igualmente con otro número
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <AbrirExcelButton
+                  numeroPedido={exacto.numero_pedido}
+                  familiaNombre={familiaNombre}
+                  tipo={exacto.tipo}
+                  label="Abrir Excel"
+                />
+                <AbrirZwcadButton numeroPedido={exacto.numero_pedido} label="Abrir en ZWCAD" />
+                <button
+                  type="button"
+                  onClick={() => setMostrarRegistro(true)}
+                  className="cursor-pointer text-xs text-app-muted underline underline-offset-2 hover:text-app-text hover:no-underline"
+                >
+                  Registrar igualmente con otro número
+                </button>
+              </div>
             </div>
           )}
 

@@ -3,7 +3,7 @@
 Web interna para **registrar pedidos realizados** y **buscar si ya existe un pedido anterior exactamente igual**, para reutilizar su número de pedido al localizar el archivo DWG/ZWCAD.
 
 > El número de pedido (ej. `AR2600000`) identifica el archivo (`AR2600000.dwg`).
-> La web **no** importa Excel, **no** gestiona rutas ni abre/modifica archivos DWG.
+> La web puede abrir el DWG en ZWCAD si se configura la carpeta raíz de pedidos.
 
 ## Stack
 
@@ -38,6 +38,25 @@ App en http://localhost:3000
 
 La conexión a SQL Server se configura con variables de entorno en un `.env.local`
 (ver [`.env.example`](.env.example)): host, puerto, base, usuario y contraseña.
+
+Para abrir pedidos con ZWCAD desde los botones de la web, añade también:
+
+```env
+ZWCAD_DWG_ROOTS="\\STINKOR\Oftecnica"
+ZWCAD_EXE=
+```
+
+`ZWCAD_DWG_ROOTS` admite varias carpetas separadas por `;`. La app buscará
+primero por año (`AR26xxxxx` -> `2026\AR26xxxxx.dwg`,
+`AR23xxxxx` -> `2023\AR23xxxxx.dwg`) y, si no aparece ahí, hará una búsqueda
+general dentro de esas carpetas. Si `ZWCAD_EXE` queda vacío, Windows abrirá el
+archivo con la aplicación asociada a `.dwg`; si no, indica la ruta del ejecutable
+de ZWCAD.
+
+En remolques que no sean de ganado, la web también comprobará si existe un Excel
+en la misma carpeta del año. Detecta `AR26xxxxx.xlsx` y variantes numeradas como
+`AR26xxxxx-1.xlsx` o cualquier archivo que empiece por `AR26xxxxx-`; si hay
+varias, muestra un selector para elegir cuál abrir.
 
 ## Estructura
 

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AbrirExcelButton } from "@/components/AbrirExcelButton";
+import { AbrirZwcadButton } from "@/components/AbrirZwcadButton";
 import { Banner, PageTitle, inputClass } from "@/components/ui";
 import { dbService } from "@/lib/db/db-service";
 import { resumenMedidas, formatFecha } from "@/lib/display";
@@ -115,7 +117,7 @@ export default function ClientesPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-[var(--border)] bg-surface-2">
-                        {["Nº Pedido", "Familia", "Medidas", "Fecha", "Observaciones"].map((h) => (
+                        {["Nº PEDIDO", "FAMILIA", "MEDIDAS", "FECHA", "ARCHIVOS"].map((h) => (
                           <th
                             key={h}
                             className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wider text-app-muted"
@@ -127,7 +129,6 @@ export default function ClientesPage() {
                     </thead>
                     <tbody>
                       {c.pedidos.map((p, i) => {
-                        const esRemolque = p.familia?.nombre === "REMOLQUES";
                         const tag = tagClass[(p.familia?.nombre as keyof typeof tagClass)] ?? tagClass.REMOLQUES;
                         return (
                           <tr
@@ -148,17 +149,34 @@ export default function ClientesPage() {
                               {resumenMedidas(p, p.familia?.nombre ?? "")}
                             </td>
                             <td className="px-4 py-2 text-app-muted">{formatFecha(p.fecha)}</td>
-                            <td className="px-4 py-2">
-                              {p.observaciones ? (
-                                <button
-                                  onClick={() => setVerComentario(p)}
-                                  className="text-sm font-medium text-brand hover:underline"
-                                >
-                                  Ver comentario
-                                </button>
-                              ) : (
-                                <span className="text-app-muted">—</span>
-                              )}
+                            <td className="w-[230px] px-4 py-2">
+                              <div className="flex h-8 items-center gap-2">
+                                <div className="flex w-[86px] items-center justify-start">
+                                <AbrirExcelButton
+                                  numeroPedido={p.numero_pedido}
+                                  familiaNombre={p.familia?.nombre ?? ""}
+                                  tipo={p.tipo}
+                                  className="w-[86px]"
+                                />
+                                </div>
+                                <div className="flex w-[86px] items-center justify-start">
+                                  <AbrirZwcadButton
+                                    numeroPedido={p.numero_pedido}
+                                    label="CAD"
+                                    className="w-[86px]"
+                                  />
+                                </div>
+                                {p.observaciones && (
+                                  <button
+                                    onClick={() => setVerComentario(p)}
+                                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-400/15 dark:bg-white/[0.04] dark:text-slate-300 dark:hover:border-slate-400/25 dark:hover:bg-white/[0.07]"
+                                    title="Ver comentario"
+                                    aria-label={`Ver comentario de ${p.numero_pedido}`}
+                                  >
+                                    <span aria-hidden="true">💬</span>
+                                  </button>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         );

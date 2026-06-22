@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { AbrirExcelButton, type ExcelFileOption } from "@/components/AbrirExcelButton";
+import { AbrirZwcadButton } from "@/components/AbrirZwcadButton";
 import { EditarPedidoModal } from "@/components/EditarPedidoModal";
 import { Banner, PageTitle, inputClass } from "@/components/ui";
 import { dbService } from "@/lib/db/db-service";
@@ -8,19 +10,132 @@ import { resumenMedidas, formatMedida, formatFecha } from "@/lib/display";
 import { useCatalogos } from "@/lib/useCatalogos";
 import type { PedidoConRelaciones } from "@/lib/types";
 
-type FiltroFamilia = "TODOS" | "REMOLQUES" | "PUERTAS";
+type FiltroFamilia = "REMOLQUES" | "PUERTAS";
+type ExcelPorPedido = Record<string, ExcelFileOption[]>;
+type OrdenCampo = "numero_pedido" | "cliente" | "tipo" | "fecha" | "aguas" | "radio";
+type OrdenDireccion = "asc" | "desc";
+type OrdenHistorico = { campo: OrdenCampo; direccion: OrdenDireccion } | null;
 
-const tagClass = {
-  REMOLQUES: "bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300",
-  PUERTAS:   "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300",
-};
-
-function Th({ children }: { children?: React.ReactNode }) {
+function Th({
+  children,
+  className = "",
+}: {
+  children?: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-app-muted">
+    <th className={`whitespace-nowrap px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-app-muted ${className}`}>
       {children}
     </th>
   );
+}
+
+function SortTh({
+  children,
+  campo,
+  orden,
+  onSort,
+  className = "",
+}: {
+  children: React.ReactNode;
+  campo: OrdenCampo;
+  orden: OrdenHistorico;
+  onSort: (campo: OrdenCampo) => void;
+  className?: string;
+}) {
+  const activo = orden?.campo === campo;
+
+  return (
+    <th className={`whitespace-nowrap px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-app-muted ${className}`}>
+      <button
+        type="button"
+        onClick={() => onSort(campo)}
+        className="inline-flex items-center gap-1 rounded py-0.5 text-left uppercase transition-colors hover:text-app-text"
+        title={`Ordenar por ${String(children).toLowerCase()}`}
+      >
+        <span>{children}</span>
+        <span className={`text-[11px] ${activo ? "text-brand" : "text-app-muted/60"}`}>
+          {activo ? (orden.direccion === "asc" ? "↑" : "↓") : "↕"}
+        </span>
+      </button>
+    </th>
+  );
+}
+
+function normalizarTexto(valor?: string | null) {
+  return (valor ?? "").trim();
+}
+
+function estaVacio(valor: string | number | null | undefined) {
+  return valor === null || valor === undefined || valor === "";
+}
+
+function compararConVaciosAlFinal<T extends string | number | null | undefined>(
+  a: T,
+  b: T,
+  direccion: OrdenDireccion,
+  comparar: (a: NonNullable<T>, b: NonNullable<T>) => number,
+) {
+  const aVacio = estaVacio(a);
+  const bVacio = estaVacio(b);
+  if (aVacio || bVacio) {
+    if (aVacio && bVacio) return 0;
+    return aVacio ? 1 : -1;
+  }
+
+  const resultado = comparar(a as NonNullable<T>, b as NonNullable<T>);
+  return direccion === "asc" ? resultado : -resultado;
+}
+
+function compararTexto(a: string, b: string) {
+  return a.localeCompare(b, "es", { numeric: true, sensitivity: "base" });
+}
+
+function fechaOrdenable(fecha?: string | null) {
+  if (!fecha) return null;
+  const time = new Date(fecha).getTime();
+  return Number.isNaN(time) ? null : time;
+}
+
+function compararPedidos(a: PedidoConRelaciones, b: PedidoConRelaciones, orden: OrdenHistorico) {
+  if (!orden) return 0;
+
+  switch (orden.campo) {
+    case "numero_pedido":
+      return compararConVaciosAlFinal(
+        normalizarTexto(a.numero_pedido),
+        normalizarTexto(b.numero_pedido),
+        orden.direccion,
+        compararTexto,
+      );
+    case "cliente":
+      return compararConVaciosAlFinal(
+        normalizarTexto(a.cliente?.nombre),
+        normalizarTexto(b.cliente?.nombre),
+        orden.direccion,
+        compararTexto,
+      );
+    case "tipo":
+      return compararConVaciosAlFinal(
+        normalizarTexto(a.tipo),
+        normalizarTexto(b.tipo),
+        orden.direccion,
+        compararTexto,
+      );
+    case "fecha":
+      return compararConVaciosAlFinal(
+        fechaOrdenable(a.fecha),
+        fechaOrdenable(b.fecha),
+        orden.direccion,
+        (x, y) => x - y,
+      );
+    case "aguas":
+      return compararConVaciosAlFinal(a.aguas, b.aguas, orden.direccion, (x, y) => x - y);
+    case "radio":
+      return compararConVaciosAlFinal(a.radio, b.radio, orden.direccion, (x, y) => x - y);
+    default:
+      return 0;
+  }
 }
 
 function PencilIcon() {
@@ -32,15 +147,21 @@ function PencilIcon() {
   );
 }
 
+function puedeTenerExcel(familiaNombre: string, tipo?: string | null): boolean {
+  return familiaNombre === "REMOLQUES" && !(tipo ?? "").toLowerCase().includes("ganado");
+}
+
 export default function HistoricoPage() {
   const cat = useCatalogos();
   const [pedidos, setPedidos] = useState<PedidoConRelaciones[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [familia, setFamilia] = useState<FiltroFamilia>("TODOS");
+  const [familia, setFamilia] = useState<FiltroFamilia>("REMOLQUES");
   const [busqueda, setBusqueda] = useState("");
   const [editando, setEditando] = useState<PedidoConRelaciones | null>(null);
   const [verComentario, setVerComentario] = useState<PedidoConRelaciones | null>(null);
+  const [excelPorPedido, setExcelPorPedido] = useState<ExcelPorPedido>({});
+  const [orden, setOrden] = useState<OrdenHistorico>(null);
 
   async function cargar() {
     setCargando(true);
@@ -52,10 +173,43 @@ export default function HistoricoPage() {
 
   useEffect(() => { cargar(); }, []);
 
+  useEffect(() => {
+    if (familia !== "REMOLQUES" || pedidos.length === 0) return;
+
+    const numerosPedido = [
+      ...new Set(
+        pedidos
+          .filter((p) => puedeTenerExcel(p.familia?.nombre ?? "", p.tipo))
+          .map((p) => p.numero_pedido),
+      ),
+    ];
+    if (numerosPedido.length === 0) return;
+
+    let activo = true;
+    fetch("/api/excel/batch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ numerosPedido }),
+    })
+      .then(async (res) => {
+        const data = (await res.json().catch(() => ({}))) as {
+          filesByPedido?: ExcelPorPedido;
+        };
+        if (activo && res.ok) setExcelPorPedido(data.filesByPedido ?? {});
+      })
+      .catch(() => {
+        if (activo) setExcelPorPedido({});
+      });
+
+    return () => {
+      activo = false;
+    };
+  }, [familia, pedidos]);
+
   const filtrados = useMemo(() => {
     const texto = busqueda.trim().toLowerCase();
-    return pedidos.filter((p) => {
-      if (familia !== "TODOS" && p.familia?.nombre !== familia) return false;
+    const resultado = pedidos.filter((p) => {
+      if (p.familia?.nombre !== familia) return false;
       if (texto) {
         const hay = [p.numero_pedido, p.cliente?.nombre, p.tipo,
           String(p.largo ?? ""), String(p.ancho ?? ""), String(p.alto ?? "")]
@@ -64,14 +218,22 @@ export default function HistoricoPage() {
       }
       return true;
     });
-    // Sin .sort(): el API ya devuelve created_at desc (más recientes primero)
-  }, [pedidos, familia, busqueda]);
+    if (!orden) return resultado;
+    return [...resultado].sort((a, b) => compararPedidos(a, b, orden));
+  }, [pedidos, familia, busqueda, orden]);
+
+  function cambiarOrden(campo: OrdenCampo) {
+    setOrden((actual) => {
+      if (actual?.campo !== campo) return { campo, direccion: "asc" };
+      return { campo, direccion: actual.direccion === "asc" ? "desc" : "asc" };
+    });
+  }
 
   const tabs: { key: FiltroFamilia; label: string }[] = [
-    { key: "TODOS", label: "Todos" },
     { key: "REMOLQUES", label: "Remolques" },
     { key: "PUERTAS", label: "Puertas" },
   ];
+  const esPuertas = familia === "PUERTAS";
 
   return (
     <div>
@@ -118,28 +280,24 @@ export default function HistoricoPage() {
           <p className="px-4 py-6 text-sm text-app-muted">No hay pedidos que coincidan.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[580px] text-sm">
+            <table className="w-full min-w-[760px] text-sm">
               <thead>
                 <tr className="border-b border-[var(--border)]">
-                  {/* Columnas fijas */}
-                  <Th>Nº Pedido</Th>
-                  <Th>Cliente</Th>
-                  {/* Columnas según familia */}
-                  {familia === "TODOS" && <Th>Familia</Th>}
-                  {familia === "PUERTAS" && <Th>Tipo</Th>}
-                  <Th>Medidas</Th>
-                  {familia !== "PUERTAS" && <Th>Aguas</Th>}
-                  {familia !== "PUERTAS" && <Th>Radio</Th>}
-                  <Th>Fecha</Th>
-                  <Th>Observaciones</Th>
-                  <th />
+                  <SortTh campo="numero_pedido" orden={orden} onSort={cambiarOrden}>Nº Pedido</SortTh>
+                  <SortTh campo="cliente" orden={orden} onSort={cambiarOrden}>Cliente</SortTh>
+                  <SortTh campo="tipo" orden={orden} onSort={cambiarOrden}>Tipo</SortTh>
+                  <Th>MEDIDAS</Th>
+                  {!esPuertas && <SortTh campo="aguas" orden={orden} onSort={cambiarOrden}>Aguas</SortTh>}
+                  {!esPuertas && <SortTh campo="radio" orden={orden} onSort={cambiarOrden}>Radio</SortTh>}
+                  <SortTh campo="fecha" orden={orden} onSort={cambiarOrden}>Fecha</SortTh>
+                  <Th className={esPuertas ? "w-[130px]" : "w-[230px]"}>ACCIONES</Th>
+                  <Th className="w-[82px]">EDITAR</Th>
                 </tr>
               </thead>
               <tbody>
                 {filtrados.map((p, i) => {
                   const fNombre = p.familia?.nombre ?? "";
                   const esRemolque = fNombre === "REMOLQUES";
-                  const tag = tagClass[(fNombre as keyof typeof tagClass)] ?? tagClass.REMOLQUES;
                   return (
                     <tr
                       key={p.id}
@@ -147,61 +305,74 @@ export default function HistoricoPage() {
                         i < filtrados.length - 1 ? "border-b border-[var(--border)]" : ""
                       }`}
                     >
-                      <td className="px-4 py-3 font-mono text-sm font-semibold text-app-text">
+                      <td className="whitespace-nowrap px-3 py-3 font-mono text-sm font-semibold text-app-text">
                         {p.numero_pedido}
                       </td>
-                      <td className="px-4 py-3 text-app-text">{p.cliente?.nombre ?? "—"}</td>
+                      <td className="max-w-[180px] truncate px-3 py-3 text-app-text">
+                        {p.cliente?.nombre ?? "—"}
+                      </td>
 
-                      {familia === "TODOS" && (
-                        <td className="px-4 py-3">
-                          <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${tag}`}>
-                            {fNombre || "—"}
-                          </span>
-                        </td>
-                      )}
+                      <td className="max-w-[150px] truncate px-3 py-3 text-app-muted">{p.tipo ?? "—"}</td>
 
-                      {familia === "PUERTAS" && (
-                        <td className="px-4 py-3 text-app-muted">{p.tipo ?? "—"}</td>
-                      )}
-
-                      <td className="px-4 py-3 text-app-text">
-                        {familia === "PUERTAS"
+                      <td className="whitespace-nowrap px-3 py-3 text-app-text">
+                        {esPuertas
                           ? [p.ancho, p.alto].map((v) => formatMedida(v) || "—").join(" × ")
                           : resumenMedidas(p, fNombre)
                         }
                       </td>
 
-                      {familia !== "PUERTAS" && (
-                        <td className="px-4 py-3 text-app-muted">
+                      {!esPuertas && (
+                        <td className="whitespace-nowrap px-3 py-3 text-app-muted">
                           {esRemolque ? (formatMedida(p.aguas) || "—") : "—"}
                         </td>
                       )}
-                      {familia !== "PUERTAS" && (
-                        <td className="px-4 py-3 text-app-muted">
+                      {!esPuertas && (
+                        <td className="whitespace-nowrap px-3 py-3 text-app-muted">
                           {esRemolque ? (formatMedida(p.radio) || "—") : "—"}
                         </td>
                       )}
 
-                      <td className="px-4 py-3 text-app-muted">{formatFecha(p.fecha)}</td>
-                      <td className="px-4 py-3">
-                        {p.observaciones ? (
-                          <button
-                            onClick={() => setVerComentario(p)}
-                            className="text-sm font-medium text-brand hover:underline"
-                          >
-                            Ver comentario
-                          </button>
-                        ) : (
-                          <span className="text-app-muted">—</span>
-                        )}
+                      <td className="whitespace-nowrap px-3 py-3 text-app-muted">{formatFecha(p.fecha)}</td>
+                      <td className={`${esPuertas ? "w-[130px]" : "w-[230px]"} px-3 py-3`}>
+                        <div className="flex h-8 items-center gap-2">
+                          {!esPuertas && (
+                            <div className="flex w-[86px] items-center justify-start">
+                              <AbrirExcelButton
+                                numeroPedido={p.numero_pedido}
+                                familiaNombre={fNombre}
+                                tipo={p.tipo}
+                                files={excelPorPedido[p.numero_pedido] ?? []}
+                                className="w-[86px]"
+                              />
+                            </div>
+                          )}
+                          <div className="flex w-[86px] items-center justify-start">
+                            <AbrirZwcadButton
+                              numeroPedido={p.numero_pedido}
+                              label="CAD"
+                              className="w-[86px]"
+                            />
+                          </div>
+                          {p.observaciones && (
+                            <button
+                              onClick={() => setVerComentario(p)}
+                              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-400/15 dark:bg-white/[0.04] dark:text-slate-300 dark:hover:border-slate-400/25 dark:hover:bg-white/[0.07]"
+                              title="Ver comentario"
+                              aria-label={`Ver comentario de ${p.numero_pedido}`}
+                            >
+                              <span aria-hidden="true">💬</span>
+                            </button>
+                          )}
+                        </div>
                       </td>
-                      <td className="px-3 py-3">
+                      <td className="w-[82px] border-l border-[var(--border)] px-2 py-3">
                         <button
                           onClick={() => setEditando(p)}
-                          className="flex h-7 w-7 items-center justify-center rounded-md text-app-muted transition-colors hover:bg-surface-2 hover:text-brand"
-                          aria-label="Editar"
+                          className="inline-flex h-8 items-center justify-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2 text-xs font-semibold text-orange-700 transition-colors hover:bg-orange-100 dark:border-orange-400/25 dark:bg-orange-400/10 dark:text-orange-200 dark:hover:border-orange-400/35 dark:hover:bg-orange-400/15"
+                          aria-label={`Editar ${p.numero_pedido}`}
                         >
                           <PencilIcon />
+                          <span>Editar</span>
                         </button>
                       </td>
                     </tr>
