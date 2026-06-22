@@ -327,15 +327,15 @@ export default function BuscadorPage() {
               <table className="w-full min-w-[580px] text-sm">
                 <thead>
                   <tr className="border-b border-[var(--border)]">
-                    <Th>Nº Pedido</Th>
-                    <Th>Cliente</Th>
-                    <Th>Tipo</Th>
-                    <Th>Largo</Th>
-                    <Th>Ancho</Th>
-                    <Th>Altura</Th>
-                    <Th>Aguas</Th>
-                    <Th>Radio</Th>
-                    <Th className="w-[190px]">Archivos</Th>
+                    <Th>Nº PEDIDO</Th>
+                    <Th>CLIENTE</Th>
+                    <Th>TIPO</Th>
+                    <Th>LARGO</Th>
+                    <Th>ANCHO</Th>
+                    <Th>ALTURA</Th>
+                    <Th>AGUAS</Th>
+                    <Th>RADIO</Th>
+                    <Th className="w-[190px]">ARCHIVOS</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -421,11 +421,11 @@ export default function BuscadorPage() {
               <table className="w-full min-w-[420px] text-sm">
                 <thead>
                   <tr className="border-b border-[var(--border)]">
-                    <Th>Nº Pedido</Th>
-                    <Th>Cliente</Th>
-                    <Th>Tipo</Th>
-                    <Th>Ancho</Th>
-                    <Th>Alto</Th>
+                    <Th>Nº PEDIDO</Th>
+                    <Th>CLIENTE</Th>
+                    <Th>TIPO</Th>
+                    <Th>ANCHO</Th>
+                    <Th>ALTO</Th>
                     <Th className="w-[100px]">CAD</Th>
                   </tr>
                 </thead>
