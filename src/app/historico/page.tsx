@@ -230,8 +230,8 @@ export default function HistoricoPage() {
   }
 
   const tabs: { key: FiltroFamilia; label: string }[] = [
-    { key: "REMOLQUES", label: "Remolques" },
-    { key: "PUERTAS", label: "Puertas" },
+    { key: "REMOLQUES", label: "REMOLQUES" },
+    { key: "PUERTAS", label: "PUERTAS" },
   ];
   const esPuertas = familia === "PUERTAS";
 
