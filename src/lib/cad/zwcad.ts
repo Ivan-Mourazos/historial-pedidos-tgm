@@ -1,10 +1,16 @@
 import { spawn } from "node:child_process";
 import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
+import { buildClientOpenInfo, type ClientOpenInfo } from "@/lib/files/client-open";
 import { normalizarNumeroPedido } from "@/lib/pedido-numero";
 
 const DWG_EXTENSION = ".dwg";
 const YEAR_PREFIX = "20";
+
+export interface PedidoDwgOpenResult extends ClientOpenInfo {
+  filePath: string;
+  openedOnServer: boolean;
+}
 
 function parseEnvList(value: string | undefined): string[] {
   return (value ?? "")
@@ -120,4 +126,30 @@ export async function openPedidoInZwcad(numeroPedido: string): Promise<string> {
   const filePath = await findDwgForPedido(numeroPedido);
   await openDwgWithZwcad(filePath);
   return filePath;
+}
+
+export async function getPedidoDwgOpenTarget(numeroPedido: string): Promise<PedidoDwgOpenResult> {
+  const filePath = await findDwgForPedido(numeroPedido);
+
+  if (process.platform === "win32" || process.env.ZWCAD_EXE?.trim()) {
+    await openDwgWithZwcad(filePath);
+    return {
+      filePath,
+      openedOnServer: true,
+      ...buildClientOpenInfo(filePath, getDwgRoots()),
+    };
+  }
+
+  const clientInfo = buildClientOpenInfo(filePath, getDwgRoots());
+  if (!clientInfo.clientPath && !clientInfo.fileUrl) {
+    throw new Error(
+      "El servidor Linux encontró el DWG, pero falta configurar ZWCAD_CLIENT_ROOTS para convertir /mnt/oftecnica a la ruta de red Windows.",
+    );
+  }
+
+  return {
+    filePath,
+    openedOnServer: false,
+    ...clientInfo,
+  };
 }

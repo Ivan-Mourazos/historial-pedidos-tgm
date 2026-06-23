@@ -39,19 +39,32 @@ App en http://localhost:3000
 La conexión a SQL Server se configura con variables de entorno en un `.env.local`
 (ver [`.env.example`](.env.example)): host, puerto, base, usuario y contraseña.
 
-Para abrir pedidos con ZWCAD desde los botones de la web, añade también:
+Para localizar pedidos con ZWCAD/Excel desde los botones de la web, añade también:
 
 ```env
-ZWCAD_DWG_ROOTS="\\STINKOR\Oftecnica"
+ZWCAD_DWG_ROOTS=/mnt/oftecnica
+ZWCAD_CLIENT_ROOTS=\\stinkor\oftecnica
 ZWCAD_EXE=
 ```
 
 `ZWCAD_DWG_ROOTS` admite varias carpetas separadas por `;`. La app buscará
 primero por año (`AR26xxxxx` -> `2026\AR26xxxxx.dwg`,
 `AR23xxxxx` -> `2023\AR23xxxxx.dwg`) y, si no aparece ahí, hará una búsqueda
-general dentro de esas carpetas. Si `ZWCAD_EXE` queda vacío, Windows abrirá el
-archivo con la aplicación asociada a `.dwg`; si no, indica la ruta del ejecutable
-de ZWCAD.
+general dentro de esas carpetas.
+
+En el servidor Linux de producción, `ZWCAD_DWG_ROOTS` debe ser la ruta montada
+por IT, por ejemplo `/mnt/oftecnica`. Como el programa ZWCAD/Excel está en el
+PC Windows del usuario y no en el servidor Linux, configura también
+`ZWCAD_CLIENT_ROOTS` con la ruta equivalente de red, por ejemplo
+`\\stinkor\oftecnica`. La app convierte entonces
+`/mnt/oftecnica/2026/AR2600000.xlsm` en
+`\\stinkor\oftecnica\2026\AR2600000.xlsm`.
+
+En Windows local, si `ZWCAD_EXE` queda vacío, Windows abrirá el archivo con la
+aplicación asociada a `.dwg`; si no, indica la ruta del ejecutable de ZWCAD. En
+Linux no se puede lanzar ZWCAD/Excel en el servidor: Excel se abre en el puesto
+con `ms-excel:` apuntando a la ruta de red y CAD intenta abrir el `file://` del
+DWG, copiando además la ruta al portapapeles como respaldo.
 
 En remolques que no sean de ganado, la web también comprobará si existe un Excel
 en la misma carpeta del año. Detecta `AR26xxxxx.xlsx` y variantes numeradas como

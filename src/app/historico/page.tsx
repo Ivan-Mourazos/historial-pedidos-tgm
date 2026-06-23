@@ -368,11 +368,11 @@ export default function HistoricoPage() {
                       <td className="w-[82px] border-l border-[var(--border)] px-2 py-3">
                         <button
                           onClick={() => setEditando(p)}
-                          className="inline-flex h-8 items-center justify-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2 text-xs font-semibold text-orange-700 transition-colors hover:bg-orange-100 dark:border-orange-400/25 dark:bg-orange-400/10 dark:text-orange-200 dark:hover:border-orange-400/35 dark:hover:bg-orange-400/15"
+                          className="inline-flex h-8 w-[74px] items-center justify-start gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2 text-xs font-semibold text-orange-700 transition-colors hover:bg-orange-100 dark:border-orange-400/25 dark:bg-orange-400/10 dark:text-orange-200 dark:hover:border-orange-400/35 dark:hover:bg-orange-400/15"
                           aria-label={`Editar ${p.numero_pedido}`}
                         >
                           <PencilIcon />
-                          <span>Editar</span>
+                          <span className="text-left">Editar</span>
                         </button>
                       </td>
                     </tr>

@@ -4,6 +4,13 @@ import { useState } from "react";
 
 type Estado = "idle" | "opening" | "ok" | "error";
 
+interface ZwcadOpenResponse {
+  error?: string;
+  openedOnServer?: boolean;
+  clientPath?: string;
+  fileUrl?: string;
+}
+
 function CadIcon() {
   return (
     <svg
@@ -47,8 +54,20 @@ export function AbrirZwcadButton({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ numeroPedido }),
       });
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      const data = (await res.json().catch(() => ({}))) as ZwcadOpenResponse;
       if (!res.ok) throw new Error(data.error ?? "No se pudo abrir el DWG.");
+
+      if (!data.openedOnServer) {
+        if (data.clientPath) {
+          await navigator.clipboard?.writeText(data.clientPath).catch(() => undefined);
+        }
+        if (data.fileUrl) {
+          window.location.assign(data.fileUrl);
+        } else if (data.clientPath) {
+          window.alert(`Ruta copiada al portapapeles:\n${data.clientPath}`);
+        }
+      }
+
       setEstado("ok");
       window.setTimeout(() => setEstado("idle"), 1400);
     } catch (error) {

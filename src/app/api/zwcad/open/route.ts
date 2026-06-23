@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { openPedidoInZwcad } from "@/lib/cad/zwcad";
+import { getPedidoDwgOpenTarget } from "@/lib/cad/zwcad";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,8 +20,8 @@ export async function POST(req: Request) {
   }
 
   try {
-    const filePath = await openPedidoInZwcad(body.numeroPedido);
-    return NextResponse.json({ ok: true, filePath });
+    const target = await getPedidoDwgOpenTarget(body.numeroPedido);
+    return NextResponse.json({ ok: true, ...target });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[api/zwcad/open]", message);

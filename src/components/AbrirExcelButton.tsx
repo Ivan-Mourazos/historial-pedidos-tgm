@@ -4,6 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 
 type Estado = "idle" | "opening" | "ok";
 
+interface ExcelOpenResponse {
+  error?: string;
+  openedOnServer?: boolean;
+  excelUrl?: string;
+  clientPath?: string;
+}
+
 export interface ExcelFileOption {
   name: string;
 }
@@ -88,8 +95,18 @@ export function AbrirExcelButton({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ numeroPedido, fileName }),
       });
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      const data = (await res.json().catch(() => ({}))) as ExcelOpenResponse;
       if (!res.ok) throw new Error(data.error ?? "No se pudo abrir el Excel.");
+
+      if (!data.openedOnServer) {
+        if (data.excelUrl) {
+          window.location.assign(data.excelUrl);
+        } else if (data.clientPath) {
+          await navigator.clipboard?.writeText(data.clientPath).catch(() => undefined);
+          window.alert(`Ruta copiada al portapapeles:\n${data.clientPath}`);
+        }
+      }
+
       setEstado("ok");
       window.setTimeout(() => setEstado("idle"), 1400);
     } catch (error) {

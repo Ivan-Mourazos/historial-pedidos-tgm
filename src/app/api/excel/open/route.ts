@@ -28,7 +28,14 @@ export async function POST(req: Request) {
 
   try {
     const file = await openPedidoExcel(body.numeroPedido, body.fileName);
-    return NextResponse.json({ ok: true, fileName: file.name });
+    return NextResponse.json({
+      ok: true,
+      fileName: file.name,
+      openedOnServer: file.openedOnServer,
+      clientPath: file.clientPath,
+      fileUrl: file.fileUrl,
+      excelUrl: file.excelUrl,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[api/excel/open]", message);

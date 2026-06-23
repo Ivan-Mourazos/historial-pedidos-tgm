@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { getDwgRoots } from "@/lib/cad/zwcad";
+import { buildClientOpenInfo, buildExcelOpenUrl, type ClientOpenInfo } from "@/lib/files/client-open";
 import { normalizarNumeroPedido } from "@/lib/pedido-numero";
 
 const EXCEL_EXTENSIONS = [".xlsx", ".xlsm", ".xls", ".xlsb"];
@@ -10,6 +11,11 @@ const CACHE_TTL_MS = 30_000;
 export interface PedidoExcelFile {
   name: string;
   path: string;
+}
+
+export interface PedidoExcelOpenResult extends PedidoExcelFile, ClientOpenInfo {
+  excelUrl?: string;
+  openedOnServer: boolean;
 }
 
 interface FolderCacheEntry {
@@ -152,7 +158,7 @@ async function spawnDetached(command: string, args: string[]): Promise<void> {
   });
 }
 
-export async function openPedidoExcel(numeroPedido: string, fileName?: string): Promise<PedidoExcelFile> {
+export async function openPedidoExcel(numeroPedido: string, fileName?: string): Promise<PedidoExcelOpenResult> {
   const files = await findExcelFilesForPedido(numeroPedido);
   if (files.length === 0) {
     throw new Error("No se encontró Excel para este pedido.");
@@ -166,10 +172,29 @@ export async function openPedidoExcel(numeroPedido: string, fileName?: string): 
     throw new Error("El Excel seleccionado ya no está disponible.");
   }
 
-  if (process.platform !== "win32") {
-    throw new Error("La apertura automática de Excel requiere ejecutar la app en Windows.");
+  const clientInfo = buildClientOpenInfo(file.path, getDwgRoots());
+
+  if (process.platform === "win32") {
+    await spawnDetached("explorer.exe", [file.path]);
+    return {
+      ...file,
+      ...clientInfo,
+      excelUrl: buildExcelOpenUrl(clientInfo.fileUrl),
+      openedOnServer: true,
+    };
   }
 
-  await spawnDetached("explorer.exe", [file.path]);
-  return file;
+  const excelUrl = buildExcelOpenUrl(clientInfo.fileUrl);
+  if (!excelUrl) {
+    throw new Error(
+      "El servidor Linux encontró el Excel, pero falta configurar ZWCAD_CLIENT_ROOTS para convertir /mnt/oftecnica a la ruta de red Windows.",
+    );
+  }
+
+  return {
+    ...file,
+    ...clientInfo,
+    excelUrl,
+    openedOnServer: false,
+  };
 }
