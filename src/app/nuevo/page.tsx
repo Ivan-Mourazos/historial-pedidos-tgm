@@ -207,50 +207,54 @@ export default function NuevoPedidoPage() {
       )}
 
       <Card className="mb-5">
-        <div className="grid gap-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field
-              label="Número de pedido *"
-              hint={!formatoNumeroOk ? AVISO_FORMATO_PEDIDO : "Ej. AR2600000"}
-            >
-              <input
-                className={`${inputClass} font-mono ${
-                  !formatoNumeroOk ? "border-amber-400" : ""
-                }`}
-                value={numero}
-                onChange={(e) => {
-                  setNumero(e.target.value.toUpperCase());
-                  setConfirmarNumero(false);
-                  setAvisoNumero(null);
-                }}
-                placeholder="AR2600000"
-              />
-            </Field>
-            <Field label="Familia *">
-              <select
-                className={inputClass}
-                value={familiaId}
-                onChange={(e) => setFamiliaId(e.target.value)}
+        <div className="space-y-4">
+          <section>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-app-muted">
+              Pedido y cliente
+            </p>
+            <div className="grid gap-3 lg:grid-cols-[minmax(190px,1fr)_minmax(170px,0.8fr)_minmax(260px,1.25fr)]">
+              <Field
+                label="Número de pedido *"
+                hint={!formatoNumeroOk ? AVISO_FORMATO_PEDIDO : "Ej. AR2600000"}
               >
-                {cat.familias.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.nombre}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          </div>
-
-          <ClienteSelect
-            clientes={cat.clientes}
-            value={clienteId}
-            onChange={setClienteId}
-            onClienteCreado={() => cat.recargarClientes()}
-          />
+                <input
+                  className={`${inputClass} font-mono ${
+                    !formatoNumeroOk ? "border-amber-400" : ""
+                  }`}
+                  value={numero}
+                  onChange={(e) => {
+                    setNumero(e.target.value.toUpperCase());
+                    setConfirmarNumero(false);
+                    setAvisoNumero(null);
+                  }}
+                  placeholder="AR2600000"
+                />
+              </Field>
+              <Field label="Familia *">
+                <select
+                  className={inputClass}
+                  value={familiaId}
+                  onChange={(e) => setFamiliaId(e.target.value)}
+                >
+                  {cat.familias.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.nombre}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <ClienteSelect
+                clientes={cat.clientes}
+                value={clienteId}
+                onChange={setClienteId}
+                onClienteCreado={() => cat.recargarClientes()}
+              />
+            </div>
+          </section>
 
           {familiaNombre && (
-            <div>
-              <p className="mb-2 text-sm font-medium text-slate-700">
+            <section className="border-t border-[var(--border)] pt-4">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-app-muted">
                 Datos técnicos
               </p>
               <CamposTecnicosFamilia
@@ -258,43 +262,51 @@ export default function NuevoPedidoPage() {
                 valores={valores}
                 onChange={setCampo}
                 tiposPuerta={cat.tiposPuerta}
+                freeInput
               />
-            </div>
+            </section>
           )}
 
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Fecha">
-              <input
-                type="date"
-                className={inputClass}
-                value={fecha}
-                onChange={(e) => setFecha(e.target.value)}
+          <section className="border-t border-[var(--border)] pt-4">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-app-muted">
+              Planificación
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(170px,0.7fr)_minmax(220px,1fr)]">
+              <Field label="Fecha">
+                <input
+                  type="date"
+                  className={inputClass}
+                  value={fecha}
+                  onChange={(e) => setFecha(e.target.value)}
+                />
+              </Field>
+              <Field label="Técnico">
+                <select
+                  className={inputClass}
+                  value={tecnicoId}
+                  onChange={(e) => setTecnicoId(e.target.value)}
+                >
+                  <option value="">— Sin asignar —</option>
+                  {cat.tecnicos.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.nombre}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+          </section>
+
+          <section className="border-t border-[var(--border)] pt-4">
+            <Field label="Observaciones">
+              <textarea
+                className={`${inputClass} min-h-16 resize-y`}
+                value={observaciones}
+                onChange={(e) => setObservaciones(e.target.value)}
+                placeholder="Notas opcionales"
               />
             </Field>
-            <Field label="Técnico">
-              <select
-                className={inputClass}
-                value={tecnicoId}
-                onChange={(e) => setTecnicoId(e.target.value)}
-              >
-                <option value="">— Sin asignar —</option>
-                {cat.tecnicos.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.nombre}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          </div>
-
-          <Field label="Observaciones">
-            <textarea
-              className={`${inputClass} min-h-20`}
-              value={observaciones}
-              onChange={(e) => setObservaciones(e.target.value)}
-              placeholder="Notas opcionales"
-            />
-          </Field>
+          </section>
         </div>
       </Card>
 

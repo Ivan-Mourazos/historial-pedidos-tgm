@@ -56,10 +56,12 @@ function MedidaSelect({
     return (
       <Field label={label} hint={hint}>
         <input
-          className={inputClass}
+          className={`${inputClass} tabular-nums`}
+          inputMode="decimal"
+          autoComplete="off"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="0,00"
+          placeholder="Ej. 250"
         />
       </Field>
     );
@@ -155,7 +157,7 @@ export function CamposTecnicosFamilia({
                 value={valores.tipo}
                 onChange={(e) => onChange("tipo", e.target.value)}
               >
-                <option value="">— Todos —</option>
+                <option value="">{freeInput ? "— Tipo —" : "— Todos —"}</option>
                 {tiposDisp.map((t) => (
                   <option key={t} value={t}>{t}</option>
                 ))}

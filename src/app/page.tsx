@@ -282,12 +282,219 @@ export default function BuscadorPage() {
         </div>
       </Card>
 
+      {/* ── Registro contextual: siempre antes de los resultados ── */}
+      {hayAlgunCriterio && (
+        <div className="mb-4 scroll-mt-20">
+          {/* Sin cliente: pide seleccionar */}
+          {!clienteId && !mostrarRegistro && (
+            <div className="flex items-center justify-between rounded-lg border border-[var(--border-strong)] bg-surface-2 px-4 py-3 text-sm">
+              <span className="text-app-muted">Selecciona un cliente para registrar este pedido.</span>
+              <button
+                type="button"
+                onClick={() => setMostrarRegistro(true)}
+                className="cursor-pointer rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--brand-hover)]"
+              >
+                + Nuevo registro
+              </button>
+            </div>
+          )}
+
+          {/* Con cliente + coincidencia exacta: DWG banner + opción de registrar igualmente */}
+          {clienteId && completos && exacto && !mostrarRegistro && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-900/40 bg-emerald-950/20 px-4 py-3 text-sm">
+              <div className="flex items-center gap-2">
+                <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500">
+                  <CheckIcon />
+                </span>
+                <span className="text-emerald-400">Coincidencia exacta —</span>
+                <span className="font-mono font-semibold text-emerald-300">{exacto.numero_pedido}.dwg</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <AbrirExcelButton
+                  numeroPedido={exacto.numero_pedido}
+                  familiaNombre={familiaNombre}
+                  tipo={exacto.tipo}
+                  label="Abrir Excel"
+                />
+                <AbrirZwcadButton numeroPedido={exacto.numero_pedido} label="Abrir en ZWCAD" />
+                <button
+                  type="button"
+                  onClick={() => setMostrarRegistro(true)}
+                  className="cursor-pointer text-xs text-app-muted underline underline-offset-2 hover:text-app-text hover:no-underline"
+                >
+                  Registrar igualmente con otro número
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Con cliente + campos completos + sin coincidencia exacta: botón de registrar */}
+          {clienteId && completos && !exacto && !mostrarRegistro && (
+            <div className="flex items-center justify-between rounded-lg border border-[var(--border-strong)] bg-surface-2 px-4 py-3 text-sm">
+              <span className="text-app-muted">No hay coincidencia exacta para este cliente y esas medidas.</span>
+              <button
+                type="button"
+                onClick={() => setMostrarRegistro(true)}
+                className="cursor-pointer rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--brand-hover)]"
+              >
+                + Registrar pedido
+              </button>
+            </div>
+          )}
+
+          {/* Con cliente + campos incompletos: guía para completar medidas */}
+          {clienteId && !completos && !mostrarRegistro && (
+            <div className="flex items-center justify-between rounded-lg border border-[var(--border-strong)] bg-surface-2 px-4 py-3 text-sm">
+              <span className="text-app-muted">Completa todas las medidas para registrar el pedido.</span>
+              <button
+                type="button"
+                onClick={() => setMostrarRegistro(true)}
+                className="cursor-pointer text-xs text-brand underline underline-offset-2 hover:no-underline"
+              >
+                Registrar con medidas parciales
+              </button>
+            </div>
+          )}
+
+          {/* Formulario de registro */}
+          {mostrarRegistro && (
+        <Card>
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-sm font-semibold text-app-text">Registrar como nuevo pedido</p>
+            <button
+              type="button"
+              onClick={() => setMostrarRegistro(false)}
+              className="cursor-pointer text-xs text-app-muted hover:text-app-text"
+            >
+              Cancelar
+            </button>
+          </div>
+
+          {okMsg && (
+            <div className="mb-3"><Banner tone="success">{okMsg}</Banner></div>
+          )}
+          {errorMsg && (
+            <div className="mb-3"><Banner tone="warning">{errorMsg}</Banner></div>
+          )}
+
+          {/* Medidas: siempre visibles en el formulario para confirmar o completar */}
+          <div className="mb-4 rounded-lg border border-[var(--border)] bg-surface-2 p-3">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-muted">Medidas</p>
+            <div className="flex flex-wrap items-start gap-2">
+              <CamposTecnicosFamilia
+                familiaNombre={familiaNombre}
+                valores={valores}
+                onChange={(campo, valor) => setValores((v) => ({ ...v, [campo]: valor }))}
+                tiposPuerta={cat.tiposPuerta}
+                pedidosFamilia={pedidosFamilia}
+                tiposRemolqueExtra={tiposRemolqueExtra}
+                freeInput
+                inline
+                onNuevoTipo={() => esRemolques ? setModalTipoRemolque(true) : setModalTipoPuerta(true)}
+              />
+            </div>
+          </div>
+
+          {/* Línea: Cliente · Nº Pedido · Fecha · Técnico */}
+          <div className="flex flex-wrap items-start gap-2">
+            {!clienteId && (
+              <div className="min-w-[160px] flex-[2]">
+                <span className={labelClass}>Cliente *</span>
+                <div className="flex items-center gap-1">
+                  <select
+                    className={`${inputClass} flex-1`}
+                    value={clienteId ?? ""}
+                    onChange={(e) => setClienteId(e.target.value || null)}
+                  >
+                    <option value="">— Cliente —</option>
+                    {clientesDeFamilia.map((c) => (
+                      <option key={c.id} value={c.id}>{c.nombre}</option>
+                    ))}
+                  </select>
+                  <Button variant="secondary" onClick={() => setModalCliente(true)}>+</Button>
+                </div>
+              </div>
+            )}
+
+            <div className="min-w-[120px] flex-[2]">
+              <Field
+                label="Nº Pedido *"
+                hint={!formatoNumeroOk ? AVISO_FORMATO_PEDIDO : undefined}
+              >
+                <input
+                  className={`${inputClass} font-mono ${!formatoNumeroOk ? "!border-amber-500" : ""}`}
+                  value={numero}
+                  onChange={(e) => {
+                    setNumero(e.target.value.toUpperCase());
+                    setConfirmarNumero(false);
+                    setErrorMsg(null);
+                  }}
+                  placeholder="AR2600000"
+                />
+              </Field>
+            </div>
+
+            <div className="min-w-[120px] flex-1">
+              <Field label="Fecha">
+                <input
+                  type="date"
+                  className={inputClass}
+                  value={fecha}
+                  onChange={(e) => setFecha(e.target.value)}
+                />
+              </Field>
+            </div>
+
+            <div className="min-w-[120px] flex-[2]">
+              <span className={labelClass}>Técnico</span>
+              <div className="flex items-center gap-1">
+                <select
+                  className={`${inputClass} flex-1`}
+                  value={tecnicoId}
+                  onChange={(e) => setTecnicoId(e.target.value)}
+                >
+                  <option value="">— Sin asignar —</option>
+                  {cat.tecnicos.map((t) => (
+                    <option key={t.id} value={t.id}>{t.nombre}</option>
+                  ))}
+                </select>
+                <Button variant="secondary" onClick={() => setModalTecnico(true)}>+</Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Línea: Observaciones */}
+          <div className="mt-2">
+            <Field label="Observaciones">
+              <input
+                className={inputClass}
+                value={observaciones}
+                onChange={(e) => setObservaciones(e.target.value)}
+                placeholder="Notas opcionales"
+              />
+            </Field>
+          </div>
+
+          <div className="mt-4">
+            <Button onClick={guardar} disabled={!puedeGuardar}>
+              {guardando
+                ? "Guardando…"
+                : confirmarNumero
+                  ? "Guardar igualmente"
+                  : "Guardar pedido"}
+            </Button>
+          </div>
+        </Card>
+          )}
+        </div>
+      )}
+
       {/* ── Cabecera de resultados ── */}
       {hayAlgunCriterio && (
         <div className="mb-2 flex items-center justify-between px-0.5">
           <p className="text-sm text-app-muted">
             {resultadosLive.length === 0
-              ? "Sin resultados"
+              ? "Sin coincidencias"
               : `${resultadosLive.length} pedido${resultadosLive.length !== 1 ? "s" : ""} encontrado${resultadosLive.length !== 1 ? "s" : ""}`}
           </p>
           {!clienteId && completos && (
@@ -319,7 +526,7 @@ export default function BuscadorPage() {
           </p>
         ) : resultadosLive.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-app-muted">
-            No se encontraron pedidos con estas medidas.
+            No hay pedidos similares con esas medidas.
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -500,213 +707,6 @@ export default function BuscadorPage() {
           </div>
         )}
       </div>
-
-      {/* ── Zona inferior: registro ── */}
-      {hayAlgunCriterio && (
-        <div className="mt-2">
-          {/* Sin cliente: pide seleccionar */}
-          {!clienteId && !mostrarRegistro && (
-            <div className="mb-3 flex items-center justify-between rounded-lg border border-[var(--border-strong)] bg-surface-2 px-4 py-3 text-sm">
-              <span className="text-app-muted">Selecciona un cliente para registrar este pedido.</span>
-              <button
-                type="button"
-                onClick={() => setMostrarRegistro(true)}
-                className="cursor-pointer rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--brand-hover)]"
-              >
-                + Nuevo registro
-              </button>
-            </div>
-          )}
-
-          {/* Con cliente + coincidencia exacta: DWG banner + opción de registrar igualmente */}
-          {clienteId && completos && exacto && !mostrarRegistro && (
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-900/40 bg-emerald-950/20 px-4 py-3 text-sm">
-              <div className="flex items-center gap-2">
-                <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500">
-                  <CheckIcon />
-                </span>
-                <span className="text-emerald-400">Coincidencia exacta —</span>
-                <span className="font-mono font-semibold text-emerald-300">{exacto.numero_pedido}.dwg</span>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <AbrirExcelButton
-                  numeroPedido={exacto.numero_pedido}
-                  familiaNombre={familiaNombre}
-                  tipo={exacto.tipo}
-                  label="Abrir Excel"
-                />
-                <AbrirZwcadButton numeroPedido={exacto.numero_pedido} label="Abrir en ZWCAD" />
-                <button
-                  type="button"
-                  onClick={() => setMostrarRegistro(true)}
-                  className="cursor-pointer text-xs text-app-muted underline underline-offset-2 hover:text-app-text hover:no-underline"
-                >
-                  Registrar igualmente con otro número
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Con cliente + campos completos + sin coincidencia exacta: botón de registrar */}
-          {clienteId && completos && !exacto && !mostrarRegistro && (
-            <div className="mb-3 flex items-center justify-between rounded-lg border border-[var(--border-strong)] bg-surface-2 px-4 py-3 text-sm">
-              <span className="text-app-muted">No existe este pedido para el cliente seleccionado.</span>
-              <button
-                type="button"
-                onClick={() => setMostrarRegistro(true)}
-                className="cursor-pointer rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--brand-hover)]"
-              >
-                + Registrar pedido
-              </button>
-            </div>
-          )}
-
-          {/* Con cliente + campos incompletos: guía para completar medidas */}
-          {clienteId && !completos && !mostrarRegistro && (
-            <div className="mb-3 flex items-center justify-between rounded-lg border border-[var(--border-strong)] bg-surface-2 px-4 py-3 text-sm">
-              <span className="text-app-muted">Completa todas las medidas para registrar el pedido.</span>
-              <button
-                type="button"
-                onClick={() => setMostrarRegistro(true)}
-                className="cursor-pointer text-xs text-brand underline underline-offset-2 hover:no-underline"
-              >
-                Registrar con medidas parciales
-              </button>
-            </div>
-          )}
-
-          {/* Formulario de registro */}
-          {mostrarRegistro && (
-        <Card>
-          <div className="mb-3 flex items-center justify-between">
-            <p className="text-sm font-semibold text-app-text">Registrar como nuevo pedido</p>
-            <button
-              type="button"
-              onClick={() => setMostrarRegistro(false)}
-              className="cursor-pointer text-xs text-app-muted hover:text-app-text"
-            >
-              Cancelar
-            </button>
-          </div>
-
-          {okMsg && (
-            <div className="mb-3"><Banner tone="success">{okMsg}</Banner></div>
-          )}
-          {errorMsg && (
-            <div className="mb-3"><Banner tone="warning">{errorMsg}</Banner></div>
-          )}
-
-          {/* Medidas: siempre visibles en el formulario para confirmar o completar */}
-          <div className="mb-4 rounded-lg border border-[var(--border)] bg-surface-2 p-3">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-muted">Medidas</p>
-            <div className="flex flex-wrap items-start gap-2">
-              <CamposTecnicosFamilia
-                familiaNombre={familiaNombre}
-                valores={valores}
-                onChange={(campo, valor) => setValores((v) => ({ ...v, [campo]: valor }))}
-                tiposPuerta={cat.tiposPuerta}
-                pedidosFamilia={pedidosFamilia}
-                tiposRemolqueExtra={tiposRemolqueExtra}
-                freeInput
-                inline
-                onNuevoTipo={() => esRemolques ? setModalTipoRemolque(true) : setModalTipoPuerta(true)}
-              />
-            </div>
-          </div>
-
-          {/* Línea: Cliente · Nº Pedido · Fecha · Técnico */}
-          <div className="flex flex-wrap items-start gap-2">
-            {!clienteId && (
-              <div className="min-w-[160px] flex-[2]">
-                <span className={labelClass}>Cliente *</span>
-                <div className="flex items-center gap-1">
-                  <select
-                    className={`${inputClass} flex-1`}
-                    value={clienteId ?? ""}
-                    onChange={(e) => setClienteId(e.target.value || null)}
-                  >
-                    <option value="">— Cliente —</option>
-                    {clientesDeFamilia.map((c) => (
-                      <option key={c.id} value={c.id}>{c.nombre}</option>
-                    ))}
-                  </select>
-                  <Button variant="secondary" onClick={() => setModalCliente(true)}>+</Button>
-                </div>
-              </div>
-            )}
-
-            <div className="min-w-[120px] flex-[2]">
-              <Field
-                label="Nº Pedido *"
-                hint={!formatoNumeroOk ? AVISO_FORMATO_PEDIDO : undefined}
-              >
-                <input
-                  className={`${inputClass} font-mono ${!formatoNumeroOk ? "!border-amber-500" : ""}`}
-                  value={numero}
-                  onChange={(e) => {
-                    setNumero(e.target.value.toUpperCase());
-                    setConfirmarNumero(false);
-                    setErrorMsg(null);
-                  }}
-                  placeholder="AR2600000"
-                />
-              </Field>
-            </div>
-
-            <div className="min-w-[120px] flex-1">
-              <Field label="Fecha">
-                <input
-                  type="date"
-                  className={inputClass}
-                  value={fecha}
-                  onChange={(e) => setFecha(e.target.value)}
-                />
-              </Field>
-            </div>
-
-            <div className="min-w-[120px] flex-[2]">
-              <span className={labelClass}>Técnico</span>
-              <div className="flex items-center gap-1">
-                <select
-                  className={`${inputClass} flex-1`}
-                  value={tecnicoId}
-                  onChange={(e) => setTecnicoId(e.target.value)}
-                >
-                  <option value="">— Sin asignar —</option>
-                  {cat.tecnicos.map((t) => (
-                    <option key={t.id} value={t.id}>{t.nombre}</option>
-                  ))}
-                </select>
-                <Button variant="secondary" onClick={() => setModalTecnico(true)}>+</Button>
-              </div>
-            </div>
-          </div>
-
-          {/* Línea: Observaciones */}
-          <div className="mt-2">
-            <Field label="Observaciones">
-              <input
-                className={inputClass}
-                value={observaciones}
-                onChange={(e) => setObservaciones(e.target.value)}
-                placeholder="Notas opcionales"
-              />
-            </Field>
-          </div>
-
-          <div className="mt-4">
-            <Button onClick={guardar} disabled={!puedeGuardar}>
-              {guardando
-                ? "Guardando…"
-                : confirmarNumero
-                  ? "Guardar igualmente"
-                  : "Guardar pedido"}
-            </Button>
-          </div>
-        </Card>
-          )}
-        </div>
-      )}
 
       {modalCliente && (
         <CrearEntidadModal

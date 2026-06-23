@@ -35,14 +35,42 @@ function MoonIcon() {
   );
 }
 
+function PlusIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  );
+}
+
+function ArrowUpIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 19V5" />
+      <path d="M5 12l7-7 7 7" />
+    </svg>
+  );
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [dark, setDark] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [showBackTop, setShowBackTop] = useState(false);
 
   useEffect(() => {
     setDark(document.documentElement.classList.contains("dark"));
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    function handleScroll() {
+      setShowBackTop(window.scrollY > 360);
+    }
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   function toggleDark() {
@@ -52,6 +80,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       localStorage.setItem("theme", next ? "dark" : "light");
       return next;
     });
+  }
+
+  function scrollToTop() {
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   return (
@@ -111,6 +143,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             })}
           </nav>
 
+          <Link
+            href="/nuevo"
+            className={`inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg border px-3 text-sm font-semibold transition-colors ${
+              pathname.startsWith("/nuevo")
+                ? "border-orange-500 bg-brand text-white shadow-sm"
+                : "border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 dark:border-orange-400/25 dark:bg-orange-400/10 dark:text-orange-200 dark:hover:border-orange-400/35 dark:hover:bg-orange-400/15"
+            }`}
+          >
+            <PlusIcon />
+            <span className="hidden sm:inline">Nuevo pedido</span>
+          </Link>
+
           {/* Toggle dark mode */}
           <button
             onClick={toggleDark}
@@ -125,6 +169,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <main className="relative z-[1] mx-auto w-full max-w-6xl flex-1 px-4 py-6">
         {children}
       </main>
+
+      {showBackTop && (
+        <button
+          type="button"
+          onClick={scrollToTop}
+          aria-label="Volver arriba"
+          title="Volver arriba"
+          className="fixed bottom-5 right-5 z-40 inline-flex h-11 w-11 items-center justify-center rounded-full border border-orange-200 bg-white text-orange-700 shadow-lg shadow-slate-900/10 transition-all hover:-translate-y-0.5 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-800 focus:outline-none focus:ring-2 focus:ring-orange-400/40 dark:border-orange-400/25 dark:bg-slate-900 dark:text-orange-200 dark:shadow-black/40 dark:hover:border-orange-400/40 dark:hover:bg-orange-400/10 dark:hover:text-orange-100"
+        >
+          <ArrowUpIcon />
+        </button>
+      )}
     </div>
   );
 }

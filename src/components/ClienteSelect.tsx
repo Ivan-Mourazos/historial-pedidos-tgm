@@ -59,7 +59,7 @@ export function ClienteSelect({
       {creando ? (
         <div className="flex flex-wrap items-center gap-2">
           <input
-            className={`${inputClass} max-w-xs`}
+            className={`${inputClass} min-w-[180px] flex-1`}
             autoFocus
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
@@ -76,7 +76,7 @@ export function ClienteSelect({
       ) : (
         <div className="flex flex-wrap items-center gap-2">
           <select
-            className={`${inputClass} max-w-xs`}
+            className={`${inputClass} min-w-[180px] flex-1`}
             value={value ?? ""}
             onChange={(e) => onChange(e.target.value || null)}
           >
