@@ -44,6 +44,7 @@ Para localizar pedidos con ZWCAD/Excel desde los botones de la web, añade tambi
 ```env
 ZWCAD_DWG_ROOTS=/mnt/oftecnica
 ZWCAD_CLIENT_ROOTS=\\stinkor\oftecnica
+ZWCAD_CLIENT_CAD_URL_TEMPLATE=zwcad-open://open?path={path}
 ZWCAD_EXE=
 ```
 
@@ -63,8 +64,25 @@ PC Windows del usuario y no en el servidor Linux, configura también
 En Windows local, si `ZWCAD_EXE` queda vacío, Windows abrirá el archivo con la
 aplicación asociada a `.dwg`; si no, indica la ruta del ejecutable de ZWCAD. En
 Linux no se puede lanzar ZWCAD/Excel en el servidor: Excel se abre en el puesto
-con `ms-excel:` apuntando a la ruta de red y CAD intenta abrir el `file://` del
-DWG, copiando además la ruta al portapapeles como respaldo.
+con `ms-excel:` apuntando a la ruta de red.
+
+Para abrir CAD con un clic desde el servidor Linux, configura
+`ZWCAD_CLIENT_CAD_URL_TEMPLATE=zwcad-open://open?path={path}` y registra el
+protocolo `zwcad-open` en cada PC Windows. El repo incluye el instalador:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\install-zwcad-open-protocol.ps1
+```
+
+Si se quiere forzar un ejecutable concreto de ZWCAD en el PC:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\install-zwcad-open-protocol.ps1 -ZwcadExe "C:\Program Files\ZWSOFT\ZWCAD 2025\ZWCAD.exe"
+```
+
+El instalador se registra solo para el usuario actual (`HKCU`) y no requiere
+permisos de administrador. Si el protocolo no está instalado, el botón CAD
+copiará la ruta UNC al portapapeles como respaldo.
 
 En remolques que no sean de ganado, la web también comprobará si existe un Excel
 en la misma carpeta del año. Detecta `AR26xxxxx.xlsx` y variantes numeradas como

@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
-import { buildClientOpenInfo, type ClientOpenInfo } from "@/lib/files/client-open";
+import { buildCadOpenUrl, buildClientOpenInfo, type ClientOpenInfo } from "@/lib/files/client-open";
 import { normalizarNumeroPedido } from "@/lib/pedido-numero";
 
 const DWG_EXTENSION = ".dwg";
@@ -9,6 +9,7 @@ const YEAR_PREFIX = "20";
 
 export interface PedidoDwgOpenResult extends ClientOpenInfo {
   filePath: string;
+  cadUrl?: string;
   openedOnServer: boolean;
 }
 
@@ -132,11 +133,13 @@ export async function getPedidoDwgOpenTarget(numeroPedido: string): Promise<Pedi
   const filePath = await findDwgForPedido(numeroPedido);
 
   if (process.platform === "win32" || process.env.ZWCAD_EXE?.trim()) {
+    const clientInfo = buildClientOpenInfo(filePath, getDwgRoots());
     await openDwgWithZwcad(filePath);
     return {
       filePath,
       openedOnServer: true,
-      ...buildClientOpenInfo(filePath, getDwgRoots()),
+      ...clientInfo,
+      cadUrl: buildCadOpenUrl(clientInfo.clientPath, clientInfo.fileUrl),
     };
   }
 
@@ -151,5 +154,6 @@ export async function getPedidoDwgOpenTarget(numeroPedido: string): Promise<Pedi
     filePath,
     openedOnServer: false,
     ...clientInfo,
+    cadUrl: buildCadOpenUrl(clientInfo.clientPath, clientInfo.fileUrl),
   };
 }

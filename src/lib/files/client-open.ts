@@ -61,6 +61,18 @@ export function buildExcelOpenUrl(fileUrl?: string): string | undefined {
   return fileUrl ? `ms-excel:ofe|u|${fileUrl}` : undefined;
 }
 
+export function buildCadOpenUrl(clientPath?: string, fileUrl?: string): string | undefined {
+  if (!clientPath) return undefined;
+
+  const template = process.env.ZWCAD_CLIENT_CAD_URL_TEMPLATE?.trim();
+  if (!template) return undefined;
+
+  return template
+    .replaceAll("{path}", encodeURIComponent(clientPath))
+    .replaceAll("{rawPath}", clientPath)
+    .replaceAll("{fileUrl}", encodeURIComponent(fileUrl ?? ""));
+}
+
 export function buildClientOpenInfo(filePath: string, serverRoots: string[]): ClientOpenInfo {
   const clientRoots = parseEnvList(process.env.ZWCAD_CLIENT_ROOTS);
 

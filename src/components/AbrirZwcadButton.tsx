@@ -8,6 +8,7 @@ interface ZwcadOpenResponse {
   error?: string;
   openedOnServer?: boolean;
   clientPath?: string;
+  cadUrl?: string;
   fileUrl?: string;
 }
 
@@ -64,18 +65,22 @@ export function AbrirZwcadButton({
             .then(() => true)
             .catch(() => false) ?? false;
         }
-        if (data.fileUrl) {
+        if (data.cadUrl) {
+          window.location.assign(data.cadUrl);
+        } else if (data.fileUrl) {
           const opened = window.open(data.fileUrl, "_blank", "noopener,noreferrer");
           if (!opened && data.clientPath) {
             window.alert(
-              `El navegador ha bloqueado la apertura directa del DWG.\n\n${
+              `El navegador ha bloqueado la apertura directa del DWG. Para abrirlo con un clic, IT debe configurar ZWCAD_CLIENT_CAD_URL_TEMPLATE y registrar el protocolo zwcad-open en los PCs.\n\n${
                 copied ? "Ruta copiada al portapapeles:" : "Ruta del archivo:"
               }\n${data.clientPath}`,
             );
           }
         } else if (data.clientPath) {
           window.alert(
-            `${copied ? "Ruta copiada al portapapeles:" : "Ruta del archivo:"}\n${data.clientPath}`,
+            `Para abrir CAD con un clic, IT debe configurar ZWCAD_CLIENT_CAD_URL_TEMPLATE y registrar el protocolo zwcad-open en los PCs.\n\n${
+              copied ? "Ruta copiada al portapapeles:" : "Ruta del archivo:"
+            }\n${data.clientPath}`,
           );
         }
       }
