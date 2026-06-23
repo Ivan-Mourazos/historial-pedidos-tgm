@@ -58,13 +58,25 @@ export function AbrirZwcadButton({
       if (!res.ok) throw new Error(data.error ?? "No se pudo abrir el DWG.");
 
       if (!data.openedOnServer) {
+        let copied = false;
         if (data.clientPath) {
-          await navigator.clipboard?.writeText(data.clientPath).catch(() => undefined);
+          copied = await navigator.clipboard?.writeText(data.clientPath)
+            .then(() => true)
+            .catch(() => false) ?? false;
         }
         if (data.fileUrl) {
-          window.location.assign(data.fileUrl);
+          const opened = window.open(data.fileUrl, "_blank", "noopener,noreferrer");
+          if (!opened && data.clientPath) {
+            window.alert(
+              `El navegador ha bloqueado la apertura directa del DWG.\n\n${
+                copied ? "Ruta copiada al portapapeles:" : "Ruta del archivo:"
+              }\n${data.clientPath}`,
+            );
+          }
         } else if (data.clientPath) {
-          window.alert(`Ruta copiada al portapapeles:\n${data.clientPath}`);
+          window.alert(
+            `${copied ? "Ruta copiada al portapapeles:" : "Ruta del archivo:"}\n${data.clientPath}`,
+          );
         }
       }
 
