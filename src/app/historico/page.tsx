@@ -4,9 +4,16 @@ import { useEffect, useMemo, useState } from "react";
 import { AbrirExcelButton, type ExcelFileOption } from "@/components/AbrirExcelButton";
 import { AbrirZwcadButton } from "@/components/AbrirZwcadButton";
 import { EditarPedidoModal } from "@/components/EditarPedidoModal";
-import { Banner, PageTitle, inputClass } from "@/components/ui";
+import {
+  Banner,
+  PageTitle,
+  inputClass,
+  modalOverlayClass,
+  modalPanelClass,
+} from "@/components/ui";
 import { dbService } from "@/lib/db/db-service";
 import { formatMedida, formatFecha } from "@/lib/display";
+import { repararMojibake, tipoRemolqueCanonico } from "@/lib/tipos-remolque";
 import { useCatalogos } from "@/lib/useCatalogos";
 import type { PedidoConRelaciones } from "@/lib/types";
 
@@ -24,7 +31,7 @@ function Th({
   className?: string;
 }) {
   return (
-    <th className={`whitespace-nowrap px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-app-muted ${className}`}>
+    <th className={`whitespace-nowrap px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-app-muted ${className}`}>
       {children}
     </th>
   );
@@ -46,7 +53,7 @@ function SortTh({
   const activo = orden?.campo === campo;
 
   return (
-    <th className={`whitespace-nowrap px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-app-muted ${className}`}>
+    <th className={`whitespace-nowrap px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-app-muted ${className}`}>
       <button
         type="button"
         onClick={() => onSort(campo)}
@@ -63,7 +70,7 @@ function SortTh({
 }
 
 function normalizarTexto(valor?: string | null) {
-  return (valor ?? "").trim();
+  return repararMojibake(valor);
 }
 
 function estaVacio(valor: string | number | null | undefined) {
@@ -244,14 +251,14 @@ export default function HistoricoPage() {
       {/* Filtros */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div
-          className="flex rounded-lg border border-[var(--border-strong)] bg-surface p-0.5"
+        className="flex rounded-full border border-white/10 bg-surface/75 p-0.5 shadow-sm ring-1 ring-black/5 backdrop-blur-xl dark:ring-white/10"
           style={{ boxShadow: "var(--shadow-sm)" }}
         >
           {tabs.map((t) => (
             <button
               key={t.key}
               onClick={() => setFamilia(t.key)}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
                 familia === t.key
                   ? "bg-brand text-white shadow-sm"
                   : "text-app-muted hover:text-app-text"
@@ -271,7 +278,7 @@ export default function HistoricoPage() {
 
       {/* Tabla */}
       <div
-        className="overflow-hidden rounded-xl border border-[var(--border)] bg-surface"
+        className="overflow-hidden rounded-[18px] border border-white/10 bg-surface/80 shadow-sm ring-1 ring-black/5 backdrop-blur-xl dark:bg-slate-950/50 dark:ring-white/10"
         style={{ boxShadow: "var(--shadow-sm)" }}
       >
         {cargando ? (
@@ -302,7 +309,7 @@ export default function HistoricoPage() {
                   return (
                     <tr
                       key={p.id}
-                      className={`transition-colors hover:bg-surface-2 ${
+                      className={`transition-colors hover:bg-surface-2/70 ${
                         i < filtrados.length - 1 ? "border-b border-[var(--border)]" : ""
                       }`}
                     >
@@ -313,7 +320,9 @@ export default function HistoricoPage() {
                         {p.cliente?.nombre ?? "—"}
                       </td>
 
-                      <td className="max-w-[150px] truncate px-3 py-3 text-app-muted">{p.tipo ?? "—"}</td>
+                      <td className="max-w-[150px] truncate px-3 py-3 text-app-muted">
+                        {esRemolque ? tipoRemolqueCanonico(p.tipo) || "—" : p.tipo ?? "—"}
+                      </td>
 
                       <td className="whitespace-nowrap px-3 py-3 text-app-text">
                         {esPuertas
@@ -362,7 +371,7 @@ export default function HistoricoPage() {
                           {p.observaciones && (
                             <button
                               onClick={() => setVerComentario(p)}
-                              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-400/15 dark:bg-white/[0.04] dark:text-slate-300 dark:hover:border-slate-400/25 dark:hover:bg-white/[0.07]"
+                              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-surface-2/70 text-xs font-semibold text-app-muted shadow-sm ring-1 ring-black/5 transition-colors hover:bg-[var(--border)] hover:text-app-text dark:ring-white/10"
                               title="Ver comentario"
                               aria-label={`Ver comentario de ${p.numero_pedido}`}
                             >
@@ -374,7 +383,7 @@ export default function HistoricoPage() {
                       <td className="w-[82px] border-l border-[var(--border)] px-2 py-3">
                         <button
                           onClick={() => setEditando(p)}
-                          className="inline-flex h-8 w-[74px] items-center justify-start gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2 text-xs font-semibold text-orange-700 transition-colors hover:bg-orange-100 dark:border-orange-400/25 dark:bg-orange-400/10 dark:text-orange-200 dark:hover:border-orange-400/35 dark:hover:bg-orange-400/15"
+                          className="inline-flex h-8 w-[74px] items-center justify-start gap-1 rounded-full border border-orange-200/70 bg-orange-50/80 px-2 text-xs font-semibold text-orange-700 shadow-sm ring-1 ring-black/5 transition-colors hover:bg-orange-100 dark:border-orange-400/25 dark:bg-orange-400/10 dark:text-orange-200 dark:ring-white/10 dark:hover:border-orange-400/35 dark:hover:bg-orange-400/15"
                           aria-label={`Editar ${p.numero_pedido}`}
                         >
                           <PencilIcon />
@@ -413,32 +422,31 @@ export default function HistoricoPage() {
       {/* Modal ver comentario */}
       {verComentario && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm"
+          className={`${modalOverlayClass} flex items-center justify-center`}
           onClick={() => setVerComentario(null)}
         >
           <div
-            className="w-full max-w-lg rounded-xl border border-[var(--border-strong)] bg-surface p-5"
-            style={{ boxShadow: "var(--shadow-lg)" }}
+            className={`${modalPanelClass} max-w-[460px] p-4`}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mb-3 flex items-center justify-between">
+            <div className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-base font-semibold text-app-text">Comentario</h2>
-                <p className="mt-0.5 font-mono text-sm text-app-muted">
+                <h2 className="text-[15px] font-semibold tracking-tight text-app-text">Comentario</h2>
+                <p className="mt-0.5 font-mono text-xs text-app-muted">
                   {verComentario.numero_pedido}
                 </p>
               </div>
               <button
-                className="rounded-md p-1 text-app-muted transition-colors hover:bg-surface-2 hover:text-app-text"
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-2 text-app-muted transition-colors hover:bg-[var(--border)] hover:text-app-text"
                 onClick={() => setVerComentario(null)}
                 aria-label="Cerrar"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                   <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               </button>
             </div>
-            <p className="whitespace-pre-wrap break-words text-sm text-app-text">
+            <p className="max-h-[55vh] overflow-y-auto whitespace-pre-wrap break-words rounded-[12px] border border-[var(--border)] bg-surface-2/45 p-3 text-sm leading-6 text-app-text">
               {verComentario.observaciones}
             </p>
           </div>

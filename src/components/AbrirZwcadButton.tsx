@@ -98,8 +98,8 @@ export function AbrirZwcadButton({
   const text = estado === "opening" ? "Abriendo..." : estado === "ok" ? "Abierto" : label;
   const title = `Abrir ${numeroPedido}.dwg en ZWCAD`;
   const baseClass = label
-    ? "inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 text-xs font-semibold text-blue-900 transition-colors hover:bg-blue-100 disabled:cursor-wait disabled:opacity-70 dark:border-sky-400/20 dark:bg-sky-400/10 dark:text-sky-200 dark:hover:border-sky-400/30 dark:hover:bg-sky-400/15"
-    : "inline-flex h-7 w-7 items-center justify-center rounded-md text-app-muted transition-colors hover:bg-surface-2 hover:text-brand disabled:cursor-wait disabled:opacity-70";
+    ? "inline-flex h-8 items-center justify-center gap-1.5 rounded-full border border-sky-200/70 bg-sky-50/80 px-3 text-xs font-semibold text-sky-900 shadow-sm ring-1 ring-black/5 transition-colors hover:bg-sky-100 disabled:cursor-wait disabled:opacity-70 dark:border-sky-400/20 dark:bg-sky-400/10 dark:text-sky-200 dark:ring-white/10 dark:hover:border-sky-400/30 dark:hover:bg-sky-400/15"
+    : "inline-flex h-7 w-7 items-center justify-center rounded-full text-app-muted transition-colors hover:bg-surface-2/80 hover:text-brand disabled:cursor-wait disabled:opacity-70";
 
   return (
     <button

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { dbService } from "@/lib/db/db-service";
 import { normalizarNombre } from "@/lib/normalize";
 import type { Cliente } from "@/lib/types";
-import { Button, inputClass, labelClass } from "./ui";
+import { Button, SelectControl, inputClass, labelClass } from "./ui";
 
 export function ClienteSelect({
   clientes,
@@ -75,18 +75,16 @@ export function ClienteSelect({
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-2">
-          <select
-            className={`${inputClass} min-w-[180px] flex-1`}
+          <SelectControl
+            className="min-w-[180px] flex-1"
             value={value ?? ""}
-            onChange={(e) => onChange(e.target.value || null)}
-          >
-            <option value="">— Selecciona cliente —</option>
-            {clientes.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nombre}
-              </option>
-            ))}
-          </select>
+            onChange={(next) => onChange(next || null)}
+            placeholder="— Selecciona cliente —"
+            options={[
+              { value: "", label: "— Selecciona cliente —" },
+              ...clientes.map((c) => ({ value: c.id, label: c.nombre })),
+            ]}
+          />
           {permitirCrear && (
             <Button variant="secondary" onClick={() => setCreando(true)}>
               + Nuevo

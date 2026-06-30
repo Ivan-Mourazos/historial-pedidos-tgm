@@ -1,7 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Banner, Button, Field, inputClass } from "./ui";
+import {
+  Banner,
+  Button,
+  Field,
+  inputClass,
+  modalCompactClass,
+  modalOverlayClass,
+  modalPanelClass,
+} from "./ui";
 
 export function CrearEntidadModal({
   titulo,
@@ -34,19 +42,22 @@ export function CrearEntidadModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+    <div className={`${modalOverlayClass} flex items-center justify-center`}>
       <div
-        className="w-full max-w-sm rounded-xl border border-[var(--border-strong)] bg-surface p-5"
-        style={{ boxShadow: "var(--shadow-lg)" }}
+        className={`${modalPanelClass} ${modalCompactClass} max-w-[360px] p-4`}
       >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-app-text">{titulo}</h2>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-[15px] font-semibold tracking-tight text-app-text">
+              {titulo}
+            </h2>
+          </div>
           <button
-            className="rounded-md p-1 text-app-muted transition-colors hover:bg-surface-2 hover:text-app-text"
+            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-2 text-app-muted transition-colors hover:bg-[var(--border)] hover:text-app-text"
             onClick={onCerrar}
             aria-label="Cerrar"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
@@ -63,9 +74,15 @@ export function CrearEntidadModal({
             onKeyDown={(e) => e.key === "Enter" && guardar()}
           />
         </Field>
-        <div className="mt-4 flex justify-end gap-2">
-          <Button variant="secondary" onClick={onCerrar}>Cancelar</Button>
-          <Button onClick={guardar} disabled={guardando || !nombre.trim()}>
+        <div className="mt-4 flex justify-end gap-2 border-t border-[var(--border)] pt-3">
+          <Button variant="secondary" className="h-8 px-3" onClick={onCerrar}>
+            Cancelar
+          </Button>
+          <Button
+            className="h-8 px-3"
+            onClick={guardar}
+            disabled={guardando || !nombre.trim()}
+          >
             {guardando ? "Guardando…" : "Crear"}
           </Button>
         </div>

@@ -9,16 +9,16 @@
   --brand-hover:    #e06010;
   --brand-glow:     rgba(243, 112, 33, 0.16);
 
-  --bg:             #f8fafc;
+  --bg:             #f5f5f7;
   --surface:        #ffffff;
-  --surface-2:      #f1f5f9;
-  --input-bg:       #f1f5f9;
+  --surface-2:      #f2f2f7;
+  --input-bg:       #f5f5f7;
 
   --text:           #1e293b;
   --text-2:         #475569;
 
-  --border:         #e2e8f0;
-  --border-strong:  #cbd5e1;
+  --border:         rgba(60, 60, 67, 0.13);
+  --border-strong:  rgba(60, 60, 67, 0.22);
 
   --shadow-sm:  0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-md:  0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
@@ -33,10 +33,10 @@
   --brand-hover:    #ff7a28;
   --brand-glow:     rgba(255, 147, 73, 0.35);
 
-  --bg:             #050608;
-  --surface:        #12161f;
-  --surface-2:      #1c2433;
-  --input-bg:       #1a2130;
+  --bg:             #050506;
+  --surface:        #111217;
+  --surface-2:      #1a1b22;
+  --input-bg:       #171922;
 
   --text:           #f3f5f9;
   --text-2:         #94a3b8;
@@ -89,9 +89,7 @@ body {
 .dark body {
   background-color: var(--bg);
   background-image:
-    radial-gradient(ellipse 100% 60% at 50% -18%, rgba(255, 147, 73, 0.10), transparent 52%),
-    radial-gradient(ellipse 45% 35% at 100% 0%, rgba(99, 102, 241, 0.05), transparent 45%),
-    linear-gradient(180deg, #0c0e14 0%, #050608 55%, #030405 100%);
+    linear-gradient(180deg, #0b0c10 0%, #050506 58%, #030304 100%);
 }
 
 .dark body::before {
@@ -109,3 +107,12 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--brand); }
+
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}

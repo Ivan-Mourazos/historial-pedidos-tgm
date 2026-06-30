@@ -1,6 +1,7 @@
 import type { CamposTecnicosValores } from "@/components/CamposTecnicosFamilia";
 import type { CriteriosBusqueda } from "./matching";
 import { parseMedida } from "./normalize";
+import { claveTipoRemolque, tipoRemolqueCanonico } from "./tipos-remolque";
 import { FAMILIA_PUERTAS, FAMILIA_REMOLQUES } from "./types";
 
 // Construye los criterios de búsqueda a partir de los campos del formulario.
@@ -38,8 +39,8 @@ export function camposTecnicosParaGuardar(
   impresion_digital: boolean;
 } {
   if (familiaNombre === FAMILIA_REMOLQUES) {
-    const tipo = valores.tipo.trim();
-    const tipoNorm = tipo.toLowerCase();
+    const tipo = tipoRemolqueCanonico(valores.tipo);
+    const tipoNorm = claveTipoRemolque(tipo);
     const usaRadioYAguas = tipoNorm === "ganado" || tipoNorm === "lona alta";
     return {
       tipo: tipo === "" ? null : tipo,

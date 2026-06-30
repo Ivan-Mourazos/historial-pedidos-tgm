@@ -3,6 +3,7 @@ import {
   FAMILIA_REMOLQUES,
   type Pedido,
 } from "./types";
+import { claveTipoRemolque } from "./tipos-remolque";
 
 // Criterios de búsqueda construidos a partir del formulario.
 // Las medidas ya vienen parseadas a número (o null para "vacío").
@@ -35,7 +36,7 @@ function igualMedida(a: number | null, b: number | null): boolean {
 }
 
 function tipoNormalizado(t: string | null): string {
-  return (t ?? "").trim().toLowerCase();
+  return claveTipoRemolque(t);
 }
 
 function esBaqueton(t: string | null): boolean {

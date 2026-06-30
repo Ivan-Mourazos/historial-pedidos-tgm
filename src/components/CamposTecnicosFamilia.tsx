@@ -8,7 +8,12 @@ import {
   type TipoRemolque,
 } from "@/lib/types";
 import { parseMedida, formatMedida } from "@/lib/normalize";
-import { Button, Field, inputClass } from "./ui";
+import {
+  claveTipoRemolque,
+  ordenarTiposRemolque,
+  tipoRemolqueCanonico,
+} from "@/lib/tipos-remolque";
+import { Button, Field, SelectControl, inputClass } from "./ui";
 
 export interface CamposTecnicosValores {
   largo: string;
@@ -47,12 +52,22 @@ function normStr(s: string | null | undefined): string {
 }
 
 function esBaqueton(tipo: string): boolean {
-  return normStr(tipo) === "baquetón" || normStr(tipo) === "baqueton";
+  return claveTipoRemolque(tipo) === "baqueton";
 }
 
 function pideRadioYAguas(tipo: string): boolean {
-  const t = normStr(tipo);
+  const t = claveTipoRemolque(tipo);
   return t === "ganado" || t === "lona alta";
+}
+
+function tiposRemolqueDisponibles(valores: Array<string | null | undefined>): string[] {
+  const porClave = new Map<string, string>();
+  for (const valor of valores) {
+    const limpio = tipoRemolqueCanonico(valor);
+    if (!limpio) continue;
+    porClave.set(claveTipoRemolque(limpio), limpio);
+  }
+  return [...porClave.values()].sort(ordenarTiposRemolque);
 }
 
 // Select de medidas con opciones en cascada desde la BD
@@ -87,21 +102,18 @@ function MedidaSelect({
   }
   return (
     <Field label={label} hint={hint}>
-      <select
-        className={inputClass}
+      <SelectControl
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        <option value="">—</option>
-        {disponibles.map((v) => {
-          const fmt = formatMedida(v) || String(v);
-          return (
-            <option key={v} value={fmt}>
-              {fmt}
-            </option>
-          );
-        })}
-      </select>
+        onChange={onChange}
+        placeholder="—"
+        options={[
+          { value: "", label: "—" },
+          ...disponibles.map((v) => {
+            const fmt = formatMedida(v) || String(v);
+            return { value: fmt, label: fmt };
+          }),
+        ]}
+      />
     </Field>
   );
 }
@@ -136,13 +148,17 @@ export function CamposTecnicosFamilia({
     const usarRadioYAguas = pideRadioYAguas(valores.tipo);
     const usarBaqueton = esBaqueton(valores.tipo);
 
-    const tiposDisp = [...new Set([
+    const tiposDisp = tiposRemolqueDisponibles([
       ...(tiposRemolque ?? []).map((t) => t.nombre),
       ...tiposRemolqueExtra,
       ...pedidosFamilia.map((p) => p.tipo).filter((t): t is string => !!t),
-    ])].sort();
+    ]);
 
-    const filtTipo   = valores.tipo.trim() ? pedidosFamilia.filter((p) => normStr(p.tipo) === normStr(valores.tipo)) : pedidosFamilia;
+    const filtTipo = valores.tipo.trim()
+      ? pedidosFamilia.filter(
+          (p) => claveTipoRemolque(p.tipo) === claveTipoRemolque(valores.tipo),
+        )
+      : pedidosFamilia;
     const largosDisp = uniqueNums(filtTipo.map((p) => p.largo));
 
     const filt1      = largoN !== null ? filtTipo.filter((p) => eq(p.largo, largoN)) : filtTipo;
@@ -161,29 +177,28 @@ export function CamposTecnicosFamilia({
           <Field label="Tipo">
             {freeInput && onNuevoTipo ? (
               <div className="flex items-center gap-1">
-                <select
-                  className={`${inputClass} min-w-0 flex-1`}
+                <SelectControl
+                  className="min-w-0 flex-1"
                   value={valores.tipo}
-                  onChange={(e) => onChange("tipo", e.target.value)}
-                >
-                  <option value="">— Tipo —</option>
-                  {tiposDisp.map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
+                  onChange={(value) => onChange("tipo", value)}
+                  placeholder="— Tipo —"
+                  options={[
+                    { value: "", label: "— Tipo —" },
+                    ...tiposDisp.map((t) => ({ value: t, label: t })),
+                  ]}
+                />
                 <Button variant="secondary" onClick={onNuevoTipo}>+</Button>
               </div>
             ) : (
-              <select
-                className={inputClass}
+              <SelectControl
                 value={valores.tipo}
-                onChange={(e) => onChange("tipo", e.target.value)}
-              >
-                <option value="">{freeInput ? "— Tipo —" : "— Todos —"}</option>
-                {tiposDisp.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
+                onChange={(value) => onChange("tipo", value)}
+                placeholder={freeInput ? "— Tipo —" : "— Todos —"}
+                options={[
+                  { value: "", label: freeInput ? "— Tipo —" : "— Todos —" },
+                  ...tiposDisp.map((t) => ({ value: t, label: t })),
+                ]}
+              />
             )}
           </Field>
         </div>
@@ -203,18 +218,18 @@ export function CamposTecnicosFamilia({
             </div>
             <div className={inline ? "min-w-[92px] flex-1" : ""}>
               <Field label="Aguas">
-                <select
-                  className={inputClass}
+                <SelectControl
                   value={valores.aguasActivas ? "si" : "no"}
-                  onChange={(e) => {
-                    const activo = e.target.value === "si";
+                  onChange={(value) => {
+                    const activo = value === "si";
                     onChange("aguasActivas", activo);
                     if (!activo) onChange("aguas", "");
                   }}
-                >
-                  <option value="no">No</option>
-                  <option value="si">Sí</option>
-                </select>
+                  options={[
+                    { value: "no", label: "No" },
+                    { value: "si", label: "Sí" },
+                  ]}
+                />
               </Field>
             </div>
             {valores.aguasActivas && (
@@ -245,29 +260,28 @@ export function CamposTecnicosFamilia({
           <Field label="Tipo">
             {freeInput && onNuevoTipo ? (
               <div className="flex items-center gap-1">
-                <select
-                  className={`${inputClass} min-w-0 flex-1`}
+                <SelectControl
+                  className="min-w-0 flex-1"
                   value={valores.tipo}
-                  onChange={(e) => onChange("tipo", e.target.value)}
-                >
-                  <option value="">— Tipo —</option>
-                  {tiposPuerta.map((t) => (
-                    <option key={t.id} value={t.nombre}>{t.nombre}</option>
-                  ))}
-                </select>
+                  onChange={(value) => onChange("tipo", value)}
+                  placeholder="— Tipo —"
+                  options={[
+                    { value: "", label: "— Tipo —" },
+                    ...tiposPuerta.map((t) => ({ value: t.nombre, label: t.nombre })),
+                  ]}
+                />
                 <Button variant="secondary" onClick={onNuevoTipo}>+</Button>
               </div>
             ) : (
-              <select
-                className={inputClass}
+              <SelectControl
                 value={valores.tipo}
-                onChange={(e) => onChange("tipo", e.target.value)}
-              >
-                <option value="">— Tipo —</option>
-                {tiposPuerta.map((t) => (
-                  <option key={t.id} value={t.nombre}>{t.nombre}</option>
-                ))}
-              </select>
+                onChange={(value) => onChange("tipo", value)}
+                placeholder="— Tipo —"
+                options={[
+                  { value: "", label: "— Tipo —" },
+                  ...tiposPuerta.map((t) => ({ value: t.nombre, label: t.nombre })),
+                ]}
+              />
             )}
           </Field>
         </div>
@@ -279,14 +293,14 @@ export function CamposTecnicosFamilia({
         </div>
         <div className={inline ? "min-w-[92px] flex-1" : ""}>
           <Field label="I.D.">
-            <label className="flex h-[38px] items-center gap-2 rounded-lg border border-[var(--border-strong)] bg-[var(--input-bg)] px-3 text-sm text-app-text">
+            <label className="flex h-9 items-center gap-2 rounded-[12px] border border-white/10 bg-[var(--input-bg)] px-2.5 text-sm text-app-text ring-1 ring-black/5 dark:ring-white/10">
               <input
                 type="checkbox"
                 checked={valores.impresionDigital}
                 onChange={(e) => onChange("impresionDigital", e.target.checked)}
                 className="h-4 w-4 accent-[var(--brand)]"
               />
-              <span>Impresión digital</span>
+              <span>ID</span>
             </label>
           </Field>
         </div>

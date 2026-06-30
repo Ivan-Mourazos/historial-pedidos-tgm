@@ -12,9 +12,12 @@ import {
   Banner,
   Button,
   Card,
+  DatePicker,
   Field,
   PageTitle,
+  SelectControl,
   inputClass,
+  todayInputValue,
 } from "@/components/ui";
 import { dbService } from "@/lib/db/db-service";
 import { resumenMedidas } from "@/lib/display";
@@ -41,7 +44,7 @@ export default function NuevoPedidoPage() {
   const [numero, setNumero] = useState("");
   const [familiaId, setFamiliaId] = useState("");
   const [clienteId, setClienteId] = useState<string | null>(null);
-  const [fecha, setFecha] = useState("");
+  const [fecha, setFecha] = useState(todayInputValue);
   const [tecnicoId, setTecnicoId] = useState("");
   const [observaciones, setObservaciones] = useState("");
   const [valores, setValores] =
@@ -58,6 +61,16 @@ export default function NuevoPedidoPage() {
 
   const familia = cat.familias.find((f) => f.id === familiaId);
   const familiaNombre = familia?.nombre ?? "";
+  const [clienteIdsDeFamilia, setClienteIdsDeFamilia] = useState<string[] | null>(null);
+  const clientesDeFamilia = useMemo(
+    () =>
+      clienteIdsDeFamilia === null
+        ? []
+        : cat.clientes.filter(
+            (c) => clienteIdsDeFamilia.includes(c.id) || c.id === clienteId,
+          ),
+    [cat.clientes, clienteId, clienteIdsDeFamilia],
+  );
 
   useEffect(() => {
     if (!familiaId && cat.familias.length > 0) {
@@ -70,6 +83,23 @@ export default function NuevoPedidoPage() {
     setConfirmarDuplicado(false);
     setConfirmarNumero(false);
     setAvisoNumero(null);
+    setClienteId(null);
+  }, [familiaId]);
+
+  useEffect(() => {
+    if (!familiaId) {
+      setClienteIdsDeFamilia(null);
+      return;
+    }
+    let activo = true;
+    setClienteIdsDeFamilia(null);
+    dbService
+      .getClienteIdsDeFamilia(familiaId)
+      .then((ids) => activo && setClienteIdsDeFamilia(ids))
+      .catch(() => activo && setClienteIdsDeFamilia([]));
+    return () => {
+      activo = false;
+    };
   }, [familiaId]);
 
   // Carga pedidos del cliente+familia para detectar duplicado técnico.
@@ -239,20 +269,14 @@ export default function NuevoPedidoPage() {
                 />
               </Field>
               <Field label="Familia *">
-                <select
-                  className={inputClass}
+                <SelectControl
                   value={familiaId}
-                  onChange={(e) => setFamiliaId(e.target.value)}
-                >
-                  {cat.familias.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.nombre}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setFamiliaId}
+                  options={cat.familias.map((f) => ({ value: f.id, label: f.nombre }))}
+                />
               </Field>
               <ClienteSelect
-                clientes={cat.clientes}
+                clientes={clientesDeFamilia}
                 value={clienteId}
                 onChange={setClienteId}
                 onClienteCreado={() => cat.recargarClientes()}
@@ -282,26 +306,18 @@ export default function NuevoPedidoPage() {
             </p>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(170px,0.7fr)_minmax(220px,1fr)]">
               <Field label="Fecha">
-                <input
-                  type="date"
-                  className={inputClass}
-                  value={fecha}
-                  onChange={(e) => setFecha(e.target.value)}
-                />
+                <DatePicker value={fecha} onChange={setFecha} />
               </Field>
               <Field label="Técnico">
-                <select
-                  className={inputClass}
+                <SelectControl
                   value={tecnicoId}
-                  onChange={(e) => setTecnicoId(e.target.value)}
-                >
-                  <option value="">— Sin asignar —</option>
-                  {cat.tecnicos.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.nombre}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setTecnicoId}
+                  placeholder="— Sin asignar —"
+                  options={[
+                    { value: "", label: "— Sin asignar —" },
+                    ...cat.tecnicos.map((t) => ({ value: t.id, label: t.nombre })),
+                  ]}
+                />
               </Field>
             </div>
           </section>

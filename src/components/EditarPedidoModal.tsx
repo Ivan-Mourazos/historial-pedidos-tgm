@@ -5,10 +5,22 @@ import {
   CamposTecnicosFamilia,
   type CamposTecnicosValores,
 } from "./CamposTecnicosFamilia";
-import { Banner, Button, Field, inputClass, labelClass } from "./ui";
+import {
+  Banner,
+  Button,
+  DatePicker,
+  Field,
+  SelectControl,
+  inputClass,
+  labelClass,
+  modalCompactClass,
+  modalOverlayClass,
+  modalPanelClass,
+} from "./ui";
 import { dbService } from "@/lib/db/db-service";
 import { formatMedida } from "@/lib/normalize";
 import { camposTecnicosParaGuardar } from "@/lib/pedido-helpers";
+import { tipoRemolqueCanonico } from "@/lib/tipos-remolque";
 import {
   AVISO_FORMATO_PEDIDO,
   normalizarNumeroPedido,
@@ -29,7 +41,7 @@ function valoresDesdePedido(p: PedidoConRelaciones): CamposTecnicosValores {
     alto: formatMedida(p.alto),
     aguas: formatMedida(p.aguas),
     radio: formatMedida(p.radio),
-    tipo: p.tipo ?? "",
+    tipo: tipoRemolqueCanonico(p.tipo),
     aguasActivas: p.aguas !== null,
     impresionDigital: p.impresion_digital,
   };
@@ -124,33 +136,36 @@ export function EditarPedidoModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-sm">
-      <div className="flex min-h-full items-center justify-center p-4">
+    <div className={modalOverlayClass}>
+      <div className="flex min-h-full items-center justify-center">
       <div
-        className="w-full max-w-2xl rounded-xl border border-[var(--border-strong)] bg-surface p-5"
-        style={{ boxShadow: "var(--shadow-lg)" }}
+        className={`${modalPanelClass} ${modalCompactClass} max-h-[calc(100vh-2rem)] max-w-[640px] overflow-hidden`}
       >
-        {/* Cabecera */}
-        <div className="mb-5 flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
           <div>
-            <h2 className="text-base font-semibold text-app-text">Editar pedido</h2>
-            <p className="mt-0.5 font-mono text-sm text-app-muted">{pedido.numero_pedido}</p>
+            <h2 className="text-[15px] font-semibold tracking-tight text-app-text">
+              Editar pedido
+            </h2>
+            <p className="mt-0.5 font-mono text-xs text-app-muted">
+              {pedido.numero_pedido}
+            </p>
           </div>
           <button
-            className="rounded-md p-1 text-app-muted transition-colors hover:bg-surface-2 hover:text-app-text"
+            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-2 text-app-muted transition-colors hover:bg-[var(--border)] hover:text-app-text"
             onClick={onCerrar}
             aria-label="Cerrar"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
         </div>
 
-        {error && <div className="mb-4"><Banner tone="warning">{error}</Banner></div>}
+        <div className="max-h-[calc(100vh-9rem)] overflow-y-auto px-4 py-3">
+        {error && <div className="mb-3"><Banner tone="warning">{error}</Banner></div>}
 
-        <div className="grid gap-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             <Field
               label="Número de pedido"
               hint={!formatoOk ? AVISO_FORMATO_PEDIDO : undefined}
@@ -162,20 +177,16 @@ export function EditarPedidoModal({
               />
             </Field>
             <Field label="Familia">
-              <select
-                className={inputClass}
+              <SelectControl
                 value={familiaId}
-                onChange={(e) => setFamiliaId(e.target.value)}
-              >
-                {familias.map((f) => (
-                  <option key={f.id} value={f.id}>{f.nombre}</option>
-                ))}
-              </select>
+                onChange={setFamiliaId}
+                options={familias.map((f) => ({ value: f.id, label: f.nombre }))}
+              />
             </Field>
           </div>
 
-          <div>
-            <p className={`${labelClass} mb-2`}>Datos técnicos</p>
+          <div className="rounded-[14px] border border-[var(--border)] bg-surface-2/45 p-3">
+            <p className={`${labelClass} mb-2 text-xs`}>Datos técnicos</p>
             <CamposTecnicosFamilia
               familiaNombre={familiaNombre}
               valores={valores}
@@ -187,44 +198,39 @@ export function EditarPedidoModal({
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Fecha">
-              <input
-                type="date"
-                className={inputClass}
-                value={fecha}
-                onChange={(e) => setFecha(e.target.value)}
-              />
+              <DatePicker value={fecha} onChange={setFecha} />
             </Field>
             <Field label="Técnico">
-              <select
-                className={inputClass}
+              <SelectControl
                 value={tecnicoId}
-                onChange={(e) => setTecnicoId(e.target.value)}
-              >
-                <option value="">— Sin asignar —</option>
-                {tecnicos.map((t) => (
-                  <option key={t.id} value={t.id}>{t.nombre}</option>
-                ))}
-              </select>
+                onChange={setTecnicoId}
+                placeholder="— Sin asignar —"
+                options={[
+                  { value: "", label: "— Sin asignar —" },
+                  ...tecnicos.map((t) => ({ value: t.id, label: t.nombre })),
+                ]}
+              />
             </Field>
           </div>
 
           <Field label="Observaciones">
             <textarea
-              className={`${inputClass} min-h-[5rem] resize-y`}
+              className={`${inputClass} min-h-[4.25rem] resize-y`}
               value={observaciones}
               onChange={(e) => setObservaciones(e.target.value)}
               placeholder="Notas opcionales"
             />
           </Field>
         </div>
+        </div>
 
-        <div className="mt-5 flex items-center justify-between gap-2">
-          {/* Eliminar */}
+        <div className="flex items-center justify-between gap-2 border-t border-[var(--border)] bg-surface/80 px-4 py-3 backdrop-blur">
           {onEliminar && (
             <Button
               variant="danger"
+              className="h-8 bg-red-500/90 px-3 text-xs hover:bg-red-500"
               onClick={eliminar}
               disabled={eliminando}
             >
@@ -232,8 +238,10 @@ export function EditarPedidoModal({
             </Button>
           )}
           <div className="ml-auto flex gap-2">
-            <Button variant="secondary" onClick={onCerrar}>Cancelar</Button>
-            <Button onClick={guardar} disabled={guardando || !formatoOk}>
+            <Button variant="secondary" className="h-8 px-3 text-xs" onClick={onCerrar}>
+              Cancelar
+            </Button>
+            <Button className="h-8 px-3 text-xs" onClick={guardar} disabled={guardando || !formatoOk}>
               {guardando ? "Guardando…" : "Guardar cambios"}
             </Button>
           </div>

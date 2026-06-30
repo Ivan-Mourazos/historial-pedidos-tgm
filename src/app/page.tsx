@@ -9,9 +9,20 @@ import {
 import { AbrirExcelButton } from "@/components/AbrirExcelButton";
 import { AbrirZwcadButton } from "@/components/AbrirZwcadButton";
 import { CrearEntidadModal } from "@/components/CrearEntidadModal";
-import { Banner, Button, Card, Field, inputClass, labelClass } from "@/components/ui";
+import {
+  Banner,
+  Button,
+  Card,
+  DatePicker,
+  Field,
+  SelectControl,
+  inputClass,
+  labelClass,
+  todayInputValue,
+} from "@/components/ui";
 import { dbService } from "@/lib/db/db-service";
 import { formatMedida } from "@/lib/display";
+import { tipoRemolqueCanonico } from "@/lib/tipos-remolque";
 import {
   buscarConCriteriosParciales,
   calcularDiferencias,
@@ -41,7 +52,7 @@ function CheckIcon() {
 
 function Th({ children, className = "" }: { children?: React.ReactNode; className?: string }) {
   return (
-    <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-app-muted ${className}`}>
+    <th className={`px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-app-muted ${className}`}>
       {children}
     </th>
   );
@@ -54,10 +65,10 @@ export default function BuscadorPage() {
   const [clienteId, setClienteId]             = useState<string | null>(null);
   const [valores, setValores]                 = useState<CamposTecnicosValores>(camposTecnicosVacios);
   const [pedidosFamilia, setPedidosFamilia]   = useState<PedidoConRelaciones[]>([]);
-  const [clienteIdsDeFamilia, setClienteIdsDeFamilia] = useState<string[]>([]);
+  const [clienteIdsDeFamilia, setClienteIdsDeFamilia] = useState<string[] | null>(null);
 
   const [numero, setNumero]               = useState("");
-  const [fecha, setFecha]                 = useState("");
+  const [fecha, setFecha]                 = useState(todayInputValue);
   const [tecnicoId, setTecnicoId]         = useState("");
   const [observaciones, setObservaciones] = useState("");
   const [guardando, setGuardando]         = useState(false);
@@ -84,10 +95,15 @@ export default function BuscadorPage() {
   const familiaNombre = familia?.nombre ?? "";
   const esRemolques   = familiaNombre === FAMILIA_REMOLQUES;
 
-  const clientesDeFamilia =
-    clienteIdsDeFamilia.length > 0
-      ? cat.clientes.filter((c) => clienteIdsDeFamilia.includes(c.id))
-      : cat.clientes;
+  const clientesDeFamilia = useMemo(
+    () =>
+      clienteIdsDeFamilia === null
+        ? []
+        : cat.clientes.filter(
+            (c) => clienteIdsDeFamilia.includes(c.id) || c.id === clienteId,
+          ),
+    [cat.clientes, clienteId, clienteIdsDeFamilia],
+  );
   const pedidosParaOpciones = useMemo(
     () => (
       clienteId
@@ -106,8 +122,11 @@ export default function BuscadorPage() {
     setClienteId(null);
     setConfirmarNumero(false);
     setPedidosFamilia([]);
+    setClienteIdsDeFamilia(null);
     if (!familiaId) return;
-    dbService.getClienteIdsDeFamilia(familiaId).then(setClienteIdsDeFamilia);
+    dbService.getClienteIdsDeFamilia(familiaId)
+      .then(setClienteIdsDeFamilia)
+      .catch(() => setClienteIdsDeFamilia([]));
     dbService.getPedidosPorFamilia(familiaId).then(setPedidosFamilia);
   }, [familiaId]);
 
@@ -226,14 +245,14 @@ export default function BuscadorPage() {
       {/* ── Barra de familia + acciones ── */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div
-          className="flex rounded-lg border border-[var(--border-strong)] bg-surface p-0.5"
+          className="flex rounded-full border border-white/10 bg-surface/75 p-0.5 shadow-sm ring-1 ring-black/5 backdrop-blur-xl dark:ring-white/10"
           style={{ boxShadow: "var(--shadow-sm)" }}
         >
           {familiasOrdenadas.map((f) => (
             <button
               key={f.id}
               onClick={() => setFamiliaId(f.id)}
-              className={`cursor-pointer rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              className={`cursor-pointer rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
                 familiaId === f.id
                   ? "bg-brand text-white shadow-sm"
                   : "text-app-muted hover:text-app-text"
@@ -247,7 +266,7 @@ export default function BuscadorPage() {
         {hayAlgoDato && (
           <button
             onClick={limpiarBusqueda}
-            className="flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-app-muted transition-colors hover:bg-surface-2 hover:text-app-text"
+            className="flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-sm text-app-muted transition-colors hover:bg-surface-2/80 hover:text-app-text"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="18" y1="6" x2="6" y2="18" />
@@ -265,16 +284,16 @@ export default function BuscadorPage() {
           <div className="min-w-[160px] flex-[2]">
             <span className={labelClass}>Cliente</span>
             <div className="flex items-center gap-1.5">
-              <select
-                className={`${inputClass} min-w-0 flex-1`}
+              <SelectControl
+                className="min-w-0 flex-1"
                 value={clienteId ?? ""}
-                onChange={(e) => setClienteId(e.target.value || null)}
-              >
-                <option value="">— Todos —</option>
-                {clientesDeFamilia.map((c) => (
-                  <option key={c.id} value={c.id}>{c.nombre}</option>
-                ))}
-              </select>
+                onChange={(next) => setClienteId(next || null)}
+                placeholder="— Todos —"
+                options={[
+                  { value: "", label: "— Todos —" },
+                  ...clientesDeFamilia.map((c) => ({ value: c.id, label: c.nombre })),
+                ]}
+              />
             </div>
           </div>
 
@@ -298,12 +317,12 @@ export default function BuscadorPage() {
         <div className="mb-4 scroll-mt-20">
           {/* Sin cliente: pide seleccionar */}
           {!clienteId && !mostrarRegistro && (
-            <div className="flex items-center justify-between rounded-lg border border-[var(--border-strong)] bg-surface-2 px-4 py-3 text-sm">
+            <div className="flex items-center justify-between rounded-[16px] border border-white/10 bg-surface-2/70 px-3 py-2.5 text-sm shadow-sm ring-1 ring-black/5 backdrop-blur-xl dark:ring-white/10">
               <span className="text-app-muted">Selecciona un cliente para registrar este pedido.</span>
               <button
                 type="button"
                 onClick={() => setMostrarRegistro(true)}
-                className="cursor-pointer rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--brand-hover)]"
+                className="cursor-pointer rounded-full bg-brand px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--brand-hover)]"
               >
                 + Nuevo registro
               </button>
@@ -312,7 +331,7 @@ export default function BuscadorPage() {
 
           {/* Con cliente + coincidencia exacta: DWG banner + opción de registrar igualmente */}
           {clienteId && completos && exacto && !mostrarRegistro && (
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-900/40 bg-emerald-950/20 px-4 py-3 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-[16px] border border-emerald-500/20 bg-emerald-500/10 px-3 py-2.5 text-sm shadow-sm ring-1 ring-black/5 backdrop-blur-xl dark:ring-white/10">
               <div className="flex items-center gap-2">
                 <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500">
                   <CheckIcon />
@@ -341,12 +360,12 @@ export default function BuscadorPage() {
 
           {/* Con cliente + campos completos + sin coincidencia exacta: botón de registrar */}
           {clienteId && completos && !exacto && !mostrarRegistro && (
-            <div className="flex items-center justify-between rounded-lg border border-[var(--border-strong)] bg-surface-2 px-4 py-3 text-sm">
+            <div className="flex items-center justify-between rounded-[16px] border border-white/10 bg-surface-2/70 px-3 py-2.5 text-sm shadow-sm ring-1 ring-black/5 backdrop-blur-xl dark:ring-white/10">
               <span className="text-app-muted">No hay coincidencia exacta para este cliente y esas medidas.</span>
               <button
                 type="button"
                 onClick={() => setMostrarRegistro(true)}
-                className="cursor-pointer rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--brand-hover)]"
+                className="cursor-pointer rounded-full bg-brand px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--brand-hover)]"
               >
                 + Registrar pedido
               </button>
@@ -355,7 +374,7 @@ export default function BuscadorPage() {
 
           {/* Con cliente + campos incompletos: guía para completar medidas */}
           {clienteId && !completos && !mostrarRegistro && (
-            <div className="flex items-center justify-between rounded-lg border border-[var(--border-strong)] bg-surface-2 px-4 py-3 text-sm">
+            <div className="flex items-center justify-between rounded-[16px] border border-white/10 bg-surface-2/70 px-3 py-2.5 text-sm shadow-sm ring-1 ring-black/5 backdrop-blur-xl dark:ring-white/10">
               <span className="text-app-muted">Completa todas las medidas para registrar el pedido.</span>
               <button
                 type="button"
@@ -389,7 +408,7 @@ export default function BuscadorPage() {
           )}
 
           {/* Medidas: siempre visibles en el formulario para confirmar o completar */}
-          <div className="mb-4 rounded-lg border border-[var(--border)] bg-surface-2 p-3">
+          <div className="mb-3 rounded-[16px] border border-white/10 bg-surface-2/55 p-3 ring-1 ring-black/5 dark:ring-white/10">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-muted">Medidas</p>
             <div className="flex flex-wrap items-start gap-2">
               <CamposTecnicosFamilia
@@ -422,16 +441,16 @@ export default function BuscadorPage() {
               <div className="min-w-[160px] flex-[2]">
                 <span className={labelClass}>Cliente *</span>
                 <div className="flex items-center gap-1">
-                  <select
-                    className={`${inputClass} flex-1`}
+                  <SelectControl
+                    className="flex-1"
                     value={clienteId ?? ""}
-                    onChange={(e) => setClienteId(e.target.value || null)}
-                  >
-                    <option value="">— Cliente —</option>
-                    {clientesDeFamilia.map((c) => (
-                      <option key={c.id} value={c.id}>{c.nombre}</option>
-                    ))}
-                  </select>
+                    onChange={(next) => setClienteId(next || null)}
+                    placeholder="— Cliente —"
+                    options={[
+                      { value: "", label: "— Cliente —" },
+                      ...clientesDeFamilia.map((c) => ({ value: c.id, label: c.nombre })),
+                    ]}
+                  />
                   <Button variant="secondary" onClick={() => setModalCliente(true)}>+</Button>
                 </div>
               </div>
@@ -457,28 +476,23 @@ export default function BuscadorPage() {
 
             <div className="min-w-[120px] flex-1">
               <Field label="Fecha">
-                <input
-                  type="date"
-                  className={inputClass}
-                  value={fecha}
-                  onChange={(e) => setFecha(e.target.value)}
-                />
+                <DatePicker value={fecha} onChange={setFecha} />
               </Field>
             </div>
 
             <div className="min-w-[120px] flex-[2]">
               <span className={labelClass}>Técnico</span>
               <div className="flex items-center gap-1">
-                <select
-                  className={`${inputClass} flex-1`}
+                <SelectControl
+                  className="flex-1"
                   value={tecnicoId}
-                  onChange={(e) => setTecnicoId(e.target.value)}
-                >
-                  <option value="">— Sin asignar —</option>
-                  {cat.tecnicos.map((t) => (
-                    <option key={t.id} value={t.id}>{t.nombre}</option>
-                  ))}
-                </select>
+                  onChange={setTecnicoId}
+                  placeholder="— Sin asignar —"
+                  options={[
+                    { value: "", label: "— Sin asignar —" },
+                    ...cat.tecnicos.map((t) => ({ value: t.id, label: t.nombre })),
+                  ]}
+                />
                 <Button variant="secondary" onClick={() => setModalTecnico(true)}>+</Button>
               </div>
             </div>
@@ -538,7 +552,7 @@ export default function BuscadorPage() {
 
       {/* ── Tabla de resultados ── */}
       <div
-        className="mb-4 overflow-hidden rounded-xl border border-[var(--border)] bg-surface"
+        className="mb-4 overflow-hidden rounded-[18px] border border-white/10 bg-surface/80 shadow-sm ring-1 ring-black/5 backdrop-blur-xl dark:bg-slate-950/50 dark:ring-white/10"
         style={{ boxShadow: "var(--shadow-sm)" }}
       >
         {!hayAlgunCriterio ? (
@@ -583,15 +597,15 @@ export default function BuscadorPage() {
                           ? "text-amber-400 font-semibold"
                           : "text-app-text";
                       return (
-                        <td className={`px-4 py-3 tabular-nums ${color}`}>
+                        <td className={`px-3 py-2.5 tabular-nums ${color}`}>
                           {val !== null ? `${formatMedida(val)} cm` : "—"}
                         </td>
                       );
                     }
 
                     return (
-                      <tr key={pr.id} className={`transition-colors hover:bg-surface-2 ${rowBg} ${sep}`}>
-                        <td className="px-4 py-3">
+                      <tr key={pr.id} className={`transition-colors hover:bg-surface-2/70 ${rowBg} ${sep}`}>
+                        <td className="px-3 py-2.5">
                           <span className="flex items-center gap-2">
                             {isExacto && (
                               <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500">
@@ -608,20 +622,20 @@ export default function BuscadorPage() {
                             )}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-app-muted">{pr.cliente?.nombre ?? "—"}</td>
-                        <td className={`px-4 py-3 ${
+                        <td className="px-3 py-2.5 text-app-muted">{pr.cliente?.nombre ?? "—"}</td>
+                        <td className={`px-3 py-2.5 ${
                           criterios.tipo && !diffs.includes("tipo")
                             ? "text-emerald-400 font-semibold"
                             : diffs.includes("tipo")
                               ? "text-amber-400 font-semibold"
                               : "text-app-muted"
-                        }`}>{pr.tipo ?? "—"}</td>
+                        }`}>{tipoRemolqueCanonico(pr.tipo) || "—"}</td>
                         {tdVal("largo", "largo", criterios.largo !== null)}
                         {tdVal("ancho", "ancho", criterios.ancho !== null)}
                         {tdVal("alto",  "alto",  criterios.alto  !== null)}
                         {tdVal("aguas", "aguas", criterios.aguas !== null)}
                         {tdVal("radio", "radio", criterios.radio !== null)}
-                        <td className="w-[190px] px-4 py-3">
+                        <td className="w-[190px] px-3 py-2.5">
                           <div className="flex h-8 items-center gap-2">
                             <div className="flex w-[86px] items-center justify-start">
                             <AbrirExcelButton
@@ -667,8 +681,8 @@ export default function BuscadorPage() {
                     const sep      = i < resultadosLive.length - 1 ? "border-b border-[var(--border)]" : "";
 
                     return (
-                      <tr key={pr.id} className={`transition-colors hover:bg-surface-2 ${rowBg} ${sep}`}>
-                        <td className="px-4 py-3">
+                      <tr key={pr.id} className={`transition-colors hover:bg-surface-2/70 ${rowBg} ${sep}`}>
+                        <td className="px-3 py-2.5">
                           <span className="flex items-center gap-2">
                             {isExacto && (
                               <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500">
@@ -685,8 +699,8 @@ export default function BuscadorPage() {
                             )}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-app-muted">{pr.cliente?.nombre ?? "—"}</td>
-                        <td className={`px-4 py-3 ${
+                        <td className="px-3 py-2.5 text-app-muted">{pr.cliente?.nombre ?? "—"}</td>
+                        <td className={`px-3 py-2.5 ${
                           criterios.tipo && !diffs.includes("tipo")
                             ? "text-emerald-400 font-semibold"
                             : diffs.includes("tipo")
@@ -695,7 +709,7 @@ export default function BuscadorPage() {
                         }`}>
                           {pr.tipo ?? "—"}
                         </td>
-                        <td className={`px-4 py-3 tabular-nums ${
+                        <td className={`px-3 py-2.5 tabular-nums ${
                           criterios.ancho !== null && !diffs.includes("ancho")
                             ? "text-emerald-400 font-semibold"
                             : diffs.includes("ancho")
@@ -704,7 +718,7 @@ export default function BuscadorPage() {
                         }`}>
                           {pr.ancho !== null ? `${formatMedida(pr.ancho)} cm` : "—"}
                         </td>
-                        <td className={`px-4 py-3 tabular-nums ${
+                        <td className={`px-3 py-2.5 tabular-nums ${
                           criterios.alto !== null && !diffs.includes("alto")
                             ? "text-emerald-400 font-semibold"
                             : diffs.includes("alto")
@@ -713,14 +727,14 @@ export default function BuscadorPage() {
                         }`}>
                           {pr.alto !== null ? `${formatMedida(pr.alto)} cm` : "—"}
                         </td>
-                        <td className={`px-4 py-3 ${
+                        <td className={`px-3 py-2.5 ${
                           !diffs.includes("impresion_digital")
                             ? "text-emerald-400 font-semibold"
                             : "text-amber-400 font-semibold"
                         }`}>
                           {pr.impresion_digital ? "Sí" : "No"}
                         </td>
-                        <td className="w-[100px] px-4 py-3">
+                        <td className="w-[100px] px-3 py-2.5">
                           <AbrirZwcadButton
                             numeroPedido={pr.numero_pedido}
                             label="CAD"

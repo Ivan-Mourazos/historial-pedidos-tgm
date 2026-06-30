@@ -87,10 +87,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-app-bg relative">
+    <div className="relative flex min-h-screen flex-col bg-app-bg">
       {/* Header */}
       <header
-        className="sticky top-0 z-30 border-b border-[var(--border)] bg-surface/90 backdrop-blur"
+        className="sticky top-0 z-30 border-b border-white/10 bg-surface/75 backdrop-blur-2xl"
         style={{
           boxShadow: "var(--shadow-sm)",
         }}
@@ -98,7 +98,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* Línea superior naranja — solo en modo oscuro */}
         <div className="hidden dark:block h-px bg-gradient-to-r from-transparent via-[var(--brand)] to-transparent opacity-40" />
 
-        <div className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-3">
+        <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-2.5">
           {/* Logo */}
           {mounted ? (
             <Image
@@ -106,7 +106,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               alt="TGM Pedidos"
               height={32}
               width={140}
-              className="shrink-0 object-contain"
+              className="-my-1.5 h-10 w-auto shrink-0 object-contain"
               priority
             />
           ) : (
@@ -115,13 +115,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               alt="TGM Pedidos"
               height={32}
               width={140}
-              className="shrink-0 object-contain"
+              className="-my-1.5 h-10 w-auto shrink-0 object-contain"
               priority
             />
           )}
 
           {/* Nav */}
-          <nav className="flex flex-1 flex-wrap gap-0.5">
+          <nav className="flex flex-1 flex-wrap gap-1">
             {NAV.map((item) => {
               const active =
                 item.href === "/"
@@ -131,10 +131,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                  className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
                     active
                       ? "bg-brand text-white shadow-sm"
-                      : "text-app-muted hover:bg-surface-2 hover:text-app-text"
+                      : "text-app-muted hover:bg-surface-2/80 hover:text-app-text"
                   }`}
                 >
                   {item.label}
@@ -145,10 +145,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           <Link
             href="/nuevo"
-            className={`inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg border px-3 text-sm font-semibold transition-colors ${
+            className={`inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-full border px-3 text-sm font-semibold transition-colors ${
               pathname.startsWith("/nuevo")
                 ? "border-orange-500 bg-brand text-white shadow-sm"
-                : "border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 dark:border-orange-400/25 dark:bg-orange-400/10 dark:text-orange-200 dark:hover:border-orange-400/35 dark:hover:bg-orange-400/15"
+                : "border-orange-200/80 bg-orange-50/80 text-orange-700 shadow-sm ring-1 ring-black/5 hover:bg-orange-100 dark:border-orange-400/25 dark:bg-orange-400/10 dark:text-orange-200 dark:ring-white/10 dark:hover:border-orange-400/35 dark:hover:bg-orange-400/15"
             }`}
           >
             <PlusIcon />
@@ -159,14 +159,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <button
             onClick={toggleDark}
             aria-label={dark ? "Modo claro" : "Modo oscuro"}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-app-muted transition-all hover:bg-surface-2 hover:text-brand"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-app-muted transition-all hover:bg-surface-2/80 hover:text-brand"
           >
             {mounted ? (dark ? <SunIcon /> : <MoonIcon />) : <MoonIcon />}
           </button>
         </div>
       </header>
 
-      <main className="relative z-[1] mx-auto w-full max-w-6xl flex-1 px-4 py-6">
+      <main className="relative z-[1] mx-auto w-full max-w-6xl flex-1 px-4 py-4">
         {children}
       </main>
 

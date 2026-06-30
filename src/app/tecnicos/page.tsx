@@ -109,15 +109,15 @@ export default function TecnicosPage() {
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 text-left text-slate-500">
-                <th className="py-2 pr-3 font-medium">Nombre</th>
-                <th className="py-2 pr-3 font-medium">Estado</th>
-                <th className="py-2 text-right font-medium">Acciones</th>
+              <tr className="border-b border-[var(--border)] text-left text-app-muted">
+                <th className="py-2 pr-3 text-[11px] font-semibold uppercase tracking-wider">Nombre</th>
+                <th className="py-2 pr-3 text-[11px] font-semibold uppercase tracking-wider">Estado</th>
+                <th className="py-2 text-right text-[11px] font-semibold uppercase tracking-wider">Acciones</th>
               </tr>
             </thead>
             <tbody>
               {tecnicos.map((t) => (
-                <tr key={t.id} className="border-b border-slate-100">
+                <tr key={t.id} className="border-b border-[var(--border)] transition-colors hover:bg-surface-2/60">
                   <td className="py-2 pr-3">
                     {editId === t.id ? (
                       <input
@@ -126,15 +126,15 @@ export default function TecnicosPage() {
                         onChange={(e) => setEditNombre(e.target.value)}
                       />
                     ) : (
-                      <span className="text-slate-900">{t.nombre}</span>
+                      <span className="text-app-text">{t.nombre}</span>
                     )}
                   </td>
                   <td className="py-2 pr-3">
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                         t.activo
-                          ? "bg-green-100 text-green-800"
-                          : "bg-slate-200 text-slate-600"
+                          ? "bg-green-100 text-green-800 dark:bg-green-400/10 dark:text-green-200"
+                          : "bg-slate-200 text-slate-600 dark:bg-white/10 dark:text-slate-300"
                       }`}
                     >
                       {t.activo ? "Activo" : "Inactivo"}

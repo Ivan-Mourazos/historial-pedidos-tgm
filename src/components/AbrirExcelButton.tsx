@@ -121,8 +121,8 @@ export function AbrirExcelButton({
   if (!eligible || visibleFiles.length === 0) return null;
 
   const baseClass = label
-    ? "inline-flex h-8 min-w-0 max-w-full items-center justify-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 disabled:cursor-wait disabled:opacity-70 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200 dark:hover:border-emerald-400/30 dark:hover:bg-emerald-400/15"
-    : "inline-flex h-8 min-w-0 max-w-full items-center justify-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 text-xs font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 disabled:cursor-wait disabled:opacity-70 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200 dark:hover:border-emerald-400/30 dark:hover:bg-emerald-400/15";
+    ? "inline-flex h-8 min-w-0 max-w-full items-center justify-center gap-1.5 rounded-full border border-emerald-200/70 bg-emerald-50/80 px-3 text-xs font-semibold text-emerald-800 shadow-sm ring-1 ring-black/5 transition-colors hover:bg-emerald-100 disabled:cursor-wait disabled:opacity-70 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200 dark:ring-white/10 dark:hover:border-emerald-400/30 dark:hover:bg-emerald-400/15"
+    : "inline-flex h-8 min-w-0 max-w-full items-center justify-center gap-1.5 rounded-full border border-emerald-200/70 bg-emerald-50/80 px-2.5 text-xs font-semibold text-emerald-800 shadow-sm ring-1 ring-black/5 transition-colors hover:bg-emerald-100 disabled:cursor-wait disabled:opacity-70 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200 dark:ring-white/10 dark:hover:border-emerald-400/30 dark:hover:bg-emerald-400/15";
 
   if (visibleFiles.length > 1) {
     return (
@@ -141,7 +141,7 @@ export function AbrirExcelButton({
         </button>
 
         {menuAbierto && (
-          <div className="absolute left-0 top-9 z-30 min-w-[130px] overflow-hidden rounded-lg border border-emerald-200 bg-white py-1 shadow-lg dark:border-emerald-400/20 dark:bg-surface dark:shadow-black/50">
+          <div className="absolute left-0 top-9 z-30 min-w-[130px] overflow-hidden rounded-[14px] border border-white/10 bg-surface/95 py-1 shadow-xl ring-1 ring-black/5 backdrop-blur-xl dark:bg-slate-950/90 dark:ring-white/10">
             {visibleFiles.map((file) => (
               <button
                 key={file.name}

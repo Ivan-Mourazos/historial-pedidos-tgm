@@ -30,3 +30,16 @@ IF NOT EXISTS (SELECT 1 FROM historico.tipos_remolque WHERE nombre = N'Ganado')
 IF NOT EXISTS (SELECT 1 FROM historico.tipos_remolque WHERE nombre = N'Lona alta')
     INSERT INTO historico.tipos_remolque (nombre) VALUES (N'Lona alta');
 GO
+
+UPDATE historico.pedidos
+SET tipo = N'Baquetón'
+WHERE tipo IN (N'Baqueton', N'BaquetÃ³n');
+GO
+
+IF OBJECT_ID('historico.tipos_remolque', 'U') IS NOT NULL
+BEGIN
+    UPDATE historico.tipos_remolque
+    SET nombre = N'Baquetón'
+    WHERE nombre IN (N'Baqueton', N'BaquetÃ³n');
+END
+GO
