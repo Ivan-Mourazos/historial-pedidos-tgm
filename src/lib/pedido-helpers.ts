@@ -15,9 +15,11 @@ export function construirCriterios(
     largo: parseMedida(valores.largo),
     ancho: parseMedida(valores.ancho),
     alto: parseMedida(valores.alto),
-    aguas: parseMedida(valores.aguas),
+    aguas: valores.aguasActivas ? parseMedida(valores.aguas) : null,
+    aguasActivas: valores.aguasActivas,
     radio: parseMedida(valores.radio),
     tipo: valores.tipo.trim() === "" ? null : valores.tipo.trim(),
+    impresionDigital: valores.impresionDigital,
   };
 }
 
@@ -33,15 +35,20 @@ export function camposTecnicosParaGuardar(
   alto: number | null;
   aguas: number | null;
   radio: number | null;
+  impresion_digital: boolean;
 } {
   if (familiaNombre === FAMILIA_REMOLQUES) {
+    const tipo = valores.tipo.trim();
+    const tipoNorm = tipo.toLowerCase();
+    const usaRadioYAguas = tipoNorm === "ganado" || tipoNorm === "lona alta";
     return {
-      tipo: valores.tipo.trim() === "" ? null : valores.tipo.trim(),
+      tipo: tipo === "" ? null : tipo,
       largo: parseMedida(valores.largo),
       ancho: parseMedida(valores.ancho),
       alto: parseMedida(valores.alto),
-      aguas: parseMedida(valores.aguas),
-      radio: parseMedida(valores.radio),
+      aguas: usaRadioYAguas && valores.aguasActivas ? parseMedida(valores.aguas) : null,
+      radio: usaRadioYAguas ? parseMedida(valores.radio) : null,
+      impresion_digital: false,
     };
   }
   if (familiaNombre === FAMILIA_PUERTAS) {
@@ -52,6 +59,7 @@ export function camposTecnicosParaGuardar(
       alto: parseMedida(valores.alto),
       aguas: null,
       radio: null,
+      impresion_digital: valores.impresionDigital,
     };
   }
   return {
@@ -61,5 +69,6 @@ export function camposTecnicosParaGuardar(
     alto: null,
     aguas: null,
     radio: null,
+    impresion_digital: false,
   };
 }

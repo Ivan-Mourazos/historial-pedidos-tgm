@@ -70,6 +70,18 @@ create table if not exists historico.tipos_puerta (
 );
 
 -- -------------------------------------------------------------
+-- TIPOS DE REMOLQUE (catálogo editable, usado por REMOLQUES)
+-- -------------------------------------------------------------
+create table if not exists historico.tipos_remolque (
+  id         uuid primary key default gen_random_uuid(),
+  nombre     text not null,
+  activo     boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint uq_tipos_remolque_nombre unique (nombre)
+);
+
+-- -------------------------------------------------------------
 -- PEDIDOS
 -- -------------------------------------------------------------
 create table if not exists historico.pedidos (
@@ -83,6 +95,7 @@ create table if not exists historico.pedidos (
   alto          numeric(10,2),        -- altura (remolques) / alto (puertas)
   aguas         numeric(10,2),        -- REMOLQUES, opcional (NULL solo coincide con NULL)
   radio         numeric(10,2),        -- REMOLQUES, opcional (NULL solo coincide con NULL)
+  impresion_digital boolean not null default false, -- PUERTAS
   fecha         date,
   tecnico_id    uuid references historico.tecnicos(id),
   observaciones text,
@@ -128,4 +141,11 @@ values
   ('Puerta abatible'),
   ('Puerta de dos hojas'),
   ('Puerta basculante')
+on conflict (nombre) do nothing;
+
+insert into historico.tipos_remolque (nombre)
+values
+  ('Baquetón'),
+  ('Ganado'),
+  ('Lona alta')
 on conflict (nombre) do nothing;

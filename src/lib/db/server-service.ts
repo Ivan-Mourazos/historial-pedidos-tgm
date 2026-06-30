@@ -13,7 +13,26 @@ import type {
   PedidoInput,
   Tecnico,
   TipoPuerta,
+  TipoRemolque,
 } from "../types";
+
+const TIPOS_REMOLQUE_BASE = ["Baquetón", "Ganado", "Lona alta"];
+
+function tiposRemolqueFallback(): TipoRemolque[] {
+  const now = new Date().toISOString();
+  return TIPOS_REMOLQUE_BASE.map((nombre) => ({
+    id: `base-${nombre.toLowerCase().replace(/\s+/g, "-")}`,
+    nombre,
+    activo: true,
+    created_at: now,
+    updated_at: now,
+  }));
+}
+
+function esTablaTiposRemolqueNoCreada(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes("tipos_remolque");
+}
 
 // Tipos mssql por columna de "pedidos", para enlazar parámetros correctamente.
 const PEDIDO_COLUMN_TYPES: Record<string, () => sql.ISqlType> = {
@@ -27,6 +46,7 @@ const PEDIDO_COLUMN_TYPES: Record<string, () => sql.ISqlType> = {
   alto: () => sql.Decimal(10, 2),
   aguas: () => sql.Decimal(10, 2),
   radio: () => sql.Decimal(10, 2),
+  impresion_digital: () => sql.Bit(),
   // DATE: se pasa como texto 'YYYY-MM-DD' (formato culture-independent) para
   // evitar desfases de zona horaria al convertir a Date.
   fecha: () => sql.NVarChar(10),
@@ -39,10 +59,14 @@ const PEDIDO_INSERTABLE = Object.keys(PEDIDO_COLUMN_TYPES);
 // "YYYY-MM-DD" (se muestra en tablas y se enlaza a <input type="date">),
 // que es como llegaba antes desde PostgREST. Normalizamos cada fila de pedido.
 function normalizePedido<T extends Record<string, unknown>>(row: T): T {
-  if (row.fecha instanceof Date) {
-    return { ...row, fecha: row.fecha.toISOString().slice(0, 10) };
+  const normalized: Record<string, unknown> = { ...row };
+  if (normalized.impresion_digital === undefined) {
+    normalized.impresion_digital = false;
   }
-  return row;
+  if (row.fecha instanceof Date) {
+    normalized.fecha = row.fecha.toISOString().slice(0, 10);
+  }
+  return normalized as T;
 }
 
 // Reconstruye las relaciones embebidas (cliente/familia/tecnico) que antes
@@ -227,6 +251,36 @@ export const dbServer = {
          VALUES (@nombre, 1)`,
       );
     return res.recordset[0] as TipoPuerta;
+  },
+
+  // -------------------------- TIPOS REMOLQUE --------------------------
+  async getTiposRemolque(soloActivos = true): Promise<TipoRemolque[]> {
+    const pool = await getPool();
+    const filtro = soloActivos ? "WHERE activo = 1" : "";
+    try {
+      const res = await pool
+        .request()
+        .query(
+          `SELECT * FROM ${SCHEMA}.tipos_remolque ${filtro} ORDER BY nombre ASC`,
+        );
+      return res.recordset as TipoRemolque[];
+    } catch (e) {
+      if (esTablaTiposRemolqueNoCreada(e)) return tiposRemolqueFallback();
+      throw e;
+    }
+  },
+
+  async createTipoRemolque(nombre: string): Promise<TipoRemolque> {
+    const pool = await getPool();
+    const res = await pool
+      .request()
+      .input("nombre", sql.NVarChar(100), nombre.trim())
+      .query(
+        `INSERT INTO ${SCHEMA}.tipos_remolque (nombre, activo)
+         OUTPUT INSERTED.*
+         VALUES (@nombre, 1)`,
+      );
+    return res.recordset[0] as TipoRemolque;
   },
 
   // ----------------------------- PEDIDOS ------------------------------

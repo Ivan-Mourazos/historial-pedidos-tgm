@@ -6,7 +6,7 @@ import { AbrirZwcadButton } from "@/components/AbrirZwcadButton";
 import { EditarPedidoModal } from "@/components/EditarPedidoModal";
 import { Banner, PageTitle, inputClass } from "@/components/ui";
 import { dbService } from "@/lib/db/db-service";
-import { resumenMedidas, formatMedida, formatFecha } from "@/lib/display";
+import { formatMedida, formatFecha } from "@/lib/display";
 import { useCatalogos } from "@/lib/useCatalogos";
 import type { PedidoConRelaciones } from "@/lib/types";
 
@@ -289,6 +289,7 @@ export default function HistoricoPage() {
                   <Th>MEDIDAS</Th>
                   {!esPuertas && <SortTh campo="aguas" orden={orden} onSort={cambiarOrden}>Aguas</SortTh>}
                   {!esPuertas && <SortTh campo="radio" orden={orden} onSort={cambiarOrden}>Radio</SortTh>}
+                  {esPuertas && <Th>I.D.</Th>}
                   <SortTh campo="fecha" orden={orden} onSort={cambiarOrden}>Fecha</SortTh>
                   <Th className={esPuertas ? "w-[130px]" : "w-[230px]"}>ACCIONES</Th>
                   <Th className="w-[82px]">EDITAR</Th>
@@ -317,7 +318,7 @@ export default function HistoricoPage() {
                       <td className="whitespace-nowrap px-3 py-3 text-app-text">
                         {esPuertas
                           ? [p.ancho, p.alto].map((v) => formatMedida(v) || "—").join(" × ")
-                          : resumenMedidas(p, fNombre)
+                          : [p.largo, p.ancho, p.alto].map((v) => formatMedida(v) || "—").join(" × ")
                         }
                       </td>
 
@@ -329,6 +330,11 @@ export default function HistoricoPage() {
                       {!esPuertas && (
                         <td className="whitespace-nowrap px-3 py-3 text-app-muted">
                           {esRemolque ? (formatMedida(p.radio) || "—") : "—"}
+                        </td>
+                      )}
+                      {esPuertas && (
+                        <td className="whitespace-nowrap px-3 py-3 text-app-muted">
+                          {p.impresion_digital ? "Sí" : "No"}
                         </td>
                       )}
 
@@ -391,6 +397,7 @@ export default function HistoricoPage() {
           familias={cat.familias}
           tecnicos={cat.tecnicos}
           tiposPuerta={cat.tiposPuerta}
+          tiposRemolque={cat.tiposRemolque}
           onCerrar={() => setEditando(null)}
           onGuardado={async () => {
             setEditando(null);

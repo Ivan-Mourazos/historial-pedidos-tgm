@@ -53,6 +53,16 @@ CREATE TABLE historico.tipos_puerta
 );
 GO
 
+-- ── TIPOS DE REMOLQUE ────────────────────────────────────────
+CREATE TABLE historico.tipos_remolque
+(
+    id UNIQUEIDENTIFIER NOT NULL DEFAULT NEWID(),
+    nombre NVARCHAR(100) NOT NULL,
+    activo BIT NOT NULL DEFAULT 1,
+    CONSTRAINT PK_tipos_remolque PRIMARY KEY (id)
+);
+GO
+
 -- ── PEDIDOS ──────────────────────────────────────────────────
 CREATE TABLE historico.pedidos
 (
@@ -69,6 +79,7 @@ CREATE TABLE historico.pedidos
     radio DECIMAL(10, 2) NULL,
     -- Medidas puertas
     tipo NVARCHAR(100) NULL,
+    impresion_digital BIT NOT NULL DEFAULT 0,
     -- General
     fecha DATE NULL,
     observaciones NVARCHAR(MAX) NULL,
@@ -102,6 +113,14 @@ VALUES
     ('Puerta De Dos Hojas'),
     ('Apilable'),
     ('Enrollable');
+GO
+
+INSERT INTO historico.tipos_remolque
+    (nombre)
+VALUES
+    ('Baquetón'),
+    ('Ganado'),
+    ('Lona alta');
 GO
 
 -- ── PERMISOS PARA LA APLICACIÓN ──────────────────────────────

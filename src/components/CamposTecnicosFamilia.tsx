@@ -1,6 +1,12 @@
 "use client";
 
-import { FAMILIA_PUERTAS, FAMILIA_REMOLQUES, type TipoPuerta, type Pedido } from "@/lib/types";
+import {
+  FAMILIA_PUERTAS,
+  FAMILIA_REMOLQUES,
+  type Pedido,
+  type TipoPuerta,
+  type TipoRemolque,
+} from "@/lib/types";
 import { parseMedida, formatMedida } from "@/lib/normalize";
 import { Button, Field, inputClass } from "./ui";
 
@@ -11,6 +17,8 @@ export interface CamposTecnicosValores {
   aguas: string;
   radio: string;
   tipo: string;
+  aguasActivas: boolean;
+  impresionDigital: boolean;
 }
 
 export const camposTecnicosVacios: CamposTecnicosValores = {
@@ -20,6 +28,8 @@ export const camposTecnicosVacios: CamposTecnicosValores = {
   aguas: "",
   radio: "",
   tipo: "",
+  aguasActivas: false,
+  impresionDigital: false,
 };
 
 function r2(n: number | null): number | null {
@@ -34,6 +44,15 @@ function uniqueNums(arr: (number | null)[]): number[] {
 }
 function normStr(s: string | null | undefined): string {
   return (s ?? "").trim().toLowerCase();
+}
+
+function esBaqueton(tipo: string): boolean {
+  return normStr(tipo) === "baquetón" || normStr(tipo) === "baqueton";
+}
+
+function pideRadioYAguas(tipo: string): boolean {
+  const t = normStr(tipo);
+  return t === "ganado" || t === "lona alta";
 }
 
 // Select de medidas con opciones en cascada desde la BD
@@ -92,6 +111,7 @@ export function CamposTecnicosFamilia({
   valores,
   onChange,
   tiposPuerta,
+  tiposRemolque,
   pedidosFamilia = [],
   inline = false,
   freeInput = false,
@@ -100,8 +120,9 @@ export function CamposTecnicosFamilia({
 }: {
   familiaNombre: string;
   valores: CamposTecnicosValores;
-  onChange: (campo: keyof CamposTecnicosValores, valor: string) => void;
+  onChange: (campo: keyof CamposTecnicosValores, valor: string | boolean) => void;
   tiposPuerta: TipoPuerta[];
+  tiposRemolque?: TipoRemolque[];
   pedidosFamilia?: Pedido[];
   inline?: boolean;
   freeInput?: boolean;
@@ -112,10 +133,11 @@ export function CamposTecnicosFamilia({
     const largoN = parseMedida(valores.largo);
     const anchoN = parseMedida(valores.ancho);
     const altoN  = parseMedida(valores.alto);
+    const usarRadioYAguas = pideRadioYAguas(valores.tipo);
+    const usarBaqueton = esBaqueton(valores.tipo);
 
-    const TIPOS_REMOLQUE_BASE = ["Baquetón", "Ganado", "Lona alta"];
     const tiposDisp = [...new Set([
-      ...TIPOS_REMOLQUE_BASE,
+      ...(tiposRemolque ?? []).map((t) => t.nombre),
       ...tiposRemolqueExtra,
       ...pedidosFamilia.map((p) => p.tipo).filter((t): t is string => !!t),
     ])].sort();
@@ -172,14 +194,36 @@ export function CamposTecnicosFamilia({
           <MedidaSelect label="Ancho"  value={valores.ancho} onChange={(v) => onChange("ancho", v)} disponibles={anchosDisp} freeInput={freeInput} />
         </div>
         <div className={inline ? "min-w-[80px] flex-1" : ""}>
-          <MedidaSelect label="Altura" value={valores.alto}  onChange={(v) => onChange("alto",  v)} disponibles={altosDisp}  freeInput={freeInput} />
+          <MedidaSelect label={usarBaqueton ? "Baquetón (alto)" : "Altura"} value={valores.alto}  onChange={(v) => onChange("alto",  v)} disponibles={altosDisp}  freeInput={freeInput} />
         </div>
-        <div className={inline ? "min-w-[72px] flex-1" : ""}>
-          <MedidaSelect label="Aguas"  value={valores.aguas} onChange={(v) => onChange("aguas", v)} disponibles={aguasDisp}  hint={inline ? undefined : "Opcional"} freeInput={freeInput} />
-        </div>
-        <div className={inline ? "min-w-[72px] flex-1" : ""}>
-          <MedidaSelect label="Radio"  value={valores.radio} onChange={(v) => onChange("radio", v)} disponibles={radiosDisp} hint={inline ? undefined : "Opcional"} freeInput={freeInput} />
-        </div>
+        {usarRadioYAguas && (
+          <>
+            <div className={inline ? "min-w-[72px] flex-1" : ""}>
+              <MedidaSelect label="Radio"  value={valores.radio} onChange={(v) => onChange("radio", v)} disponibles={radiosDisp} freeInput={freeInput} />
+            </div>
+            <div className={inline ? "min-w-[92px] flex-1" : ""}>
+              <Field label="Aguas">
+                <select
+                  className={inputClass}
+                  value={valores.aguasActivas ? "si" : "no"}
+                  onChange={(e) => {
+                    const activo = e.target.value === "si";
+                    onChange("aguasActivas", activo);
+                    if (!activo) onChange("aguas", "");
+                  }}
+                >
+                  <option value="no">No</option>
+                  <option value="si">Sí</option>
+                </select>
+              </Field>
+            </div>
+            {valores.aguasActivas && (
+              <div className={inline ? "min-w-[72px] flex-1" : ""}>
+                <MedidaSelect label="Nº aguas" value={valores.aguas} onChange={(v) => onChange("aguas", v)} disponibles={aguasDisp} freeInput={freeInput} />
+              </div>
+            )}
+          </>
+        )}
       </>
     );
 
@@ -232,6 +276,19 @@ export function CamposTecnicosFamilia({
         </div>
         <div className={inline ? "min-w-[80px] flex-1" : ""}>
           <MedidaSelect label="Alto"  value={valores.alto}  onChange={(v) => onChange("alto",  v)} disponibles={altosDisp}  freeInput={freeInput} />
+        </div>
+        <div className={inline ? "min-w-[92px] flex-1" : ""}>
+          <Field label="I.D.">
+            <label className="flex h-[38px] items-center gap-2 rounded-lg border border-[var(--border-strong)] bg-[var(--input-bg)] px-3 text-sm text-app-text">
+              <input
+                type="checkbox"
+                checked={valores.impresionDigital}
+                onChange={(e) => onChange("impresionDigital", e.target.checked)}
+                className="h-4 w-4 accent-[var(--brand)]"
+              />
+              <span>Impresión digital</span>
+            </label>
+          </Field>
         </div>
       </>
     );

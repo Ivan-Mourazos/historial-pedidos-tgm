@@ -4,19 +4,25 @@ import { FAMILIA_PUERTAS, FAMILIA_REMOLQUES, type Pedido } from "./types";
 // Resumen "250 × 140 × 80" (remolques) o "120 × 220" (puertas).
 // Devuelve "—" si todos los campos relevantes son nulos.
 export function resumenMedidas(
-  pedido: Pick<Pedido, "largo" | "ancho" | "alto" | "tipo">,
+  pedido: Pick<Pedido, "largo" | "ancho" | "alto" | "aguas" | "radio" | "tipo" | "impresion_digital">,
   familiaNombre: string,
 ): string {
   if (familiaNombre === FAMILIA_REMOLQUES) {
     const vals = [pedido.largo, pedido.ancho, pedido.alto];
     if (vals.every((v) => v === null)) return "—";
-    return vals.map((v) => formatMedida(v) || "—").join(" × ");
+    const medidas = vals.map((v) => formatMedida(v) || "—").join(" × ");
+    const extras = [
+      pedido.radio !== null ? `Radio ${formatMedida(pedido.radio)}` : null,
+      pedido.aguas !== null ? `Aguas ${formatMedida(pedido.aguas)}` : null,
+    ].filter(Boolean);
+    return extras.length ? `${medidas} · ${extras.join(" · ")}` : medidas;
   }
   if (familiaNombre === FAMILIA_PUERTAS) {
     const vals = [pedido.ancho, pedido.alto];
-    if (vals.every((v) => v === null)) return pedido.tipo ?? "—";
+    const id = pedido.impresion_digital ? " · I.D." : "";
+    if (vals.every((v) => v === null)) return pedido.tipo ? `${pedido.tipo}${id}` : (id.trim() || "—");
     const dim = vals.map((v) => formatMedida(v) || "—").join(" × ");
-    return pedido.tipo ? `${pedido.tipo} — ${dim}` : dim;
+    return pedido.tipo ? `${pedido.tipo} — ${dim}${id}` : `${dim}${id}`;
   }
   const vals = [pedido.largo, pedido.ancho, pedido.alto].filter((v) => v !== null);
   return vals.length ? vals.map((v) => formatMedida(v)).join(" × ") : "—";

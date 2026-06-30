@@ -69,7 +69,6 @@ export default function BuscadorPage() {
   const [modalTecnico, setModalTecnico]         = useState(false);
   const [modalTipoPuerta, setModalTipoPuerta]   = useState(false);
   const [modalTipoRemolque, setModalTipoRemolque] = useState(false);
-  const [tiposRemolqueExtra, setTiposRemolqueExtra] = useState<string[]>([]);
   const [mostrarRegistro, setMostrarRegistro]   = useState(false);
 
   const familiasOrdenadas = useMemo(
@@ -125,7 +124,10 @@ export default function BuscadorPage() {
 
   const completos       = camposRequeridosCompletos(criteriosConCliente);
   const hayAlgunCriterio = useMemo(
-    () => Object.values(valores).some((v) => v !== ""),
+    () =>
+      Object.values(valores).some((v) =>
+        typeof v === "boolean" ? v : v !== "",
+      ),
     [valores],
   );
 
@@ -150,8 +152,16 @@ export default function BuscadorPage() {
 
   const formatoNumeroOk = numero.trim() === "" || numeroPedidoEncajaFormato(numero);
 
-  function setCampo(campo: keyof CamposTecnicosValores, valor: string) {
-    setValores((v) => ({ ...v, [campo]: valor }));
+  function setCampo(campo: keyof CamposTecnicosValores, valor: string | boolean) {
+    setValores((v) => {
+      const siguiente = { ...v, [campo]: valor } as CamposTecnicosValores;
+      if (campo === "tipo") {
+        siguiente.radio = "";
+        siguiente.aguas = "";
+        siguiente.aguasActivas = false;
+      }
+      return siguiente;
+    });
     setMostrarRegistro(false);
   }
 
@@ -275,6 +285,7 @@ export default function BuscadorPage() {
               valores={valores}
               onChange={setCampo}
               tiposPuerta={cat.tiposPuerta}
+              tiposRemolque={cat.tiposRemolque}
               pedidosFamilia={pedidosParaOpciones}
               inline
             />
@@ -384,10 +395,20 @@ export default function BuscadorPage() {
               <CamposTecnicosFamilia
                 familiaNombre={familiaNombre}
                 valores={valores}
-                onChange={(campo, valor) => setValores((v) => ({ ...v, [campo]: valor }))}
+                onChange={(campo, valor) => {
+                  setValores((v) => {
+                    const siguiente = { ...v, [campo]: valor } as CamposTecnicosValores;
+                    if (campo === "tipo") {
+                      siguiente.radio = "";
+                      siguiente.aguas = "";
+                      siguiente.aguasActivas = false;
+                    }
+                    return siguiente;
+                  });
+                }}
                 tiposPuerta={cat.tiposPuerta}
+                tiposRemolque={cat.tiposRemolque}
                 pedidosFamilia={pedidosFamilia}
-                tiposRemolqueExtra={tiposRemolqueExtra}
                 freeInput
                 inline
                 onNuevoTipo={() => esRemolques ? setModalTipoRemolque(true) : setModalTipoPuerta(true)}
@@ -625,7 +646,7 @@ export default function BuscadorPage() {
                 </tbody>
               </table>
             ) : (
-              <table className="w-full min-w-[420px] text-sm">
+              <table className="w-full min-w-[480px] text-sm">
                 <thead>
                   <tr className="border-b border-[var(--border)]">
                     <Th>Nº PEDIDO</Th>
@@ -633,6 +654,7 @@ export default function BuscadorPage() {
                     <Th>TIPO</Th>
                     <Th>ANCHO</Th>
                     <Th>ALTO</Th>
+                    <Th>I.D.</Th>
                     <Th className="w-[100px]">CAD</Th>
                   </tr>
                 </thead>
@@ -690,6 +712,13 @@ export default function BuscadorPage() {
                               : "text-app-text"
                         }`}>
                           {pr.alto !== null ? `${formatMedida(pr.alto)} cm` : "—"}
+                        </td>
+                        <td className={`px-4 py-3 ${
+                          !diffs.includes("impresion_digital")
+                            ? "text-emerald-400 font-semibold"
+                            : "text-amber-400 font-semibold"
+                        }`}>
+                          {pr.impresion_digital ? "Sí" : "No"}
                         </td>
                         <td className="w-[100px] px-4 py-3">
                           <AbrirZwcadButton
@@ -760,8 +789,9 @@ export default function BuscadorPage() {
           placeholder="Ej. Frigorífico"
           onCerrar={() => setModalTipoRemolque(false)}
           onGuardar={async (nombre) => {
-            setTiposRemolqueExtra((prev) => [...new Set([...prev, nombre])]);
-            setValores((v) => ({ ...v, tipo: nombre }));
+            const nuevo = await dbService.createTipoRemolque(nombre);
+            await cat.recargarTiposRemolque();
+            setValores((v) => ({ ...v, tipo: nuevo.nombre }));
             setModalTipoRemolque(false);
           }}
         />

@@ -130,6 +130,7 @@ export default function ClientesPage() {
                     <tbody>
                       {c.pedidos.map((p, i) => {
                         const tag = tagClass[(p.familia?.nombre as keyof typeof tagClass)] ?? tagClass.REMOLQUES;
+                        const esRemolque = p.familia?.nombre === "REMOLQUES";
                         return (
                           <tr
                             key={p.id}
@@ -151,14 +152,16 @@ export default function ClientesPage() {
                             <td className="px-4 py-2 text-app-muted">{formatFecha(p.fecha)}</td>
                             <td className="w-[230px] px-4 py-2">
                               <div className="flex h-8 items-center gap-2">
-                                <div className="flex w-[86px] items-center justify-start">
-                                <AbrirExcelButton
-                                  numeroPedido={p.numero_pedido}
-                                  familiaNombre={p.familia?.nombre ?? ""}
-                                  tipo={p.tipo}
-                                  className="w-[86px]"
-                                />
-                                </div>
+                                {esRemolque && (
+                                  <div className="flex w-[86px] items-center justify-start">
+                                    <AbrirExcelButton
+                                      numeroPedido={p.numero_pedido}
+                                      familiaNombre={p.familia?.nombre ?? ""}
+                                      tipo={p.tipo}
+                                      className="w-[86px]"
+                                    />
+                                  </div>
+                                )}
                                 <div className="flex w-[86px] items-center justify-start">
                                   <AbrirZwcadButton
                                     numeroPedido={p.numero_pedido}

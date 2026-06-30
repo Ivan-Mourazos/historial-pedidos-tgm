@@ -14,7 +14,13 @@ import {
   normalizarNumeroPedido,
   numeroPedidoEncajaFormato,
 } from "@/lib/pedido-numero";
-import type { Familia, PedidoConRelaciones, Tecnico, TipoPuerta } from "@/lib/types";
+import type {
+  Familia,
+  PedidoConRelaciones,
+  Tecnico,
+  TipoPuerta,
+  TipoRemolque,
+} from "@/lib/types";
 
 function valoresDesdePedido(p: PedidoConRelaciones): CamposTecnicosValores {
   return {
@@ -24,6 +30,8 @@ function valoresDesdePedido(p: PedidoConRelaciones): CamposTecnicosValores {
     aguas: formatMedida(p.aguas),
     radio: formatMedida(p.radio),
     tipo: p.tipo ?? "",
+    aguasActivas: p.aguas !== null,
+    impresionDigital: p.impresion_digital,
   };
 }
 
@@ -32,6 +40,7 @@ export function EditarPedidoModal({
   familias,
   tecnicos,
   tiposPuerta,
+  tiposRemolque,
   onCerrar,
   onGuardado,
   onEliminar,
@@ -40,6 +49,7 @@ export function EditarPedidoModal({
   familias: Familia[];
   tecnicos: Tecnico[];
   tiposPuerta: TipoPuerta[];
+  tiposRemolque: TipoRemolque[];
   onCerrar: () => void;
   onGuardado: () => void | Promise<void>;
   onEliminar?: () => void | Promise<void>;
@@ -58,8 +68,16 @@ export function EditarPedidoModal({
   const familiaNombre = familias.find((f) => f.id === familiaId)?.nombre ?? "";
   const formatoOk = numeroPedidoEncajaFormato(numero);
 
-  function setCampo(campo: keyof CamposTecnicosValores, valor: string) {
-    setValores((v) => ({ ...v, [campo]: valor }));
+  function setCampo(campo: keyof CamposTecnicosValores, valor: string | boolean) {
+    setValores((v) => {
+      const siguiente = { ...v, [campo]: valor } as CamposTecnicosValores;
+      if (campo === "tipo") {
+        siguiente.radio = "";
+        siguiente.aguas = "";
+        siguiente.aguasActivas = false;
+      }
+      return siguiente;
+    });
   }
 
   async function guardar() {
@@ -163,6 +181,7 @@ export function EditarPedidoModal({
               valores={valores}
               onChange={setCampo}
               tiposPuerta={tiposPuerta}
+              tiposRemolque={tiposRemolque}
               freeInput
               tiposRemolqueExtra={pedido.tipo ? [pedido.tipo] : []}
             />

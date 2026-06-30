@@ -31,6 +31,14 @@ export interface TipoPuerta {
   updated_at: string;
 }
 
+export interface TipoRemolque {
+  id: string;
+  nombre: string;
+  activo: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Pedido {
   id: string;
   numero_pedido: string;
@@ -42,6 +50,7 @@ export interface Pedido {
   alto: number | null;
   aguas: number | null;
   radio: number | null;
+  impresion_digital: boolean;
   fecha: string | null;
   tecnico_id: string | null;
   observaciones: string | null;

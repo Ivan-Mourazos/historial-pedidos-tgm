@@ -105,8 +105,16 @@ export default function NuevoPedidoPage() {
   const formatoNumeroOk =
     numero.trim() === "" || numeroPedidoEncajaFormato(numero);
 
-  function setCampo(campo: keyof CamposTecnicosValores, valor: string) {
-    setValores((v) => ({ ...v, [campo]: valor }));
+  function setCampo(campo: keyof CamposTecnicosValores, valor: string | boolean) {
+    setValores((v) => {
+      const siguiente = { ...v, [campo]: valor } as CamposTecnicosValores;
+      if (campo === "tipo") {
+        siguiente.radio = "";
+        siguiente.aguas = "";
+        siguiente.aguasActivas = false;
+      }
+      return siguiente;
+    });
     setConfirmarDuplicado(false);
   }
 
@@ -262,6 +270,7 @@ export default function NuevoPedidoPage() {
                 valores={valores}
                 onChange={setCampo}
                 tiposPuerta={cat.tiposPuerta}
+                tiposRemolque={cat.tiposRemolque}
                 freeInput
               />
             </section>

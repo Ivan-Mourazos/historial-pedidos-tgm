@@ -14,9 +14,11 @@ export interface CriteriosBusqueda {
   ancho: number | null;
   alto: number | null;
   aguas: number | null;
+  aguasActivas: boolean;
   radio: number | null;
   // PUERTAS
   tipo: string | null;
+  impresionDigital: boolean;
   // Flags para saber si el usuario dejó intencionadamente vacío un opcional.
   // En remolques, aguas/radio vacío SOLO coincide con vacío, así que el vacío
   // siempre es un valor significativo y no requiere flag adicional.
@@ -36,11 +38,28 @@ function tipoNormalizado(t: string | null): string {
   return (t ?? "").trim().toLowerCase();
 }
 
+function esBaqueton(t: string | null): boolean {
+  const tipo = tipoNormalizado(t);
+  return tipo === "baquetón" || tipo === "baqueton";
+}
+
+function pideRadioYAguas(t: string | null): boolean {
+  const tipo = tipoNormalizado(t);
+  return tipo === "ganado" || tipo === "lona alta";
+}
+
 // ¿Están completos los campos mínimos para buscar?
 // Aguas/radio son siempre opcionales. No requiere cliente.
 export function camposRequeridosCompletos(c: CriteriosBusqueda): boolean {
   if (c.familiaNombre === FAMILIA_REMOLQUES) {
-    return c.largo !== null && c.ancho !== null && c.alto !== null;
+    if (tipoNormalizado(c.tipo) === "") return false;
+    const base = c.largo !== null && c.ancho !== null && c.alto !== null;
+    if (!base) return false;
+    if (esBaqueton(c.tipo)) return true;
+    if (pideRadioYAguas(c.tipo)) {
+      return c.radio !== null && (!c.aguasActivas || c.aguas !== null);
+    }
+    return true;
   }
 
   if (c.familiaNombre === FAMILIA_PUERTAS) {
@@ -58,6 +77,14 @@ export function esCoincidenciaExacta(
   if (pedido.cliente_id !== c.clienteId) return false;
 
   if (c.familiaNombre === FAMILIA_REMOLQUES) {
+    if (tipoNormalizado(pedido.tipo) !== tipoNormalizado(c.tipo)) return false;
+    if (esBaqueton(c.tipo)) {
+      return (
+        igualMedida(pedido.largo, c.largo) &&
+        igualMedida(pedido.ancho, c.ancho) &&
+        igualMedida(pedido.alto, c.alto)
+      );
+    }
     return (
       igualMedida(pedido.largo, c.largo) &&
       igualMedida(pedido.ancho, c.ancho) &&
@@ -71,7 +98,8 @@ export function esCoincidenciaExacta(
     return (
       tipoNormalizado(pedido.tipo) === tipoNormalizado(c.tipo) &&
       igualMedida(pedido.ancho, c.ancho) &&
-      igualMedida(pedido.alto, c.alto)
+      igualMedida(pedido.alto, c.alto) &&
+      pedido.impresion_digital === c.impresionDigital
     );
   }
 
@@ -109,6 +137,7 @@ export function buscarParecidos(
     const diferencias: string[] = [];
 
     if (c.familiaNombre === FAMILIA_REMOLQUES) {
+      if (c.tipo && tipoNormalizado(p.tipo) !== tipoNormalizado(c.tipo)) continue;
       if (!dentroDeTolerancia(p.largo, c.largo)) continue;
       if (!dentroDeTolerancia(p.ancho, c.ancho)) continue;
       if (!dentroDeTolerancia(p.alto, c.alto)) continue;
@@ -128,6 +157,7 @@ export function buscarParecidos(
         if (!igualMedida(p.radio, c.radio)) diferencias.push("radio");
       }
     } else if (c.familiaNombre === FAMILIA_PUERTAS) {
+      if (p.impresion_digital !== c.impresionDigital) continue;
       if (!dentroDeTolerancia(p.ancho, c.ancho)) continue;
       if (!dentroDeTolerancia(p.alto, c.alto)) continue;
 
@@ -153,8 +183,8 @@ export function buscarConCriteriosParciales(
 ): Pedido[] {
   const hayCriterio =
     c.familiaNombre === FAMILIA_REMOLQUES
-      ? c.largo !== null || c.ancho !== null || c.alto !== null || c.aguas !== null || c.radio !== null
-      : c.tipo !== null || c.ancho !== null || c.alto !== null;
+      ? c.tipo !== null || c.largo !== null || c.ancho !== null || c.alto !== null || c.aguas !== null || c.radio !== null
+      : c.tipo !== null || c.ancho !== null || c.alto !== null || c.impresionDigital;
 
   if (!hayCriterio) return [];
 
@@ -175,6 +205,7 @@ export function buscarConCriteriosParciales(
         if (!dentroDeTolerancia(p.radio, c.radio)) return false;
       }
     } else if (c.familiaNombre === FAMILIA_PUERTAS) {
+      if (p.impresion_digital !== c.impresionDigital) return false;
       if (c.tipo && tipoNormalizado(c.tipo) !== "" && tipoNormalizado(p.tipo) !== tipoNormalizado(c.tipo)) return false;
       if (c.ancho !== null && !dentroDeTolerancia(p.ancho, c.ancho)) return false;
       if (c.alto !== null && !dentroDeTolerancia(p.alto, c.alto)) return false;
@@ -201,6 +232,7 @@ export function calcularDiferencias(pedido: Pedido, c: CriteriosBusqueda): strin
     if (c.tipo && tipoNormalizado(pedido.tipo) !== tipoNormalizado(c.tipo)) diffs.push("tipo");
     if (c.ancho !== null && !igualMedida(pedido.ancho, c.ancho)) diffs.push("ancho");
     if (c.alto !== null && !igualMedida(pedido.alto, c.alto)) diffs.push("alto");
+    if (pedido.impresion_digital !== c.impresionDigital) diffs.push("impresion_digital");
   }
   return diffs;
 }
