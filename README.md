@@ -125,6 +125,9 @@ En instalaciones existentes, aplica también
 Añade el JSON versionado para campos propios de futuras familias y el índice
 del histórico paginado. Los pedidos actuales no se modifican.
 
+Para almacenar la recogida delantera y trasera de las lonas de remolque, aplica además
+[`db/migration-2026-07-10-recogida-remolques.sql`](db/migration-2026-07-10-recogida-remolques.sql).
+
 ## Reglas de negocio clave
 
 - **Coincidencia exacta REMOLQUES:** cliente + largo + ancho + altura + aguas + radio

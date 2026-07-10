@@ -34,6 +34,8 @@ const DEFINICIONES: Record<string, FamiliaDefinition> = {
       { key: "alto", label: "Altura", type: "number", required: true, unit: "cm" },
       { key: "aguas", label: "Aguas", type: "number", unit: "cm" },
       { key: "radio", label: "Radio", type: "number", unit: "cm" },
+      { key: "recogida_delante", label: "Recoge delante", type: "select" },
+      { key: "recogida_atras", label: "Recoge atrás", type: "select" },
     ],
   },
   PUERTAS: {

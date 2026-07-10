@@ -4,7 +4,7 @@ import { FAMILIA_PUERTAS, FAMILIA_REMOLQUES, type Pedido } from "./types";
 // Resumen "250 × 140 × 80" (remolques) o "120 × 220" (puertas).
 // Devuelve "—" si todos los campos relevantes son nulos.
 export function resumenMedidas(
-  pedido: Pick<Pedido, "largo" | "ancho" | "alto" | "aguas" | "radio" | "tipo" | "impresion_digital" | "datos_tecnicos">,
+  pedido: Pick<Pedido, "largo" | "ancho" | "alto" | "aguas" | "radio" | "tipo" | "impresion_digital" | "datos_tecnicos" | "recogida_delante" | "recogida_atras">,
   familiaNombre: string,
 ): string {
   if (familiaNombre === FAMILIA_REMOLQUES) {
@@ -14,6 +14,8 @@ export function resumenMedidas(
     const extras = [
       pedido.radio !== null ? `Radio ${formatMedida(pedido.radio)}` : null,
       pedido.aguas !== null ? `Aguas ${formatMedida(pedido.aguas)}` : null,
+      pedido.recogida_delante ? `Recoge delante ${pedido.recogida_delante}` : null,
+      pedido.recogida_atras ? `Recoge atrás ${pedido.recogida_atras}` : null,
     ].filter(Boolean);
     return extras.length ? `${medidas} · ${extras.join(" · ")}` : medidas;
   }

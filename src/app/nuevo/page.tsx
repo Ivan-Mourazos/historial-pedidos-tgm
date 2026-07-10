@@ -22,6 +22,7 @@ import {
 import { dbService } from "@/lib/db/db-service";
 import { resumenMedidas } from "@/lib/display";
 import { ordenarFamilias } from "@/lib/familias";
+import { usaRecogidaRemolque } from "@/lib/recogida-remolque";
 import {
   camposRequeridosCompletos,
   esCoincidenciaExacta,
@@ -142,6 +143,10 @@ export default function NuevoPedidoPage() {
         siguiente.radio = "";
         siguiente.aguas = "";
         siguiente.aguasActivas = false;
+        if (typeof valor === "string" && !usaRecogidaRemolque(valor)) {
+          siguiente.recogidaDelante = "";
+          siguiente.recogidaAtras = "";
+        }
       }
       return siguiente;
     });

@@ -24,6 +24,7 @@ import { dbService } from "@/lib/db/db-service";
 import { formatMedida } from "@/lib/display";
 import { ordenarFamilias } from "@/lib/familias";
 import { tipoRemolqueCanonico } from "@/lib/tipos-remolque";
+import { usaRecogidaRemolque } from "@/lib/recogida-remolque";
 import {
   buscarConCriteriosParciales,
   calcularDiferencias,
@@ -193,6 +194,10 @@ export default function BuscadorPage() {
         siguiente.radio = "";
         siguiente.aguas = "";
         siguiente.aguasActivas = false;
+        if (typeof valor === "string" && !usaRecogidaRemolque(valor)) {
+          siguiente.recogidaDelante = "";
+          siguiente.recogidaAtras = "";
+        }
       }
       return siguiente;
     });
@@ -438,6 +443,10 @@ export default function BuscadorPage() {
                       siguiente.radio = "";
                       siguiente.aguas = "";
                       siguiente.aguasActivas = false;
+                      if (typeof valor === "string" && !usaRecogidaRemolque(valor)) {
+                        siguiente.recogidaDelante = "";
+                        siguiente.recogidaAtras = "";
+                      }
                     }
                     return siguiente;
                   });
@@ -594,6 +603,7 @@ export default function BuscadorPage() {
                     <Th>ALTURA</Th>
                     <Th>AGUAS</Th>
                     <Th>RADIO</Th>
+                    <Th>RECOGIDA</Th>
                     <Th className="w-[190px]">ARCHIVOS</Th>
                   </tr>
                 </thead>
@@ -652,6 +662,10 @@ export default function BuscadorPage() {
                         {tdVal("alto",  "alto",  criterios.alto  !== null)}
                         {tdVal("aguas", "aguas", criterios.aguas !== null)}
                         {tdVal("radio", "radio", criterios.radio !== null)}
+                        <td className="min-w-[190px] px-3 py-2.5 text-xs text-app-muted">
+                          <span className="block"><strong>Del.:</strong> {pr.recogida_delante ?? "—"}</span>
+                          <span className="block"><strong>Atr.:</strong> {pr.recogida_atras ?? "—"}</span>
+                        </td>
                         <td className="w-[190px] px-3 py-2.5">
                           <div className="flex h-8 items-center gap-2">
                             <div className="flex w-[86px] items-center justify-start">

@@ -77,6 +77,8 @@ CREATE TABLE historico.pedidos
     alto DECIMAL(10, 2) NULL,
     aguas DECIMAL(10, 2) NULL,
     radio DECIMAL(10, 2) NULL,
+    recogida_delante NVARCHAR(100) NULL,
+    recogida_atras NVARCHAR(100) NULL,
     -- Medidas puertas
     tipo NVARCHAR(100) NULL,
     impresion_digital BIT NOT NULL DEFAULT 0,

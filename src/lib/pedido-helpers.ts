@@ -2,6 +2,7 @@ import type { CamposTecnicosValores } from "@/components/CamposTecnicosFamilia";
 import type { CriteriosBusqueda } from "./matching";
 import { parseMedida } from "./normalize";
 import { getFamiliaDefinition } from "./familias";
+import { usaRecogidaRemolque } from "./recogida-remolque";
 import { claveTipoRemolque, tipoRemolqueCanonico } from "./tipos-remolque";
 import { FAMILIA_PUERTAS, FAMILIA_REMOLQUES } from "./types";
 
@@ -22,6 +23,8 @@ export function construirCriterios(
     radio: parseMedida(valores.radio),
     tipo: valores.tipo.trim() === "" ? null : valores.tipo.trim(),
     impresionDigital: valores.impresionDigital,
+    recogidaDelante: valores.recogidaDelante,
+    recogidaAtras: valores.recogidaAtras,
     extra: valores.extra,
   };
 }
@@ -39,6 +42,8 @@ export function camposTecnicosParaGuardar(
   aguas: number | null;
   radio: number | null;
   impresion_digital: boolean;
+  recogida_delante: string | null;
+  recogida_atras: string | null;
   datos_tecnicos?: Record<string, string | number | boolean | null>;
   datos_tecnicos_version?: number;
 } {
@@ -46,6 +51,7 @@ export function camposTecnicosParaGuardar(
     const tipo = tipoRemolqueCanonico(valores.tipo);
     const tipoNorm = claveTipoRemolque(tipo);
     const usaRadioYAguas = tipoNorm === "ganado" || tipoNorm === "lona alta";
+    const usaRecogida = usaRecogidaRemolque(tipo);
     return {
       tipo: tipo === "" ? null : tipo,
       largo: parseMedida(valores.largo),
@@ -54,6 +60,8 @@ export function camposTecnicosParaGuardar(
       aguas: usaRadioYAguas && valores.aguasActivas ? parseMedida(valores.aguas) : null,
       radio: usaRadioYAguas ? parseMedida(valores.radio) : null,
       impresion_digital: false,
+      recogida_delante: usaRecogida ? valores.recogidaDelante || null : null,
+      recogida_atras: usaRecogida ? valores.recogidaAtras || null : null,
     };
   }
   if (familiaNombre === FAMILIA_PUERTAS) {
@@ -65,6 +73,8 @@ export function camposTecnicosParaGuardar(
       aguas: null,
       radio: null,
       impresion_digital: valores.impresionDigital,
+      recogida_delante: null,
+      recogida_atras: null,
     };
   }
   const definition = getFamiliaDefinition(familiaNombre);
@@ -83,6 +93,8 @@ export function camposTecnicosParaGuardar(
     aguas: null,
     radio: null,
     impresion_digital: false,
+    recogida_delante: null,
+    recogida_atras: null,
     datos_tecnicos: datosTecnicos,
     datos_tecnicos_version: 1,
   };

@@ -50,6 +50,8 @@ export interface Pedido {
   alto: number | null;
   aguas: number | null;
   radio: number | null;
+  recogida_delante: string | null;
+  recogida_atras: string | null;
   impresion_digital: boolean;
   fecha: string | null;
   tecnico_id: string | null;

@@ -9,6 +9,7 @@ import {
 } from "@/lib/types";
 import { parseMedida, formatMedida } from "@/lib/normalize";
 import { getFamiliaDefinition } from "@/lib/familias";
+import { TIPOS_RECOGIDA_REMOLQUE, usaRecogidaRemolque } from "@/lib/recogida-remolque";
 import {
   claveTipoRemolque,
   ordenarTiposRemolque,
@@ -25,6 +26,8 @@ export interface CamposTecnicosValores {
   tipo: string;
   aguasActivas: boolean;
   impresionDigital: boolean;
+  recogidaDelante: string;
+  recogidaAtras: string;
   extra: Record<string, string | boolean>;
 }
 
@@ -37,6 +40,8 @@ export const camposTecnicosVacios: CamposTecnicosValores = {
   tipo: "",
   aguasActivas: false,
   impresionDigital: false,
+  recogidaDelante: "",
+  recogidaAtras: "",
   extra: {},
 };
 
@@ -153,6 +158,7 @@ export function CamposTecnicosFamilia({
     const altoN  = parseMedida(valores.alto);
     const usarRadioYAguas = pideRadioYAguas(valores.tipo);
     const usarBaqueton = esBaqueton(valores.tipo);
+    const usarRecogida = usaRecogidaRemolque(valores.tipo);
 
     const tiposDisp = tiposRemolqueDisponibles([
       ...(tiposRemolque ?? []).map((t) => t.nombre),
@@ -243,6 +249,30 @@ export function CamposTecnicosFamilia({
                 <MedidaSelect label="Nº aguas" value={valores.aguas} onChange={(v) => onChange("aguas", v)} disponibles={aguasDisp} freeInput={freeInput} />
               </div>
             )}
+          </>
+        )}
+        {usarRecogida && freeInput && (
+          <>
+            <div className={inline ? "min-w-[150px] flex-[2]" : ""}>
+              <Field label="Recoge delante *">
+                <SelectControl
+                  value={valores.recogidaDelante}
+                  onChange={(value) => onChange("recogidaDelante", value)}
+                  placeholder="— Selecciona —"
+                  options={TIPOS_RECOGIDA_REMOLQUE.map((value) => ({ value, label: value }))}
+                />
+              </Field>
+            </div>
+            <div className={inline ? "min-w-[150px] flex-[2]" : ""}>
+              <Field label="Recoge atrás *">
+                <SelectControl
+                  value={valores.recogidaAtras}
+                  onChange={(value) => onChange("recogidaAtras", value)}
+                  placeholder="— Selecciona —"
+                  options={TIPOS_RECOGIDA_REMOLQUE.map((value) => ({ value, label: value }))}
+                />
+              </Field>
+            </div>
           </>
         )}
       </>

@@ -33,6 +33,7 @@ import type {
   TipoPuerta,
   TipoRemolque,
 } from "@/lib/types";
+import { usaRecogidaRemolque } from "@/lib/recogida-remolque";
 
 function valoresDesdePedido(p: PedidoConRelaciones): CamposTecnicosValores {
   return {
@@ -44,6 +45,8 @@ function valoresDesdePedido(p: PedidoConRelaciones): CamposTecnicosValores {
     tipo: tipoRemolqueCanonico(p.tipo),
     aguasActivas: p.aguas !== null,
     impresionDigital: p.impresion_digital,
+    recogidaDelante: p.recogida_delante ?? "",
+    recogidaAtras: p.recogida_atras ?? "",
     extra: Object.fromEntries(
       Object.entries(p.datos_tecnicos ?? {}).map(([key, value]) => [key, typeof value === "boolean" ? value : String(value ?? "")]),
     ),
@@ -101,6 +104,10 @@ export function EditarPedidoModal({
         siguiente.radio = "";
         siguiente.aguas = "";
         siguiente.aguasActivas = false;
+        if (typeof valor === "string" && !usaRecogidaRemolque(valor)) {
+          siguiente.recogidaDelante = "";
+          siguiente.recogidaAtras = "";
+        }
       }
       return siguiente;
     });

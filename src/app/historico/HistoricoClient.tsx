@@ -205,8 +205,20 @@ export function HistoricoClient({
           <p className="px-4 py-6 text-sm text-app-muted">No hay pedidos que coincidan.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-sm">
-              <thead className="sticky top-[53px] z-10 bg-surface/95 backdrop-blur-xl">
+            <table className="w-full min-w-[1053px] table-fixed text-sm">
+              <colgroup>
+                <col className="w-[90px]" />
+                <col className="w-[140px]" />
+                <col className="w-[80px]" />
+                <col className="w-[130px]" />
+                {isTrailers && <col className="w-[60px]" />}
+                {isTrailers && <col className="w-[60px]" />}
+                {isTrailers && <col className="w-[130px]" />}
+                {isDoors && <col className="w-[64px]" />}
+                <col className="w-[85px]" />
+                <col className="w-[278px]" />
+              </colgroup>
+              <thead className="bg-surface/95">
                 <tr className="border-b border-[var(--border)]">
                   <SortTh campo="numero_pedido" activeField={activeSort} direction={direction} onSort={changeSort}>Nº Pedido</SortTh>
                   <SortTh campo="cliente" activeField={activeSort} direction={direction} onSort={changeSort}>Cliente</SortTh>
@@ -214,10 +226,10 @@ export function HistoricoClient({
                   <Th>{definition.variante === "generic" ? "Datos técnicos" : "Medidas"}</Th>
                   {isTrailers && <SortTh campo="aguas" activeField={activeSort} direction={direction} onSort={changeSort}>Aguas</SortTh>}
                   {isTrailers && <SortTh campo="radio" activeField={activeSort} direction={direction} onSort={changeSort}>Radio</SortTh>}
+                  {isTrailers && <Th>Recogida</Th>}
                   {isDoors && <Th>I.D.</Th>}
                   <SortTh campo="fecha" activeField={activeSort} direction={direction} onSort={changeSort}>Fecha</SortTh>
-                  <Th className="w-[230px]">Acciones</Th>
-                  <Th className="w-[82px]">Editar</Th>
+                  <Th>Acciones</Th>
                 </tr>
               </thead>
               <tbody>
@@ -243,10 +255,20 @@ export function HistoricoClient({
                       </td>
                       {isTrailers && <td className="whitespace-nowrap px-3 py-3 text-app-muted">{formatMedida(pedido.aguas) || "—"}</td>}
                       {isTrailers && <td className="whitespace-nowrap px-3 py-3 text-app-muted">{formatMedida(pedido.radio) || "—"}</td>}
+                      {isTrailers && (
+                        <td className="px-3 py-3 text-xs leading-4 text-app-muted">
+                          {pedido.recogida_delante || pedido.recogida_atras ? (
+                            <>
+                              <span className="block truncate" title={pedido.recogida_delante ?? undefined}><strong>Del.:</strong> {pedido.recogida_delante ?? "—"}</span>
+                              <span className="block truncate" title={pedido.recogida_atras ?? undefined}><strong>Atr.:</strong> {pedido.recogida_atras ?? "—"}</span>
+                            </>
+                          ) : "—"}
+                        </td>
+                      )}
                       {isDoors && <td className="whitespace-nowrap px-3 py-3 text-app-muted">{pedido.impresion_digital ? "Sí" : "No"}</td>}
                       <td className="whitespace-nowrap px-3 py-3 text-app-muted">{formatFecha(pedido.fecha)}</td>
-                      <td className="w-[230px] px-3 py-3">
-                        <div className="flex h-8 items-center gap-2">
+                      <td className="px-3 py-3">
+                        <div className="flex h-8 items-center gap-1.5">
                           {excelEligible && (
                             <AbrirExcelButton numeroPedido={pedido.numero_pedido} familiaNombre={familyName} className="w-[86px]" />
                           )}
@@ -262,17 +284,16 @@ export function HistoricoClient({
                               <span aria-hidden="true">💬</span>
                             </button>
                           )}
+                          <button
+                            type="button"
+                            onClick={() => setEditando(pedido)}
+                            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-orange-400/25 bg-orange-400/10 text-orange-200 shadow-sm ring-1 ring-black/5 transition-colors hover:bg-orange-400/20 focus-visible:ring-2 focus-visible:ring-brand dark:ring-white/10"
+                            aria-label={`Editar ${pedido.numero_pedido}`}
+                            title="Editar pedido"
+                          >
+                            <PencilIcon />
+                          </button>
                         </div>
-                      </td>
-                      <td className="w-[82px] border-l border-[var(--border)] px-2 py-3">
-                        <button
-                          type="button"
-                          onClick={() => setEditando(pedido)}
-                          className="inline-flex h-8 w-[74px] items-center justify-start gap-1 rounded-full border border-orange-200/70 bg-orange-50/80 px-2 text-xs font-semibold text-orange-700 shadow-sm ring-1 ring-black/5 transition-colors hover:bg-orange-100 dark:border-orange-400/25 dark:bg-orange-400/10 dark:text-orange-200 dark:ring-white/10"
-                          aria-label={`Editar ${pedido.numero_pedido}`}
-                        >
-                          <PencilIcon /><span>Editar</span>
-                        </button>
                       </td>
                     </tr>
                   );

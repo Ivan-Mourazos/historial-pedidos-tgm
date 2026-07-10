@@ -49,6 +49,8 @@ const PEDIDO_COLUMN_TYPES: Record<string, () => sql.ISqlType> = {
   alto: () => sql.Decimal(10, 2),
   aguas: () => sql.Decimal(10, 2),
   radio: () => sql.Decimal(10, 2),
+  recogida_delante: () => sql.NVarChar(100),
+  recogida_atras: () => sql.NVarChar(100),
   impresion_digital: () => sql.Bit(),
   // DATE: se pasa como texto 'YYYY-MM-DD' (formato culture-independent) para
   // evitar desfases de zona horaria al convertir a Date.
@@ -340,7 +342,8 @@ export const dbServer = {
         p.numero_pedido, N' ', c.nombre, N' ', p.tipo, N' ',
         CONVERT(NVARCHAR(50), p.largo), N' ',
         CONVERT(NVARCHAR(50), p.ancho), N' ',
-        CONVERT(NVARCHAR(50), p.alto)
+        CONVERT(NVARCHAR(50), p.alto), N' ',
+        p.recogida_delante, N' ', p.recogida_atras
       )) LIKE @search`);
     }
 
