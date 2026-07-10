@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -173,10 +174,31 @@ export function SelectControl({
   disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const ref = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const listboxId = useId();
   const selected = options.find((option) => option.value === value);
+  const selectedIndex = options.findIndex((option) => option.value === value);
   const menuStyle = useFloatingMenuStyle(open, ref);
+
+  const openMenu = useCallback(() => {
+    setActiveIndex(selectedIndex >= 0 ? selectedIndex : 0);
+    setOpen(true);
+  }, [selectedIndex]);
+
+  const closeMenu = useCallback(() => {
+    setOpen(false);
+    triggerRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (open && activeIndex >= 0) {
+      optionRefs.current[activeIndex]?.scrollIntoView({ block: "nearest" });
+    }
+  }, [activeIndex, open]);
 
   useEffect(() => {
     function onPointerDown(event: PointerEvent) {
@@ -192,15 +214,66 @@ export function SelectControl({
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, []);
 
+  const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLElement>) => {
+    if (disabled || options.length === 0) return;
+    const currentIndex = activeIndex >= 0 ? activeIndex : Math.max(selectedIndex, 0);
+
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      if (!open) openMenu();
+      else setActiveIndex((current) => event.key === "ArrowDown"
+        ? Math.min(options.length - 1, Math.max(current, 0) + 1)
+        : Math.max(0, current < 0 ? options.length - 1 : current - 1));
+      return;
+    }
+    if (event.key === "Home" || event.key === "End") {
+      if (open) {
+        event.preventDefault();
+        setActiveIndex(event.key === "Home" ? 0 : options.length - 1);
+      }
+      return;
+    }
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      if (!open) openMenu();
+      else if (options[currentIndex]) {
+        onChange(options[currentIndex].value);
+        closeMenu();
+      }
+      return;
+    }
+    if (event.key === "Escape" && open) {
+      event.preventDefault();
+      closeMenu();
+      return;
+    }
+    if (open && event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      const normalizedKey = event.key.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es-ES");
+      const start = (currentIndex + 1) % options.length;
+      const orderedOptions = options.slice(start).concat(options.slice(0, start));
+      const matchOffset = orderedOptions.findIndex((option) =>
+        option.label.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es-ES").startsWith(normalizedKey),
+      );
+      if (matchOffset >= 0) {
+        event.preventDefault();
+        setActiveIndex((start + matchOffset) % options.length);
+      }
+    }
+  }, [activeIndex, closeMenu, disabled, onChange, open, openMenu, options, selectedIndex]);
+
   return (
     <div ref={ref} className={`relative ${className}`}>
       <button
+        ref={triggerRef}
         type="button"
         className={`${inputClass} flex items-center justify-between gap-2 text-left disabled:cursor-not-allowed disabled:opacity-60`}
-        onClick={() => !disabled && setOpen((current) => !current)}
+        onClick={() => !disabled && (open ? closeMenu() : openMenu())}
+        onKeyDown={handleKeyDown}
         disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-controls={open ? listboxId : undefined}
+        aria-activedescendant={open && activeIndex >= 0 ? `${listboxId}-option-${activeIndex}` : undefined}
       >
         <span className={`truncate ${selected ? "text-app-text" : "text-app-muted"}`}>
           {selected?.label ?? placeholder}
@@ -213,24 +286,32 @@ export function SelectControl({
       {open && menuStyle && typeof document !== "undefined" && createPortal(
         <div
           ref={menuRef}
+          id={listboxId}
           className="scrollbar-none overflow-y-auto rounded-[14px] border border-white/10 bg-white p-1 shadow-2xl ring-1 ring-black/5 dark:bg-[#080a12] dark:ring-white/10"
           role="listbox"
+          aria-label={placeholder}
+          onKeyDown={handleKeyDown}
           style={menuStyle}
         >
-          {options.map((option) => {
+          {options.map((option, index) => {
             const active = option.value === value;
+            const highlighted = index === activeIndex;
             return (
               <button
                 key={`${option.value}-${option.label}`}
+                id={`${listboxId}-option-${index}`}
+                ref={(element) => { optionRefs.current[index] = element; }}
                 type="button"
                 className={`flex min-h-8 w-full items-center justify-between gap-2 rounded-[10px] px-2.5 py-1.5 text-left text-sm transition-colors ${
                   active
                     ? "bg-brand text-white"
-                    : "text-app-text hover:bg-surface-2/80"
+                    : highlighted
+                      ? "bg-surface-2/80 text-app-text"
+                      : "text-app-text hover:bg-surface-2/80"
                 }`}
                 onClick={() => {
                   onChange(option.value);
-                  setOpen(false);
+                  closeMenu();
                 }}
                 role="option"
                 aria-selected={active}
