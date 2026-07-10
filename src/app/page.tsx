@@ -22,6 +22,7 @@ import {
 } from "@/components/ui";
 import { dbService } from "@/lib/db/db-service";
 import { formatMedida } from "@/lib/display";
+import { ordenarFamilias } from "@/lib/familias";
 import { tipoRemolqueCanonico } from "@/lib/tipos-remolque";
 import {
   buscarConCriteriosParciales,
@@ -83,15 +84,11 @@ export default function BuscadorPage() {
   const [mostrarRegistro, setMostrarRegistro]   = useState(false);
 
   const familiasOrdenadas = useMemo(
-    () => [...cat.familias].sort((a, b) => {
-      const orden = (nombre: string) => (
-        nombre === "REMOLQUES" ? 0 : nombre === "PUERTAS" ? 1 : 2
-      );
-      return orden(a.nombre) - orden(b.nombre) || a.nombre.localeCompare(b.nombre);
-    }),
+    () => ordenarFamilias(cat.familias),
     [cat.familias],
   );
-  const familia       = cat.familias.find((f) => f.id === familiaId);
+  const selectedFamiliaId = familiaId || familiasOrdenadas[0]?.id || "";
+  const familia       = cat.familias.find((f) => f.id === selectedFamiliaId);
   const familiaNombre = familia?.nombre ?? "";
   const esRemolques   = familiaNombre === FAMILIA_REMOLQUES;
 
@@ -114,21 +111,31 @@ export default function BuscadorPage() {
   );
 
   useEffect(() => {
-    if (!familiaId && familiasOrdenadas.length > 0) setFamiliaId(familiasOrdenadas[0].id);
-  }, [familiasOrdenadas, familiaId]);
+    if (!selectedFamiliaId) return;
+    let active = true;
+    Promise.all([
+      dbService.getClienteIdsDeFamilia(selectedFamiliaId),
+      dbService.getPedidosPorFamilia(selectedFamiliaId),
+    ]).then(([clientIds, pedidos]) => {
+      if (!active) return;
+      setClienteIdsDeFamilia(clientIds);
+      setPedidosFamilia(pedidos);
+    }).catch(() => {
+      if (!active) return;
+      setClienteIdsDeFamilia([]);
+      setPedidosFamilia([]);
+    });
+    return () => { active = false; };
+  }, [selectedFamiliaId]);
 
-  useEffect(() => {
+  function cambiarFamilia(nextFamilyId: string) {
+    setFamiliaId(nextFamilyId);
     setValores(camposTecnicosVacios);
     setClienteId(null);
     setConfirmarNumero(false);
     setPedidosFamilia([]);
     setClienteIdsDeFamilia(null);
-    if (!familiaId) return;
-    dbService.getClienteIdsDeFamilia(familiaId)
-      .then(setClienteIdsDeFamilia)
-      .catch(() => setClienteIdsDeFamilia([]));
-    dbService.getPedidosPorFamilia(familiaId).then(setPedidosFamilia);
-  }, [familiaId]);
+  }
 
   // Criterios sin cliente → búsqueda global en tiempo real
   const criterios = useMemo(
@@ -144,9 +151,14 @@ export default function BuscadorPage() {
   const completos       = camposRequeridosCompletos(criteriosConCliente);
   const hayAlgunCriterio = useMemo(
     () =>
-      Object.values(valores).some((v) =>
-        typeof v === "boolean" ? v : v !== "",
-      ),
+      Object.entries(valores).some(([key, value]) => {
+        if (key === "extra") {
+          return Object.values(valores.extra).some((extraValue) =>
+            typeof extraValue === "boolean" ? extraValue : extraValue !== "",
+          );
+        }
+        return typeof value === "boolean" ? value : value !== "";
+      }),
     [valores],
   );
 
@@ -171,7 +183,10 @@ export default function BuscadorPage() {
 
   const formatoNumeroOk = numero.trim() === "" || numeroPedidoEncajaFormato(numero);
 
-  function setCampo(campo: keyof CamposTecnicosValores, valor: string | boolean) {
+  function setCampo(
+    campo: keyof CamposTecnicosValores,
+    valor: string | boolean | Record<string, string | boolean>,
+  ) {
     setValores((v) => {
       const siguiente = { ...v, [campo]: valor } as CamposTecnicosValores;
       if (campo === "tipo") {
@@ -199,7 +214,7 @@ export default function BuscadorPage() {
     setErrorMsg(null);
     setOkMsg(null);
     const numeroNorm = normalizarNumeroPedido(numero);
-    if (!numeroNorm || !clienteId || !familiaId || !completos) return;
+    if (!numeroNorm || !clienteId || !selectedFamiliaId || !completos) return;
 
     if (!confirmarNumero) {
       const existeNumero = await dbService.getPedidoByNumero(numeroNorm).catch(() => null);
@@ -218,7 +233,7 @@ export default function BuscadorPage() {
       await dbService.createPedido({
         numero_pedido: numeroNorm,
         cliente_id:    clienteId,
-        familia_id:    familiaId,
+        familia_id:    selectedFamiliaId,
         fecha:         fecha || null,
         tecnico_id:    tecnicoId || null,
         observaciones: observaciones.trim() || null,
@@ -229,7 +244,7 @@ export default function BuscadorPage() {
       setObservaciones("");
       setConfirmarNumero(false);
       setErrorMsg(null);
-      setPedidosFamilia(await dbService.getPedidosPorFamilia(familiaId));
+      setPedidosFamilia(await dbService.getPedidosPorFamilia(selectedFamiliaId));
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : "Error al guardar");
     } finally {
@@ -238,10 +253,11 @@ export default function BuscadorPage() {
   }
 
   const puedeGuardar =
-    numero.trim() !== "" && !!clienteId && !!familiaId && completos && !guardando;
+    numero.trim() !== "" && !!clienteId && !!selectedFamiliaId && completos && !guardando;
 
   return (
     <div>
+      <h1 className="sr-only">Buscar pedidos existentes</h1>
       {/* ── Barra de familia + acciones ── */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div
@@ -251,9 +267,11 @@ export default function BuscadorPage() {
           {familiasOrdenadas.map((f) => (
             <button
               key={f.id}
-              onClick={() => setFamiliaId(f.id)}
+              type="button"
+              aria-pressed={selectedFamiliaId === f.id}
+              onClick={() => cambiarFamilia(f.id)}
               className={`cursor-pointer rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
-                familiaId === f.id
+                selectedFamiliaId === f.id
                   ? "bg-brand text-white shadow-sm"
                   : "text-app-muted hover:text-app-text"
               }`}
@@ -343,7 +361,6 @@ export default function BuscadorPage() {
                 <AbrirExcelButton
                   numeroPedido={exacto.numero_pedido}
                   familiaNombre={familiaNombre}
-                  tipo={exacto.tipo}
                   label="Abrir Excel"
                 />
                 <AbrirZwcadButton numeroPedido={exacto.numero_pedido} label="Abrir en ZWCAD" />
@@ -641,7 +658,6 @@ export default function BuscadorPage() {
                             <AbrirExcelButton
                               numeroPedido={pr.numero_pedido}
                               familiaNombre={familiaNombre}
-                              tipo={pr.tipo}
                               className="w-[86px]"
                             />
                             </div>

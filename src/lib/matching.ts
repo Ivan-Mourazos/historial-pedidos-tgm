@@ -4,6 +4,7 @@ import {
   type Pedido,
 } from "./types";
 import { claveTipoRemolque } from "./tipos-remolque";
+import { getFamiliaDefinition } from "./familias";
 
 // Criterios de búsqueda construidos a partir del formulario.
 // Las medidas ya vienen parseadas a número (o null para "vacío").
@@ -20,6 +21,7 @@ export interface CriteriosBusqueda {
   // PUERTAS
   tipo: string | null;
   impresionDigital: boolean;
+  extra: Record<string, string | boolean>;
   // Flags para saber si el usuario dejó intencionadamente vacío un opcional.
   // En remolques, aguas/radio vacío SOLO coincide con vacío, así que el vacío
   // siempre es un valor significativo y no requiere flag adicional.
@@ -66,8 +68,17 @@ export function camposRequeridosCompletos(c: CriteriosBusqueda): boolean {
   if (c.familiaNombre === FAMILIA_PUERTAS) {
     return tipoNormalizado(c.tipo) !== "" && c.ancho !== null && c.alto !== null;
   }
-
-  return false;
+  const definition = getFamiliaDefinition(c.familiaNombre);
+  const hasValue = definition.campos.some((field) => {
+    const value = c.extra[field.key];
+    return typeof value === "boolean" ? value : typeof value === "string" && value.trim() !== "";
+  });
+  return definition.campos.length > 0 && hasValue && definition.campos
+    .filter((field) => field.required)
+    .every((field) => {
+      const value = c.extra[field.key];
+      return typeof value === "boolean" || (typeof value === "string" && value.trim() !== "");
+    });
 }
 
 // ¿Este pedido coincide EXACTAMENTE con los criterios para su familia?
@@ -103,8 +114,17 @@ export function esCoincidenciaExacta(
       pedido.impresion_digital === c.impresionDigital
     );
   }
-
-  return false;
+  const definition = getFamiliaDefinition(c.familiaNombre);
+  const stored = pedido.datos_tecnicos ?? {};
+  return definition.campos.every((field) => {
+    const expected = c.extra[field.key];
+    const actual = stored[field.key];
+    if (field.type === "number") {
+      const parsed = typeof expected === "string" ? Number(expected.replace(",", ".")) : null;
+      return Number.isFinite(parsed) && r2(typeof actual === "number" ? actual : Number(actual)) === r2(parsed);
+    }
+    return String(actual ?? "").trim().toLocaleLowerCase("es-ES") === String(expected ?? "").trim().toLocaleLowerCase("es-ES");
+  });
 }
 
 export interface PedidoParecido {
@@ -166,7 +186,14 @@ export function buscarParecidos(
       if (!igualMedida(p.ancho, c.ancho)) diferencias.push("ancho");
       if (!igualMedida(p.alto, c.alto)) diferencias.push("alto");
     } else {
-      continue;
+      const stored = p.datos_tecnicos ?? {};
+      const definition = getFamiliaDefinition(c.familiaNombre);
+      const matches = definition.campos.every((field) => {
+        const expected = c.extra[field.key];
+        if (expected === "" || expected === undefined) return true;
+        return String(stored[field.key] ?? "").toLocaleLowerCase("es-ES") === String(expected).toLocaleLowerCase("es-ES");
+      });
+      if (!matches) continue;
     }
 
     resultado.push({ pedido: p, diferencias });
@@ -185,7 +212,9 @@ export function buscarConCriteriosParciales(
   const hayCriterio =
     c.familiaNombre === FAMILIA_REMOLQUES
       ? c.tipo !== null || c.largo !== null || c.ancho !== null || c.alto !== null || c.aguas !== null || c.radio !== null
-      : c.tipo !== null || c.ancho !== null || c.alto !== null || c.impresionDigital;
+      : c.familiaNombre === FAMILIA_PUERTAS
+        ? c.tipo !== null || c.ancho !== null || c.alto !== null || c.impresionDigital
+        : Object.values(c.extra).some((value) => typeof value === "boolean" ? value : value.trim() !== "");
 
   if (!hayCriterio) return [];
 
@@ -211,7 +240,13 @@ export function buscarConCriteriosParciales(
       if (c.ancho !== null && !dentroDeTolerancia(p.ancho, c.ancho)) return false;
       if (c.alto !== null && !dentroDeTolerancia(p.alto, c.alto)) return false;
     } else {
-      return false;
+      const stored = p.datos_tecnicos ?? {};
+      const definition = getFamiliaDefinition(c.familiaNombre);
+      return definition.campos.every((field) => {
+        const expected = c.extra[field.key];
+        if (expected === "" || expected === undefined || expected === false) return true;
+        return String(stored[field.key] ?? "").toLocaleLowerCase("es-ES") === String(expected).toLocaleLowerCase("es-ES");
+      });
     }
 
     return true;
@@ -234,6 +269,11 @@ export function calcularDiferencias(pedido: Pedido, c: CriteriosBusqueda): strin
     if (c.ancho !== null && !igualMedida(pedido.ancho, c.ancho)) diffs.push("ancho");
     if (c.alto !== null && !igualMedida(pedido.alto, c.alto)) diffs.push("alto");
     if (pedido.impresion_digital !== c.impresionDigital) diffs.push("impresion_digital");
+  } else {
+    const stored = pedido.datos_tecnicos ?? {};
+    for (const [key, value] of Object.entries(c.extra)) {
+      if (value !== "" && String(stored[key] ?? "") !== String(value)) diffs.push(key);
+    }
   }
   return diffs;
 }

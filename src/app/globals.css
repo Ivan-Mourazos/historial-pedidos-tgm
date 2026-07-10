@@ -85,6 +85,15 @@ body {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* ── Ambiente oscuro (gradiente + grano, igual que RPS) ── */
 .dark body {
   background-color: var(--bg);

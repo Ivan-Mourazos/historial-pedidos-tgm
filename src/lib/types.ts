@@ -54,6 +54,8 @@ export interface Pedido {
   fecha: string | null;
   tecnico_id: string | null;
   observaciones: string | null;
+  datos_tecnicos?: Record<string, string | number | boolean | null> | null;
+  datos_tecnicos_version?: number;
   created_at: string;
   updated_at: string;
 }
@@ -72,3 +74,29 @@ export type PedidoInput = Omit<
   Pedido,
   "id" | "created_at" | "updated_at"
 >;
+
+export type PedidoOrdenCampo =
+  | "aguas"
+  | "cliente"
+  | "fecha"
+  | "numero_pedido"
+  | "radio"
+  | "tipo";
+
+export interface PedidoPageQuery {
+  familiaId?: string;
+  familiaNombre?: string;
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  sortBy?: PedidoOrdenCampo;
+  sortDirection?: "asc" | "desc";
+}
+
+export interface PedidoPage {
+  items: PedidoConRelaciones[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}

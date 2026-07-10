@@ -44,7 +44,7 @@ Para localizar pedidos con ZWCAD/Excel desde los botones de la web, añade tambi
 ```env
 ZWCAD_DWG_ROOTS=/mnt/oftecnica
 ZWCAD_CLIENT_ROOTS=\\stinkor\oftecnica
-ZWCAD_CLIENT_CAD_URL_TEMPLATE=zwcad-open://open?path={path}
+TGM_CLIENT_OPEN_URL_TEMPLATE=tgm-pedidos://open?kind={kind}&path={path}
 ZWCAD_EXE=
 ```
 
@@ -66,26 +66,35 @@ aplicación asociada a `.dwg`; si no, indica la ruta del ejecutable de ZWCAD. En
 Linux no se puede lanzar ZWCAD/Excel en el servidor: Excel se abre en el puesto
 con `ms-excel:` apuntando a la ruta de red.
 
-Para abrir CAD con un clic desde el servidor Linux, configura
-`ZWCAD_CLIENT_CAD_URL_TEMPLATE=zwcad-open://open?path={path}` y registra el
-protocolo `zwcad-open` en cada PC Windows. El repo incluye el instalador:
+Para abrir CAD y Excel con un clic desde el servidor Linux, configura
+`TGM_CLIENT_OPEN_URL_TEMPLATE=tgm-pedidos://open?kind={kind}&path={path}` y
+registra el protocolo `tgm-pedidos` en cada PC Windows. El servidor localiza el
+archivo y traduce su ruta Linux a la ruta UNC; el PC abre la aplicación local.
+El instalador se registra por usuario y no requiere administrador:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools\install-zwcad-open-protocol.ps1
+powershell -ExecutionPolicy Bypass -File tools\install-tgm-open-protocol.ps1 -AllowedRoots "\\stinkor\oftecnica"
 ```
 
 Si se quiere forzar un ejecutable concreto de ZWCAD en el PC:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools\install-zwcad-open-protocol.ps1 -ZwcadExe "C:\Program Files\ZWSOFT\ZWCAD 2025\ZWCAD.exe"
+powershell -ExecutionPolicy Bypass -File tools\install-tgm-open-protocol.ps1 -AllowedRoots "\\stinkor\oftecnica" -ZwcadExe "C:\Program Files\ZWSOFT\ZWCAD 2025\ZWCAD.exe"
 ```
 
-El instalador se registra solo para el usuario actual (`HKCU`) y no requiere
-permisos de administrador. Si el protocolo no está instalado, el botón CAD
-copiará la ruta UNC al portapapeles como respaldo.
+El handler valida la carpeta y la extensión antes de abrir el archivo. También
+registra el protocolo antiguo `zwcad-open` para no romper enlaces existentes.
+Si no está instalado, los botones copian la ruta UNC al portapapeles como
+respaldo. El log del PC queda en `%LOCALAPPDATA%\TGM-Pedidos\open.log`.
 
-En remolques que no sean de ganado, la web también comprobará si existe un Excel
-en la misma carpeta del año. Detecta `AR26xxxxx.xlsx` y variantes numeradas como
+> El protocolo nuevo es el método recomendado. Mientras se instala en todos los
+> puestos, la aplicación conserva automáticamente el enlace anterior
+> `ms-excel:ofe|u|file://...` como respaldo. Aunque Office solo documenta
+> oficialmente HTTP/HTTPS para este esquema, no se retira el flujo que ya
+> funciona en los PCs actuales.
+
+En todos los remolques, la web comprobará bajo demanda si existe un Excel en la
+misma carpeta del año. Detecta `AR26xxxxx.xlsx` y variantes numeradas como
 `AR26xxxxx-1.xlsx` o cualquier archivo que empiece por `AR26xxxxx-`; si hay
 varias, muestra un selector para elegir cuál abrir.
 
@@ -108,6 +117,13 @@ src/
     pedido-numero.ts  Validación del número de pedido
 db/                   DDL PostgreSQL y SQL Server
 ```
+
+## Migraciones
+
+En instalaciones existentes, aplica también
+[`db/migration-2026-07-10-familias-flexibles.sql`](db/migration-2026-07-10-familias-flexibles.sql).
+Añade el JSON versionado para campos propios de futuras familias y el índice
+del histórico paginado. Los pedidos actuales no se modifican.
 
 ## Reglas de negocio clave
 

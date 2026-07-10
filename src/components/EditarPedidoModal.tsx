@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   CamposTecnicosFamilia,
   type CamposTecnicosValores,
@@ -44,6 +44,9 @@ function valoresDesdePedido(p: PedidoConRelaciones): CamposTecnicosValores {
     tipo: tipoRemolqueCanonico(p.tipo),
     aguasActivas: p.aguas !== null,
     impresionDigital: p.impresion_digital,
+    extra: Object.fromEntries(
+      Object.entries(p.datos_tecnicos ?? {}).map(([key, value]) => [key, typeof value === "boolean" ? value : String(value ?? "")]),
+    ),
   };
 }
 
@@ -77,10 +80,21 @@ export function EditarPedidoModal({
   const [confirmarEliminar, setConfirmarEliminar] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onCerrar();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [onCerrar]);
+
   const familiaNombre = familias.find((f) => f.id === familiaId)?.nombre ?? "";
   const formatoOk = numeroPedidoEncajaFormato(numero);
 
-  function setCampo(campo: keyof CamposTecnicosValores, valor: string | boolean) {
+  function setCampo(
+    campo: keyof CamposTecnicosValores,
+    valor: string | boolean | Record<string, string | boolean>,
+  ) {
     setValores((v) => {
       const siguiente = { ...v, [campo]: valor } as CamposTecnicosValores;
       if (campo === "tipo") {
@@ -139,11 +153,14 @@ export function EditarPedidoModal({
     <div className={modalOverlayClass}>
       <div className="flex min-h-full items-center justify-center">
       <div
+        aria-labelledby="editar-pedido-title"
+        aria-modal="true"
         className={`${modalPanelClass} ${modalCompactClass} max-h-[calc(100vh-2rem)] max-w-[640px] overflow-hidden`}
+        role="dialog"
       >
         <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
           <div>
-            <h2 className="text-[15px] font-semibold tracking-tight text-app-text">
+            <h2 id="editar-pedido-title" className="text-[15px] font-semibold tracking-tight text-app-text">
               Editar pedido
             </h2>
             <p className="mt-0.5 font-mono text-xs text-app-muted">
@@ -151,11 +168,12 @@ export function EditarPedidoModal({
             </p>
           </div>
           <button
+            type="button"
             className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-2 text-app-muted transition-colors hover:bg-[var(--border)] hover:text-app-text"
             onClick={onCerrar}
             aria-label="Cerrar"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>

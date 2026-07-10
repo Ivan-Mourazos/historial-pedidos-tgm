@@ -15,6 +15,7 @@ interface ZwcadOpenResponse {
 function CadIcon() {
   return (
     <svg
+      aria-hidden="true"
       width="15"
       height="15"
       viewBox="0 0 24 24"
@@ -71,14 +72,14 @@ export function AbrirZwcadButton({
           const opened = window.open(data.fileUrl, "_blank", "noopener,noreferrer");
           if (!opened && data.clientPath) {
             window.alert(
-              `El navegador ha bloqueado la apertura directa del DWG. Para abrirlo con un clic, IT debe configurar ZWCAD_CLIENT_CAD_URL_TEMPLATE y registrar el protocolo zwcad-open en los PCs.\n\n${
+              `El navegador ha bloqueado la apertura directa del DWG. Instala el protocolo TGM en este PC.\n\n${
                 copied ? "Ruta copiada al portapapeles:" : "Ruta del archivo:"
               }\n${data.clientPath}`,
             );
           }
         } else if (data.clientPath) {
           window.alert(
-            `Para abrir CAD con un clic, IT debe configurar ZWCAD_CLIENT_CAD_URL_TEMPLATE y registrar el protocolo zwcad-open en los PCs.\n\n${
+            `Instala el protocolo TGM para abrir CAD con un clic.\n\n${
               copied ? "Ruta copiada al portapapeles:" : "Ruta del archivo:"
             }\n${data.clientPath}`,
           );
@@ -95,7 +96,7 @@ export function AbrirZwcadButton({
     }
   }
 
-  const text = estado === "opening" ? "Abriendo..." : estado === "ok" ? "Abierto" : label;
+  const text = estado === "opening" ? "Abriendo…" : estado === "ok" ? "Abierto" : label;
   const title = `Abrir ${numeroPedido}.dwg en ZWCAD`;
   const baseClass = label
     ? "inline-flex h-8 items-center justify-center gap-1.5 rounded-full border border-sky-200/70 bg-sky-50/80 px-3 text-xs font-semibold text-sky-900 shadow-sm ring-1 ring-black/5 transition-colors hover:bg-sky-100 disabled:cursor-wait disabled:opacity-70 dark:border-sky-400/20 dark:bg-sky-400/10 dark:text-sky-200 dark:ring-white/10 dark:hover:border-sky-400/30 dark:hover:bg-sky-400/15"

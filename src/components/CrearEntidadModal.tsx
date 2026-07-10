@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Banner,
   Button,
@@ -28,6 +28,14 @@ export function CrearEntidadModal({
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onCerrar();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [onCerrar]);
+
   async function guardar() {
     const limpio = nombre.trim();
     if (!limpio) return;
@@ -44,20 +52,24 @@ export function CrearEntidadModal({
   return (
     <div className={`${modalOverlayClass} flex items-center justify-center`}>
       <div
+        aria-labelledby="crear-entidad-title"
+        aria-modal="true"
         className={`${modalPanelClass} ${modalCompactClass} max-w-[360px] p-4`}
+        role="dialog"
       >
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-[15px] font-semibold tracking-tight text-app-text">
+            <h2 id="crear-entidad-title" className="text-[15px] font-semibold tracking-tight text-app-text">
               {titulo}
             </h2>
           </div>
           <button
+            type="button"
             className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-2 text-app-muted transition-colors hover:bg-[var(--border)] hover:text-app-text"
             onClick={onCerrar}
             aria-label="Cerrar"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>

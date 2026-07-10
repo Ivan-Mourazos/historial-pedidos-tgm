@@ -24,8 +24,6 @@ export default function TecnicosPage() {
   const [editNombre, setEditNombre] = useState("");
 
   async function cargar() {
-    setCargando(true);
-    setError(null);
     try {
       setTecnicos(await dbService.getTecnicos());
     } catch (e) {
@@ -36,7 +34,14 @@ export default function TecnicosPage() {
   }
 
   useEffect(() => {
-    cargar();
+    let active = true;
+    dbService.getTecnicos()
+      .then((items) => { if (active) setTecnicos(items); })
+      .catch((loadError) => {
+        if (active) setError(loadError instanceof Error ? loadError.message : "Error al cargar técnicos");
+      })
+      .finally(() => { if (active) setCargando(false); });
+    return () => { active = false; };
   }, []);
 
   async function crear() {

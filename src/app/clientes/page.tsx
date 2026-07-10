@@ -33,7 +33,15 @@ export default function ClientesPage() {
   const [verComentario, setVerComentario] = useState<PedidoConRelaciones | null>(null);
 
   useEffect(() => {
-    setCargando(true);
+    if (!verComentario) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setVerComentario(null);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [verComentario]);
+
+  useEffect(() => {
     Promise.all([dbService.getClientes(), dbService.getPedidos()])
       .then(([cl, pe]) => {
         setPedidos(pe);
@@ -163,7 +171,6 @@ export default function ClientesPage() {
                                     <AbrirExcelButton
                                       numeroPedido={p.numero_pedido}
                                       familiaNombre={p.familia?.nombre ?? ""}
-                                      tipo={p.tipo}
                                       className="w-[86px]"
                                     />
                                   </div>
@@ -212,17 +219,21 @@ export default function ClientesPage() {
           onClick={() => setVerComentario(null)}
         >
           <div
+            aria-labelledby="cliente-comentario-title"
+            aria-modal="true"
             className={`${modalPanelClass} max-w-[460px] p-4`}
             onClick={(e) => e.stopPropagation()}
+            role="dialog"
           >
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-[15px] font-semibold tracking-tight text-app-text">Comentario</h2>
+                <h2 id="cliente-comentario-title" className="text-[15px] font-semibold tracking-tight text-app-text">Comentario</h2>
                 <p className="mt-0.5 font-mono text-xs text-app-muted">
                   {verComentario.numero_pedido}
                 </p>
               </div>
               <button
+                type="button"
                 className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-2 text-app-muted transition-colors hover:bg-[var(--border)] hover:text-app-text"
                 onClick={() => setVerComentario(null)}
                 aria-label="Cerrar"

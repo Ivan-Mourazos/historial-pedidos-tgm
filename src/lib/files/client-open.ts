@@ -5,6 +5,8 @@ export interface ClientOpenInfo {
   fileUrl?: string;
 }
 
+export type ClientOpenKind = "cad" | "excel";
+
 function parseEnvList(value: string | undefined): string[] {
   return (value ?? "")
     .split(/[;\n]/)
@@ -58,19 +60,35 @@ export function clientPathToFileUrl(clientPath: string): string | undefined {
 }
 
 export function buildExcelOpenUrl(fileUrl?: string): string | undefined {
+  // Respaldo compatible con la instalación anterior. Office documenta este
+  // esquema para HTTP/HTTPS, pero se conserva file:// durante la transición
+  // porque funciona en los puestos actuales de TGM.
   return fileUrl ? `ms-excel:ofe|u|${fileUrl}` : undefined;
 }
 
-export function buildCadOpenUrl(clientPath?: string, fileUrl?: string): string | undefined {
+export function buildClientOpenUrl(
+  kind: ClientOpenKind,
+  clientPath?: string,
+  fileUrl?: string,
+): string | undefined {
   if (!clientPath) return undefined;
 
-  const template = process.env.ZWCAD_CLIENT_CAD_URL_TEMPLATE?.trim();
-  if (!template) return undefined;
+  const template = process.env.TGM_CLIENT_OPEN_URL_TEMPLATE?.trim()
+    || (kind === "cad" ? process.env.ZWCAD_CLIENT_CAD_URL_TEMPLATE?.trim() : undefined);
+
+  if (!template) {
+    return kind === "excel" ? buildExcelOpenUrl(fileUrl) : undefined;
+  }
 
   return template
+    .replaceAll("{kind}", kind)
     .replaceAll("{path}", encodeURIComponent(clientPath))
     .replaceAll("{rawPath}", clientPath)
     .replaceAll("{fileUrl}", encodeURIComponent(fileUrl ?? ""));
+}
+
+export function buildCadOpenUrl(clientPath?: string, fileUrl?: string): string | undefined {
+  return buildClientOpenUrl("cad", clientPath, fileUrl);
 }
 
 export function buildClientOpenInfo(filePath: string, serverRoots: string[]): ClientOpenInfo {

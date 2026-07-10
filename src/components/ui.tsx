@@ -59,7 +59,7 @@ export const labelClass =
   "mb-1 block text-xs font-medium text-app-text";
 
 export const modalOverlayClass =
-  "fixed inset-0 z-50 overflow-y-auto bg-black/35 p-3 backdrop-blur-xl dark:bg-black/45";
+  "fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-black/35 p-3 backdrop-blur-xl dark:bg-black/45";
 
 export const modalPanelClass =
   "w-full rounded-[18px] border border-white/10 bg-surface/95 shadow-2xl ring-1 ring-black/5 backdrop-blur-2xl dark:bg-slate-950/90 dark:ring-white/10";
@@ -141,10 +141,7 @@ function useFloatingMenuStyle(
   }, [anchorRef, menuHeight, menuWidth, open]);
 
   useEffect(() => {
-    if (!open) {
-      setStyle(null);
-      return;
-    }
+    if (!open) return;
 
     update();
     window.addEventListener("resize", update);
@@ -155,7 +152,7 @@ function useFloatingMenuStyle(
     };
   }, [open, update]);
 
-  return style;
+  return open ? style : null;
 }
 
 export function SelectControl({
@@ -422,13 +419,15 @@ export function DatePicker({
       {open && menuStyle && typeof document !== "undefined" && createPortal(
         <div
           ref={menuRef}
+          aria-label="Seleccionar fecha"
           className="scrollbar-none overflow-y-auto rounded-[16px] border border-white/10 bg-white p-2 shadow-2xl ring-1 ring-black/5 dark:bg-[#080a12] dark:ring-white/10"
+          role="dialog"
           style={menuStyle}
         >
           <div className="mb-2 flex items-center justify-between gap-2 px-1">
-            <button type="button" className="h-7 w-7 rounded-full text-app-muted hover:bg-surface-2" onClick={() => moveMonth(-1)}>‹</button>
+            <button type="button" aria-label="Mes anterior" className="h-7 w-7 rounded-full text-app-muted hover:bg-surface-2" onClick={() => moveMonth(-1)}>‹</button>
             <p className="text-sm font-semibold capitalize text-app-text">{monthLabel(visibleMonth)}</p>
-            <button type="button" className="h-7 w-7 rounded-full text-app-muted hover:bg-surface-2" onClick={() => moveMonth(1)}>›</button>
+            <button type="button" aria-label="Mes siguiente" className="h-7 w-7 rounded-full text-app-muted hover:bg-surface-2" onClick={() => moveMonth(1)}>›</button>
           </div>
           <div className="grid grid-cols-7 gap-1 px-1 pb-1 text-center text-[11px] font-medium text-app-muted">
             {["L", "M", "X", "J", "V", "S", "D"].map((day) => <span key={day}>{day}</span>)}
@@ -443,6 +442,8 @@ export function DatePicker({
                 <button
                   key={dayValue}
                   type="button"
+                  aria-label={date.toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })}
+                  aria-pressed={selected}
                   className={`h-8 rounded-full text-sm transition-colors ${
                     selected
                       ? "bg-brand text-white shadow-sm"
@@ -496,7 +497,7 @@ export function Button({
   return (
     <button
       type={type}
-      className={`inline-flex h-9 items-center justify-center rounded-[12px] px-3 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant]} ${className}`}
+      className={`inline-flex h-9 items-center justify-center rounded-[12px] px-3 text-sm font-medium transition-[background-color,border-color,color,transform,box-shadow] disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant]} ${className}`}
       {...props}
     >
       {children}
@@ -520,7 +521,11 @@ export function Banner({
     neutral: "border-[var(--border-strong)] bg-surface-2 text-app-muted",
   };
   return (
-    <div className={`rounded-[14px] border px-3 py-2 text-sm ${tones[tone]}`}>
+    <div
+      aria-live={tone === "warning" ? "assertive" : "polite"}
+      role={tone === "warning" ? "alert" : "status"}
+      className={`rounded-[14px] border px-3 py-2 text-sm ${tones[tone]}`}
+    >
       {children}
     </div>
   );

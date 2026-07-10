@@ -1,0 +1,335 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { AbrirExcelButton } from "@/components/AbrirExcelButton";
+import { AbrirZwcadButton } from "@/components/AbrirZwcadButton";
+import { EditarPedidoModal } from "@/components/EditarPedidoModal";
+import {
+  PageTitle,
+  inputClass,
+  modalOverlayClass,
+  modalPanelClass,
+} from "@/components/ui";
+import { formatFecha, formatMedida } from "@/lib/display";
+import { familiaPuedeTenerExcel, getFamiliaDefinition } from "@/lib/familias";
+import { tipoRemolqueCanonico } from "@/lib/tipos-remolque";
+import type {
+  Familia,
+  PedidoConRelaciones,
+  PedidoOrdenCampo,
+  PedidoPage,
+  Tecnico,
+  TipoPuerta,
+  TipoRemolque,
+} from "@/lib/types";
+
+type OrdenDireccion = "asc" | "desc";
+
+function Th({ children, className = "" }: { children?: React.ReactNode; className?: string }) {
+  return (
+    <th className={`whitespace-nowrap px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-app-muted ${className}`}>
+      {children}
+    </th>
+  );
+}
+
+function SortTh({
+  children,
+  campo,
+  activeField,
+  direction,
+  onSort,
+  className = "",
+}: {
+  children: React.ReactNode;
+  campo: PedidoOrdenCampo;
+  activeField: PedidoOrdenCampo;
+  direction: OrdenDireccion;
+  onSort: (campo: PedidoOrdenCampo) => void;
+  className?: string;
+}) {
+  const active = activeField === campo;
+  return (
+    <th
+      aria-sort={active ? (direction === "asc" ? "ascending" : "descending") : "none"}
+      className={`whitespace-nowrap px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-app-muted ${className}`}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(campo)}
+        className="inline-flex items-center gap-1 rounded py-0.5 text-left uppercase transition-colors hover:text-app-text"
+        title={`Ordenar por ${String(children).toLocaleLowerCase("es-ES")}`}
+      >
+        <span>{children}</span>
+        <span aria-hidden="true" className={`text-[11px] ${active ? "text-brand" : "text-app-muted/60"}`}>
+          {active ? (direction === "asc" ? "↑" : "↓") : "↕"}
+        </span>
+      </button>
+    </th>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+    </svg>
+  );
+}
+
+function genericTechnicalSummary(pedido: PedidoConRelaciones): string {
+  const entries = Object.entries(pedido.datos_tecnicos ?? {});
+  if (entries.length === 0) return "—";
+  return entries
+    .slice(0, 4)
+    .map(([key, value]) => `${key}: ${String(value ?? "—")}`)
+    .join(" · ");
+}
+
+export function HistoricoClient({
+  familias,
+  pedidosPage,
+  selectedFamilyName,
+  tecnicos,
+  tiposPuerta,
+  tiposRemolque,
+}: {
+  familias: Familia[];
+  pedidosPage: PedidoPage;
+  selectedFamilyName: string;
+  tecnicos: Tecnico[];
+  tiposPuerta: TipoPuerta[];
+  tiposRemolque: TipoRemolque[];
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const searchTimer = useRef<number | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const [editando, setEditando] = useState<PedidoConRelaciones | null>(null);
+  const [verComentario, setVerComentario] = useState<PedidoConRelaciones | null>(null);
+  const definition = getFamiliaDefinition(selectedFamilyName);
+  const isDoors = definition.variante === "puertas";
+  const isTrailers = definition.variante === "remolques";
+  const activeSort = (searchParams.get("sort") as PedidoOrdenCampo | null) ?? "fecha";
+  const direction: OrdenDireccion = searchParams.get("dir") === "asc" ? "asc" : "desc";
+  const currentSearch = searchParams.get("q") ?? "";
+
+  const hrefWith = useCallback((changes: Record<string, string | null>) => {
+    const next = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(changes)) {
+      if (!value) next.delete(key);
+      else next.set(key, value);
+    }
+    const query = next.toString();
+    return query ? `${pathname}?${query}` : pathname;
+  }, [pathname, searchParams]);
+
+  const navigate = useCallback((changes: Record<string, string | null>) => {
+    startTransition(() => router.replace(hrefWith(changes), { scroll: false }));
+  }, [hrefWith, router]);
+
+  useEffect(() => () => {
+    if (searchTimer.current !== null) window.clearTimeout(searchTimer.current);
+  }, []);
+
+  useEffect(() => {
+    if (!verComentario) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setVerComentario(null);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [verComentario]);
+
+  function changeSort(campo: PedidoOrdenCampo) {
+    const nextDirection = activeSort === campo && direction === "asc" ? "desc" : "asc";
+    navigate({ sort: campo, dir: nextDirection, page: null });
+  }
+
+  const start = pedidosPage.total === 0 ? 0 : (pedidosPage.page - 1) * pedidosPage.pageSize + 1;
+  const end = Math.min(pedidosPage.total, pedidosPage.page * pedidosPage.pageSize);
+
+  return (
+    <div className={isPending ? "opacity-75 transition-opacity" : "transition-opacity"}>
+      <PageTitle
+        title="Histórico de pedidos"
+        subtitle={`${start}–${end} de ${pedidosPage.total} pedidos`}
+      />
+
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div
+          aria-label="Familia de pedido"
+          className="flex flex-wrap rounded-[16px] border border-white/10 bg-surface/75 p-0.5 shadow-sm ring-1 ring-black/5 backdrop-blur-xl dark:ring-white/10"
+          role="group"
+        >
+          {familias.map((family) => (
+            <button
+              key={family.id}
+              type="button"
+              aria-pressed={selectedFamilyName === family.nombre}
+              onClick={() => navigate({ familia: family.nombre, page: null })}
+              className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+                selectedFamilyName === family.nombre
+                  ? "bg-brand text-white shadow-sm"
+                  : "text-app-muted hover:text-app-text"
+              }`}
+            >
+              {family.nombre}
+            </button>
+          ))}
+        </div>
+        <input
+          key={currentSearch}
+          aria-label="Buscar pedidos"
+          autoComplete="off"
+          className={`${inputClass} max-w-xs`}
+          defaultValue={currentSearch}
+          name="buscar-pedidos"
+          placeholder="Buscar por nº, cliente o medida…"
+          onChange={(event) => {
+            if (searchTimer.current !== null) window.clearTimeout(searchTimer.current);
+            const value = event.target.value.trim();
+            searchTimer.current = window.setTimeout(() => {
+              navigate({ q: value || null, page: null });
+            }, 250);
+          }}
+        />
+      </div>
+
+      <div className="overflow-hidden rounded-[18px] border border-white/10 bg-surface/80 shadow-sm ring-1 ring-black/5 backdrop-blur-xl dark:bg-slate-950/50 dark:ring-white/10">
+        {pedidosPage.items.length === 0 ? (
+          <p className="px-4 py-6 text-sm text-app-muted">No hay pedidos que coincidan.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[760px] text-sm">
+              <thead className="sticky top-[53px] z-10 bg-surface/95 backdrop-blur-xl">
+                <tr className="border-b border-[var(--border)]">
+                  <SortTh campo="numero_pedido" activeField={activeSort} direction={direction} onSort={changeSort}>Nº Pedido</SortTh>
+                  <SortTh campo="cliente" activeField={activeSort} direction={direction} onSort={changeSort}>Cliente</SortTh>
+                  <SortTh campo="tipo" activeField={activeSort} direction={direction} onSort={changeSort}>Tipo</SortTh>
+                  <Th>{definition.variante === "generic" ? "Datos técnicos" : "Medidas"}</Th>
+                  {isTrailers && <SortTh campo="aguas" activeField={activeSort} direction={direction} onSort={changeSort}>Aguas</SortTh>}
+                  {isTrailers && <SortTh campo="radio" activeField={activeSort} direction={direction} onSort={changeSort}>Radio</SortTh>}
+                  {isDoors && <Th>I.D.</Th>}
+                  <SortTh campo="fecha" activeField={activeSort} direction={direction} onSort={changeSort}>Fecha</SortTh>
+                  <Th className="w-[230px]">Acciones</Th>
+                  <Th className="w-[82px]">Editar</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {pedidosPage.items.map((pedido, index) => {
+                  const familyName = pedido.familia?.nombre ?? selectedFamilyName;
+                  const excelEligible = familiaPuedeTenerExcel(familyName);
+                  return (
+                    <tr
+                      key={pedido.id}
+                      className={`transition-colors hover:bg-surface-2/70 ${index < pedidosPage.items.length - 1 ? "border-b border-[var(--border)]" : ""}`}
+                    >
+                      <td className="whitespace-nowrap px-3 py-3 font-mono text-sm font-semibold text-app-text">{pedido.numero_pedido}</td>
+                      <td className="max-w-[180px] truncate px-3 py-3 text-app-text" title={pedido.cliente?.nombre}>{pedido.cliente?.nombre ?? "—"}</td>
+                      <td className="max-w-[150px] truncate px-3 py-3 text-app-muted">
+                        {isTrailers ? tipoRemolqueCanonico(pedido.tipo) || "—" : pedido.tipo ?? "—"}
+                      </td>
+                      <td className="max-w-[320px] truncate whitespace-nowrap px-3 py-3 text-app-text">
+                        {isDoors
+                          ? [pedido.ancho, pedido.alto].map((value) => formatMedida(value) || "—").join(" × ")
+                          : isTrailers
+                            ? [pedido.largo, pedido.ancho, pedido.alto].map((value) => formatMedida(value) || "—").join(" × ")
+                            : genericTechnicalSummary(pedido)}
+                      </td>
+                      {isTrailers && <td className="whitespace-nowrap px-3 py-3 text-app-muted">{formatMedida(pedido.aguas) || "—"}</td>}
+                      {isTrailers && <td className="whitespace-nowrap px-3 py-3 text-app-muted">{formatMedida(pedido.radio) || "—"}</td>}
+                      {isDoors && <td className="whitespace-nowrap px-3 py-3 text-app-muted">{pedido.impresion_digital ? "Sí" : "No"}</td>}
+                      <td className="whitespace-nowrap px-3 py-3 text-app-muted">{formatFecha(pedido.fecha)}</td>
+                      <td className="w-[230px] px-3 py-3">
+                        <div className="flex h-8 items-center gap-2">
+                          {excelEligible && (
+                            <AbrirExcelButton numeroPedido={pedido.numero_pedido} familiaNombre={familyName} className="w-[86px]" />
+                          )}
+                          <AbrirZwcadButton numeroPedido={pedido.numero_pedido} label="CAD" className="w-[86px]" />
+                          {pedido.observaciones && (
+                            <button
+                              type="button"
+                              onClick={() => setVerComentario(pedido)}
+                              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-surface-2/70 text-xs font-semibold text-app-muted shadow-sm ring-1 ring-black/5 transition-colors hover:bg-[var(--border)] hover:text-app-text dark:ring-white/10"
+                              title="Ver comentario"
+                              aria-label={`Ver comentario de ${pedido.numero_pedido}`}
+                            >
+                              <span aria-hidden="true">💬</span>
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                      <td className="w-[82px] border-l border-[var(--border)] px-2 py-3">
+                        <button
+                          type="button"
+                          onClick={() => setEditando(pedido)}
+                          className="inline-flex h-8 w-[74px] items-center justify-start gap-1 rounded-full border border-orange-200/70 bg-orange-50/80 px-2 text-xs font-semibold text-orange-700 shadow-sm ring-1 ring-black/5 transition-colors hover:bg-orange-100 dark:border-orange-400/25 dark:bg-orange-400/10 dark:text-orange-200 dark:ring-white/10"
+                          aria-label={`Editar ${pedido.numero_pedido}`}
+                        >
+                          <PencilIcon /><span>Editar</span>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {pedidosPage.totalPages > 1 && (
+        <nav aria-label="Paginación del histórico" className="mt-4 flex items-center justify-between gap-3">
+          <span className="text-sm text-app-muted">Página {pedidosPage.page} de {pedidosPage.totalPages}</span>
+          <div className="flex gap-2">
+            {pedidosPage.page > 1 ? (
+              <Link className="inline-flex h-9 items-center rounded-[12px] border border-[var(--border)] bg-surface px-3 text-sm font-medium text-app-text hover:bg-surface-2" href={hrefWith({ page: String(pedidosPage.page - 1) })}>Anterior</Link>
+            ) : <span aria-disabled="true" className="inline-flex h-9 items-center rounded-[12px] border border-[var(--border)] px-3 text-sm text-app-muted opacity-50">Anterior</span>}
+            {pedidosPage.page < pedidosPage.totalPages ? (
+              <Link className="inline-flex h-9 items-center rounded-[12px] bg-brand px-3 text-sm font-medium text-white hover:bg-[var(--brand-hover)]" href={hrefWith({ page: String(pedidosPage.page + 1) })}>Siguiente</Link>
+            ) : <span aria-disabled="true" className="inline-flex h-9 items-center rounded-[12px] bg-brand px-3 text-sm text-white opacity-50">Siguiente</span>}
+          </div>
+        </nav>
+      )}
+
+      {editando && (
+        <EditarPedidoModal
+          pedido={editando}
+          familias={familias}
+          tecnicos={tecnicos}
+          tiposPuerta={tiposPuerta}
+          tiposRemolque={tiposRemolque}
+          onCerrar={() => setEditando(null)}
+          onGuardado={async () => { setEditando(null); router.refresh(); }}
+          onEliminar={async () => { setEditando(null); router.refresh(); }}
+        />
+      )}
+
+      {verComentario && (
+        <div className={`${modalOverlayClass} flex items-center justify-center`} onClick={() => setVerComentario(null)}>
+          <div
+            aria-labelledby="comentario-title"
+            aria-modal="true"
+            className={`${modalPanelClass} max-w-[460px] p-4`}
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+          >
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <h2 id="comentario-title" className="text-[15px] font-semibold tracking-tight text-app-text">Comentario</h2>
+                <p className="mt-0.5 font-mono text-xs text-app-muted">{verComentario.numero_pedido}</p>
+              </div>
+              <button type="button" className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-surface-2 text-app-muted hover:text-app-text" onClick={() => setVerComentario(null)} aria-label="Cerrar comentario">×</button>
+            </div>
+            <p className="max-h-[55vh] overflow-y-auto whitespace-pre-wrap break-words rounded-[12px] border border-[var(--border)] bg-surface-2/45 p-3 text-sm leading-6 text-app-text">{verComentario.observaciones}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

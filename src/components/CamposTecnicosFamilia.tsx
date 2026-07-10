@@ -8,6 +8,7 @@ import {
   type TipoRemolque,
 } from "@/lib/types";
 import { parseMedida, formatMedida } from "@/lib/normalize";
+import { getFamiliaDefinition } from "@/lib/familias";
 import {
   claveTipoRemolque,
   ordenarTiposRemolque,
@@ -24,6 +25,7 @@ export interface CamposTecnicosValores {
   tipo: string;
   aguasActivas: boolean;
   impresionDigital: boolean;
+  extra: Record<string, string | boolean>;
 }
 
 export const camposTecnicosVacios: CamposTecnicosValores = {
@@ -35,6 +37,7 @@ export const camposTecnicosVacios: CamposTecnicosValores = {
   tipo: "",
   aguasActivas: false,
   impresionDigital: false,
+  extra: {},
 };
 
 function r2(n: number | null): number | null {
@@ -132,7 +135,10 @@ export function CamposTecnicosFamilia({
 }: {
   familiaNombre: string;
   valores: CamposTecnicosValores;
-  onChange: (campo: keyof CamposTecnicosValores, valor: string | boolean) => void;
+  onChange: (
+    campo: keyof CamposTecnicosValores,
+    valor: string | boolean | Record<string, string | boolean>,
+  ) => void;
   tiposPuerta: TipoPuerta[];
   tiposRemolque?: TipoRemolque[];
   pedidosFamilia?: Pedido[];
@@ -308,6 +314,45 @@ export function CamposTecnicosFamilia({
     );
 
     if (inline) return fields;
+    return <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{fields}</div>;
+  }
+
+  const definition = getFamiliaDefinition(familiaNombre);
+  if (definition.variante === "generic" && definition.campos.length > 0) {
+    const fields = definition.campos.map((field) => {
+      const value = valores.extra[field.key];
+      const setValue = (next: string | boolean) => onChange("extra", {
+        ...valores.extra,
+        [field.key]: next,
+      });
+      return (
+        <div key={field.key} className={inline ? "min-w-[120px] flex-1" : ""}>
+          <Field label={`${field.label}${field.required ? " *" : ""}`} hint={field.unit}>
+            {field.type === "boolean" ? (
+              <label className="flex h-9 items-center gap-2 rounded-[12px] border border-white/10 bg-[var(--input-bg)] px-2.5 text-sm text-app-text ring-1 ring-black/5 dark:ring-white/10">
+                <input
+                  type="checkbox"
+                  checked={value === true}
+                  onChange={(event) => setValue(event.target.checked)}
+                  className="h-4 w-4 accent-[var(--brand)]"
+                />
+                <span>{field.label}</span>
+              </label>
+            ) : (
+              <input
+                className={`${inputClass} ${field.type === "number" ? "tabular-nums" : ""}`}
+                inputMode={field.type === "number" ? "decimal" : undefined}
+                autoComplete="off"
+                value={typeof value === "string" ? value : ""}
+                onChange={(event) => setValue(event.target.value)}
+                placeholder={field.type === "number" ? "Ej. 250" : `${field.label}…`}
+              />
+            )}
+          </Field>
+        </div>
+      );
+    });
+    if (inline) return <>{fields}</>;
     return <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{fields}</div>;
   }
 

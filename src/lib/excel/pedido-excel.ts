@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { getDwgRoots } from "@/lib/cad/zwcad";
-import { buildClientOpenInfo, buildExcelOpenUrl, type ClientOpenInfo } from "@/lib/files/client-open";
+import { buildClientOpenInfo, buildClientOpenUrl, type ClientOpenInfo } from "@/lib/files/client-open";
 import { normalizarNumeroPedido } from "@/lib/pedido-numero";
 
 const EXCEL_EXTENSIONS = [".xlsx", ".xlsm", ".xls", ".xlsb"];
@@ -124,23 +124,6 @@ export async function findExcelFilesForPedido(numeroPedido: string): Promise<Ped
   return files;
 }
 
-export async function findExcelFilesForPedidos(
-  numerosPedido: string[],
-): Promise<Record<string, PedidoExcelFile[]>> {
-  const result: Record<string, PedidoExcelFile[]> = {};
-
-  for (const numeroPedido of [...new Set(numerosPedido)]) {
-    try {
-      const numero = assertPedidoSeguro(numeroPedido);
-      result[numero] = await findExcelFilesForPedido(numero);
-    } catch {
-      result[normalizarNumeroPedido(numeroPedido)] = [];
-    }
-  }
-
-  return result;
-}
-
 async function spawnDetached(command: string, args: string[]): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     const child = spawn(command, args, {
@@ -179,15 +162,15 @@ export async function openPedidoExcel(numeroPedido: string, fileName?: string): 
     return {
       ...file,
       ...clientInfo,
-      excelUrl: buildExcelOpenUrl(clientInfo.fileUrl),
+      excelUrl: buildClientOpenUrl("excel", clientInfo.clientPath, clientInfo.fileUrl),
       openedOnServer: true,
     };
   }
 
-  const excelUrl = buildExcelOpenUrl(clientInfo.fileUrl);
-  if (!excelUrl) {
+  const excelUrl = buildClientOpenUrl("excel", clientInfo.clientPath, clientInfo.fileUrl);
+  if (!clientInfo.clientPath) {
     throw new Error(
-      "El servidor Linux encontró el Excel, pero falta configurar ZWCAD_CLIENT_ROOTS para convertir /mnt/oftecnica a la ruta de red Windows.",
+      "El servidor Linux encontró el Excel, pero falta configurar ZWCAD_CLIENT_ROOTS para convertir su ruta a Windows.",
     );
   }
 

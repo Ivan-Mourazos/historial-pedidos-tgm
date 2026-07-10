@@ -11,6 +11,9 @@ import type {
   Pedido,
   PedidoConRelaciones,
   PedidoInput,
+  PedidoOrdenCampo,
+  PedidoPage,
+  PedidoPageQuery,
   Tecnico,
   TipoPuerta,
   TipoRemolque,
@@ -51,6 +54,8 @@ const PEDIDO_COLUMN_TYPES: Record<string, () => sql.ISqlType> = {
   // evitar desfases de zona horaria al convertir a Date.
   fecha: () => sql.NVarChar(10),
   observaciones: () => sql.NVarChar(sql.MAX),
+  datos_tecnicos: () => sql.NVarChar(sql.MAX),
+  datos_tecnicos_version: () => sql.Int(),
 };
 
 const PEDIDO_INSERTABLE = Object.keys(PEDIDO_COLUMN_TYPES);
@@ -65,6 +70,13 @@ function normalizePedido<T extends Record<string, unknown>>(row: T): T {
   }
   if (row.fecha instanceof Date) {
     normalized.fecha = row.fecha.toISOString().slice(0, 10);
+  }
+  if (typeof row.datos_tecnicos === "string") {
+    try {
+      normalized.datos_tecnicos = JSON.parse(row.datos_tecnicos);
+    } catch {
+      normalized.datos_tecnicos = null;
+    }
   }
   return normalized as T;
 }
@@ -95,15 +107,27 @@ function mapPedidoConRelaciones(
   };
 }
 
+const PEDIDO_FROM_JOIN = `
+  FROM ${SCHEMA}.pedidos p
+  LEFT JOIN ${SCHEMA}.clientes c ON c.id = p.cliente_id
+  LEFT JOIN ${SCHEMA}.familias f ON f.id = p.familia_id
+  LEFT JOIN ${SCHEMA}.tecnicos t ON t.id = p.tecnico_id`;
+
 const PEDIDO_SELECT_JOIN = `
   SELECT p.*,
          c.nombre AS cliente_nombre,
          f.nombre AS familia_nombre,
          t.nombre AS tecnico_nombre
-  FROM ${SCHEMA}.pedidos p
-  LEFT JOIN ${SCHEMA}.clientes c ON c.id = p.cliente_id
-  LEFT JOIN ${SCHEMA}.familias f ON f.id = p.familia_id
-  LEFT JOIN ${SCHEMA}.tecnicos t ON t.id = p.tecnico_id`;
+  ${PEDIDO_FROM_JOIN}`;
+
+const PEDIDO_SORT_COLUMNS: Record<PedidoOrdenCampo, string> = {
+  aguas: "p.aguas",
+  cliente: "c.nombre",
+  fecha: "p.fecha",
+  numero_pedido: "p.numero_pedido",
+  radio: "p.radio",
+  tipo: "p.tipo",
+};
 
 export const dbServer = {
   // ----------------------------- CLIENTES -----------------------------
@@ -270,6 +294,17 @@ export const dbServer = {
     }
   },
 
+  async getCatalogos() {
+    const [clientes, familias, tecnicos, tiposPuerta, tiposRemolque] = await Promise.all([
+      this.getClientes(true),
+      this.getFamilias(),
+      this.getTecnicos(true),
+      this.getTiposPuerta(true),
+      this.getTiposRemolque(true),
+    ]);
+    return { clientes, familias, tecnicos, tiposPuerta, tiposRemolque };
+  },
+
   async createTipoRemolque(nombre: string): Promise<TipoRemolque> {
     const pool = await getPool();
     const res = await pool
@@ -284,6 +319,62 @@ export const dbServer = {
   },
 
   // ----------------------------- PEDIDOS ------------------------------
+  async getPedidosPage(query: PedidoPageQuery = {}): Promise<PedidoPage> {
+    const pool = await getPool();
+    const pageSize = Math.min(100, Math.max(10, Math.trunc(query.pageSize ?? 50)));
+    const page = Math.max(1, Math.trunc(query.page ?? 1));
+    const offset = (page - 1) * pageSize;
+    const sortBy = query.sortBy && PEDIDO_SORT_COLUMNS[query.sortBy]
+      ? query.sortBy
+      : "fecha";
+    const sortColumn = PEDIDO_SORT_COLUMNS[sortBy];
+    const sortDirection = query.sortDirection === "asc" ? "ASC" : "DESC";
+    const filters: string[] = [];
+
+    if (query.familiaId) filters.push("p.familia_id = @familiaId");
+    else if (query.familiaNombre) filters.push("f.nombre = @familiaNombre");
+
+    const search = query.search?.trim();
+    if (search) {
+      filters.push(`LOWER(CONCAT(
+        p.numero_pedido, N' ', c.nombre, N' ', p.tipo, N' ',
+        CONVERT(NVARCHAR(50), p.largo), N' ',
+        CONVERT(NVARCHAR(50), p.ancho), N' ',
+        CONVERT(NVARCHAR(50), p.alto)
+      )) LIKE @search`);
+    }
+
+    const where = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
+    const bind = (request: ReturnType<typeof pool.request>) => {
+      if (query.familiaId) request.input("familiaId", sql.UniqueIdentifier, query.familiaId);
+      else if (query.familiaNombre) request.input("familiaNombre", sql.NVarChar(100), query.familiaNombre);
+      if (search) request.input("search", sql.NVarChar(400), `%${search.toLocaleLowerCase("es-ES")}%`);
+      return request;
+    };
+
+    const countPromise = bind(pool.request()).query(
+      `SELECT COUNT_BIG(1) AS total ${PEDIDO_FROM_JOIN} ${where}`,
+    );
+    const itemsPromise = bind(pool.request())
+      .input("offset", sql.Int, offset)
+      .input("pageSize", sql.Int, pageSize)
+      .query(`${PEDIDO_SELECT_JOIN}
+        ${where}
+        ORDER BY CASE WHEN ${sortColumn} IS NULL THEN 1 ELSE 0 END,
+                 ${sortColumn} ${sortDirection}, p.created_at DESC
+        OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY`);
+
+    const [countResult, itemsResult] = await Promise.all([countPromise, itemsPromise]);
+    const total = Number(countResult.recordset[0]?.total ?? 0);
+    return {
+      items: itemsResult.recordset.map(mapPedidoConRelaciones),
+      page,
+      pageSize,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    };
+  },
+
   async getPedidos(): Promise<PedidoConRelaciones[]> {
     const pool = await getPool();
     const res = await pool
@@ -357,7 +448,11 @@ export const dbServer = {
       const value = (pedido as Record<string, unknown>)[col];
       if (value === undefined) continue;
       cols.push(col);
-      request.input(col, PEDIDO_COLUMN_TYPES[col](), value ?? null);
+      request.input(
+        col,
+        PEDIDO_COLUMN_TYPES[col](),
+        col === "datos_tecnicos" && value != null ? JSON.stringify(value) : value ?? null,
+      );
     }
 
     const columnList = cols.join(", ");
@@ -383,7 +478,11 @@ export const dbServer = {
       const value = (pedido as Record<string, unknown>)[col];
       if (value === undefined) continue;
       sets.push(`${col} = @${col}`);
-      request.input(col, PEDIDO_COLUMN_TYPES[col](), value ?? null);
+      request.input(
+        col,
+        PEDIDO_COLUMN_TYPES[col](),
+        col === "datos_tecnicos" && value != null ? JSON.stringify(value) : value ?? null,
+      );
     }
     sets.push("updated_at = SYSDATETIMEOFFSET()");
 

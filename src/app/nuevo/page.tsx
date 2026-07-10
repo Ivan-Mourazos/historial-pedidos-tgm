@@ -21,6 +21,7 @@ import {
 } from "@/components/ui";
 import { dbService } from "@/lib/db/db-service";
 import { resumenMedidas } from "@/lib/display";
+import { ordenarFamilias } from "@/lib/familias";
 import {
   camposRequeridosCompletos,
   esCoincidenciaExacta,
@@ -61,6 +62,7 @@ export default function NuevoPedidoPage() {
 
   const familia = cat.familias.find((f) => f.id === familiaId);
   const familiaNombre = familia?.nombre ?? "";
+  const familiasOrdenadas = useMemo(() => ordenarFamilias(cat.familias), [cat.familias]);
   const [clienteIdsDeFamilia, setClienteIdsDeFamilia] = useState<string[] | null>(null);
   const clientesDeFamilia = useMemo(
     () =>
@@ -72,27 +74,25 @@ export default function NuevoPedidoPage() {
     [cat.clientes, clienteId, clienteIdsDeFamilia],
   );
 
-  useEffect(() => {
-    if (!familiaId && cat.familias.length > 0) {
-      setFamiliaId(cat.familias[0].id);
-    }
-  }, [cat.familias, familiaId]);
-
-  useEffect(() => {
+  function cambiarFamilia(nextFamilyId: string) {
+    setFamiliaId(nextFamilyId);
     setValores(camposTecnicosVacios);
     setConfirmarDuplicado(false);
     setConfirmarNumero(false);
     setAvisoNumero(null);
     setClienteId(null);
-  }, [familiaId]);
+    setClienteIdsDeFamilia(null);
+    setPedidosCliente([]);
+  }
+
+  function cambiarCliente(nextClientId: string | null) {
+    setClienteId(nextClientId);
+    setPedidosCliente([]);
+  }
 
   useEffect(() => {
-    if (!familiaId) {
-      setClienteIdsDeFamilia(null);
-      return;
-    }
+    if (!familiaId) return;
     let activo = true;
-    setClienteIdsDeFamilia(null);
     dbService
       .getClienteIdsDeFamilia(familiaId)
       .then((ids) => activo && setClienteIdsDeFamilia(ids))
@@ -104,10 +104,7 @@ export default function NuevoPedidoPage() {
 
   // Carga pedidos del cliente+familia para detectar duplicado técnico.
   useEffect(() => {
-    if (!clienteId || !familiaId) {
-      setPedidosCliente([]);
-      return;
-    }
+    if (!clienteId || !familiaId) return;
     let activo = true;
     dbService
       .getPedidosPorClienteFamilia(clienteId, familiaId)
@@ -135,7 +132,10 @@ export default function NuevoPedidoPage() {
   const formatoNumeroOk =
     numero.trim() === "" || numeroPedidoEncajaFormato(numero);
 
-  function setCampo(campo: keyof CamposTecnicosValores, valor: string | boolean) {
+  function setCampo(
+    campo: keyof CamposTecnicosValores,
+    valor: string | boolean | Record<string, string | boolean>,
+  ) {
     setValores((v) => {
       const siguiente = { ...v, [campo]: valor } as CamposTecnicosValores;
       if (campo === "tipo") {
@@ -244,13 +244,24 @@ export default function NuevoPedidoPage() {
         </div>
       )}
 
-      <Card className="mb-5">
+      <Card className="mb-4">
+        <Field label="¿Qué vas a registrar? *">
+          <SelectControl
+            value={familiaId}
+            onChange={cambiarFamilia}
+            placeholder="— Selecciona una familia —"
+            options={familiasOrdenadas.map((family) => ({ value: family.id, label: family.nombre }))}
+          />
+        </Field>
+      </Card>
+
+      {familiaNombre && <Card className="mb-5">
         <div className="space-y-4">
           <section>
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-app-muted">
               Pedido y cliente
             </p>
-            <div className="grid gap-3 lg:grid-cols-[minmax(190px,1fr)_minmax(170px,0.8fr)_minmax(260px,1.25fr)]">
+            <div className="grid gap-3 lg:grid-cols-[minmax(190px,0.8fr)_minmax(260px,1.25fr)]">
               <Field
                 label="Número de pedido *"
                 hint={!formatoNumeroOk ? AVISO_FORMATO_PEDIDO : "Ej. AR2600000"}
@@ -268,17 +279,10 @@ export default function NuevoPedidoPage() {
                   placeholder="AR2600000"
                 />
               </Field>
-              <Field label="Familia *">
-                <SelectControl
-                  value={familiaId}
-                  onChange={setFamiliaId}
-                  options={cat.familias.map((f) => ({ value: f.id, label: f.nombre }))}
-                />
-              </Field>
               <ClienteSelect
                 clientes={clientesDeFamilia}
                 value={clienteId}
-                onChange={setClienteId}
+                onChange={cambiarCliente}
                 onClienteCreado={() => cat.recargarClientes()}
               />
             </div>
@@ -333,7 +337,7 @@ export default function NuevoPedidoPage() {
             </Field>
           </section>
         </div>
-      </Card>
+      </Card>}
 
       {avisoNumero && (
         <div className="mb-4">
@@ -356,7 +360,7 @@ export default function NuevoPedidoPage() {
         </div>
       )}
 
-      <div className="flex gap-2">
+      {familiaNombre && <div className="flex gap-2">
         <Button onClick={guardar} disabled={!puedeGuardar}>
           {guardando
             ? "Guardando…"
@@ -364,7 +368,7 @@ export default function NuevoPedidoPage() {
               ? "Guardar igualmente"
               : "Guardar pedido"}
         </Button>
-      </div>
+      </div>}
     </div>
   );
 }

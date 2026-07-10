@@ -83,18 +83,24 @@ CREATE TABLE historico.pedidos
     -- General
     fecha DATE NULL,
     observaciones NVARCHAR(MAX) NULL,
+    -- Campos propios de futuras familias. JSON versionado para poder evolucionar
+    -- cada definición sin añadir columnas por cada familia.
+    datos_tecnicos NVARCHAR(MAX) NULL,
+    datos_tecnicos_version INT NOT NULL DEFAULT 1,
     created_at DATETIMEOFFSET NOT NULL DEFAULT SYSDATETIMEOFFSET(),
     updated_at DATETIMEOFFSET NOT NULL DEFAULT SYSDATETIMEOFFSET(),
     CONSTRAINT PK_pedidos         PRIMARY KEY (id),
     CONSTRAINT FK_pedidos_cliente FOREIGN KEY (cliente_id) REFERENCES historico.clientes(id),
     CONSTRAINT FK_pedidos_familia FOREIGN KEY (familia_id) REFERENCES historico.familias(id),
-    CONSTRAINT FK_pedidos_tecnico FOREIGN KEY (tecnico_id) REFERENCES historico.tecnicos(id)
+    CONSTRAINT FK_pedidos_tecnico FOREIGN KEY (tecnico_id) REFERENCES historico.tecnicos(id),
+    CONSTRAINT CK_pedidos_datos_tecnicos_json CHECK (datos_tecnicos IS NULL OR ISJSON(datos_tecnicos) = 1)
 );
 GO
 
 CREATE INDEX IX_pedidos_numero         ON historico.pedidos (numero_pedido);
 CREATE INDEX IX_pedidos_cliente_familia ON historico.pedidos (cliente_id, familia_id);
 CREATE INDEX IX_pedidos_created        ON historico.pedidos (created_at DESC);
+CREATE INDEX IX_pedidos_familia_fecha  ON historico.pedidos (familia_id, fecha DESC, created_at DESC);
 GO
 
 -- ── DATOS INICIALES ──────────────────────────────────────────

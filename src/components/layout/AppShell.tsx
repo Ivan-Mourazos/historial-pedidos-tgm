@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
@@ -9,6 +8,7 @@ const NAV = [
   { href: "/", label: "Buscador" },
   { href: "/historico", label: "Histórico" },
   { href: "/clientes", label: "Clientes" },
+  { href: "/tecnicos", label: "Técnicos" },
 ];
 
 function SunIcon() {
@@ -55,14 +55,7 @@ function ArrowUpIcon() {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [dark, setDark] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const [showBackTop, setShowBackTop] = useState(false);
-
-  useEffect(() => {
-    setDark(document.documentElement.classList.contains("dark"));
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     function handleScroll() {
@@ -74,20 +67,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   function toggleDark() {
-    setDark((prev) => {
-      const next = !prev;
-      document.documentElement.classList.toggle("dark", next);
-      localStorage.setItem("theme", next ? "dark" : "light");
-      return next;
-    });
+    const next = !document.documentElement.classList.contains("dark");
+    document.documentElement.classList.toggle("dark", next);
+    localStorage.setItem("theme", next ? "dark" : "light");
   }
 
   function scrollToTop() {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
   }
 
   return (
     <div className="relative flex min-h-screen flex-col bg-app-bg">
+      <a href="#contenido-principal" className="sr-only z-[100] rounded bg-surface px-3 py-2 text-app-text focus:not-sr-only focus:fixed focus:left-3 focus:top-3">
+        Saltar al contenido
+      </a>
       {/* Header */}
       <header
         className="sticky top-0 z-30 border-b border-white/10 bg-surface/75 backdrop-blur-2xl"
@@ -100,25 +94,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-2.5">
           {/* Logo */}
-          {mounted ? (
-            <Image
-              src={dark ? "/rgm-pedidos-oscuro.PNG" : "/tgm-pedidos-claro.PNG"}
-              alt="TGM Pedidos"
-              height={32}
-              width={140}
-              className="-my-1.5 h-10 w-auto shrink-0 object-contain"
-              priority
-            />
-          ) : (
-            <Image
-              src="/tgm-pedidos-claro.PNG"
-              alt="TGM Pedidos"
-              height={32}
-              width={140}
-              className="-my-1.5 h-10 w-auto shrink-0 object-contain"
-              priority
-            />
-          )}
+          <div
+            aria-label="TGM Pedidos"
+            className="-my-1.5 h-10 w-[140px] shrink-0 bg-[url('/tgm-pedidos-claro.PNG')] bg-contain bg-center bg-no-repeat dark:bg-[url('/rgm-pedidos-oscuro.PNG')]"
+            role="img"
+          />
 
           {/* Nav */}
           <nav className="flex flex-1 flex-wrap gap-1">
@@ -131,6 +111,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <Link
                   key={item.href}
                   href={item.href}
+                  aria-current={active ? "page" : undefined}
                   className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
                     active
                       ? "bg-brand text-white shadow-sm"
@@ -158,15 +139,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {/* Toggle dark mode */}
           <button
             onClick={toggleDark}
-            aria-label={dark ? "Modo claro" : "Modo oscuro"}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-app-muted transition-all hover:bg-surface-2/80 hover:text-brand"
+            aria-label="Cambiar tema claro u oscuro"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-app-muted transition-colors hover:bg-surface-2/80 hover:text-brand"
           >
-            {mounted ? (dark ? <SunIcon /> : <MoonIcon />) : <MoonIcon />}
+            <span className="dark:hidden"><MoonIcon /></span>
+            <span className="hidden dark:inline"><SunIcon /></span>
           </button>
         </div>
       </header>
 
-      <main className="relative z-[1] mx-auto w-full max-w-6xl flex-1 px-4 py-4">
+      <main id="contenido-principal" className="relative z-[1] mx-auto w-full max-w-6xl flex-1 px-4 py-4">
         {children}
       </main>
 
@@ -176,7 +158,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           onClick={scrollToTop}
           aria-label="Volver arriba"
           title="Volver arriba"
-          className="fixed bottom-5 right-5 z-40 inline-flex h-11 w-11 items-center justify-center rounded-full border border-orange-200 bg-white text-orange-700 shadow-lg shadow-slate-900/10 transition-all hover:-translate-y-0.5 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-800 focus:outline-none focus:ring-2 focus:ring-orange-400/40 dark:border-orange-400/25 dark:bg-slate-900 dark:text-orange-200 dark:shadow-black/40 dark:hover:border-orange-400/40 dark:hover:bg-orange-400/10 dark:hover:text-orange-100"
+          className="fixed bottom-5 right-5 z-40 inline-flex h-11 w-11 items-center justify-center rounded-full border border-orange-200 bg-white text-orange-700 shadow-lg shadow-slate-900/10 transition-[background-color,border-color,color,transform] hover:-translate-y-0.5 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-800 focus-visible:ring-2 focus-visible:ring-orange-400/40 dark:border-orange-400/25 dark:bg-slate-900 dark:text-orange-200 dark:shadow-black/40 dark:hover:border-orange-400/40 dark:hover:bg-orange-400/10 dark:hover:text-orange-100"
         >
           <ArrowUpIcon />
         </button>

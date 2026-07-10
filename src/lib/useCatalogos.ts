@@ -69,39 +69,15 @@ export function useCatalogos(): Catalogos {
       setCargando(true);
       setError(null);
       try {
-        const resultados = await Promise.allSettled([
-          dbService.getClientes(true),
-          dbService.getFamilias(),
-          dbService.getTecnicos(true),
-          dbService.getTiposPuerta(true),
-          dbService.getTiposRemolque(true),
-        ]);
+        const result = await dbService.getCatalogos();
         if (!activo) return;
-
-        const [clientesRes, familiasRes, tecnicosRes, puertasRes, remolquesRes] =
-          resultados;
-        const errores = resultados
-          .filter((res): res is PromiseRejectedResult => res.status === "rejected")
-          .map((res) =>
-            res.reason instanceof Error ? res.reason.message : String(res.reason),
-          );
-
-        setClientes(clientesRes.status === "fulfilled" ? clientesRes.value : []);
-        setFamilias(familiasRes.status === "fulfilled" ? familiasRes.value : []);
-        setTecnicos(tecnicosRes.status === "fulfilled" ? tecnicosRes.value : []);
-        setTiposPuerta(puertasRes.status === "fulfilled" ? puertasRes.value : []);
-        setTiposRemolque(
-          remolquesRes.status === "fulfilled"
-            ? remolquesRes.value
-            : TIPOS_REMOLQUE_BASE,
-        );
-
-        const erroresCriticos = errores.filter(
-          (message) => !message.includes("tipos_remolque"),
-        );
-        if (erroresCriticos.length > 0) {
-          setError(erroresCriticos[0]);
-        }
+        setClientes(result.clientes);
+        setFamilias(result.familias);
+        setTecnicos(result.tecnicos);
+        setTiposPuerta(result.tiposPuerta);
+        setTiposRemolque(result.tiposRemolque.length > 0 ? result.tiposRemolque : TIPOS_REMOLQUE_BASE);
+      } catch (loadError) {
+        if (activo) setError(loadError instanceof Error ? loadError.message : "Error al cargar catálogos");
       } finally {
         if (activo) setCargando(false);
       }
