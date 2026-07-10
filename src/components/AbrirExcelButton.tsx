@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 
 type Estado = "idle" | "opening" | "ok";
 
@@ -58,6 +59,9 @@ export function AbrirExcelButton({
   const [estado, setEstado] = useState<Estado>("idle");
   const [discoveredFiles, setDiscoveredFiles] = useState<ExcelFileOption[]>([]);
   const [menuAbierto, setMenuAbierto] = useState(false);
+  const [menuStyle, setMenuStyle] = useState<CSSProperties | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!eligible || files !== undefined) return;
@@ -118,6 +122,57 @@ export function AbrirExcelButton({
 
   const visibleFiles = files ?? discoveredFiles;
 
+  const cerrarMenu = useCallback(() => {
+    setMenuAbierto(false);
+    setMenuStyle(null);
+  }, []);
+
+  useEffect(() => {
+    if (!menuAbierto) {
+      return;
+    }
+
+    const updateMenuPosition = () => {
+      const rect = triggerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      const margin = 8;
+      const gap = 6;
+      const estimatedHeight = Math.min(240, visibleFiles.length * 32 + 8);
+      const spaceBelow = window.innerHeight - rect.bottom - margin - gap;
+      const openAbove = spaceBelow < estimatedHeight && rect.top > spaceBelow;
+      const maxHeight = Math.max(80, Math.min(240, openAbove ? rect.top - margin - gap : spaceBelow));
+
+      setMenuStyle({
+        left: Math.min(rect.left, window.innerWidth - Math.max(rect.width, 130) - margin),
+        maxHeight,
+        minWidth: Math.max(rect.width, 130),
+        position: "fixed",
+        top: openAbove ? Math.max(margin, rect.top - gap - maxHeight) : rect.bottom + gap,
+        zIndex: 2147483647,
+      });
+    };
+
+    updateMenuPosition();
+    window.addEventListener("resize", updateMenuPosition);
+    window.addEventListener("scroll", updateMenuPosition, true);
+    return () => {
+      window.removeEventListener("resize", updateMenuPosition);
+      window.removeEventListener("scroll", updateMenuPosition, true);
+    };
+  }, [menuAbierto, visibleFiles.length]);
+
+  useEffect(() => {
+    if (!menuAbierto) return;
+
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!triggerRef.current?.contains(target) && !menuRef.current?.contains(target)) cerrarMenu();
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [cerrarMenu, menuAbierto]);
+
   if (!eligible || visibleFiles.length === 0) return null;
 
   const baseClass = label
@@ -128,8 +183,9 @@ export function AbrirExcelButton({
     return (
       <div className={`relative inline-flex ${className}`}>
         <button
+          ref={triggerRef}
           type="button"
-          onClick={() => setMenuAbierto((abierto) => !abierto)}
+          onClick={() => (menuAbierto ? cerrarMenu() : setMenuAbierto(true))}
           className={`${baseClass} w-full`}
           title={`Abrir Excel de ${numeroPedido}`}
           aria-label={`Abrir Excel de ${numeroPedido}`}
@@ -140,14 +196,18 @@ export function AbrirExcelButton({
           <span aria-hidden="true" className="text-[10px]">▾</span>
         </button>
 
-        {menuAbierto && (
-          <div className="absolute left-0 top-9 z-30 min-w-[130px] overflow-hidden rounded-[14px] border border-white/10 bg-surface/95 py-1 shadow-xl ring-1 ring-black/5 backdrop-blur-xl dark:bg-slate-950/90 dark:ring-white/10">
+        {menuAbierto && menuStyle && typeof document !== "undefined" && createPortal(
+          <div
+            ref={menuRef}
+            className="overflow-y-auto rounded-[14px] border border-white/10 bg-surface/95 py-1 shadow-xl ring-1 ring-black/5 backdrop-blur-xl dark:bg-slate-950/90 dark:ring-white/10"
+            style={menuStyle}
+          >
             {visibleFiles.map((file) => (
               <button
                 key={file.name}
                 type="button"
                 onClick={() => {
-                  setMenuAbierto(false);
+                  cerrarMenu();
                   void abrir(file.name);
                 }}
                 className="flex w-full items-center gap-1.5 px-3 py-1.5 text-left text-xs font-semibold text-emerald-800 transition-colors hover:bg-emerald-50 dark:text-emerald-200 dark:hover:bg-emerald-400/10"
@@ -159,7 +219,8 @@ export function AbrirExcelButton({
                 </span>
               </button>
             ))}
-          </div>
+          </div>,
+          document.body,
         )}
       </div>
     );
