@@ -59,6 +59,15 @@ function normStr(s: string | null | undefined): string {
   return (s ?? "").trim().toLowerCase();
 }
 
+function uniqueStrings(values: Array<string | null | undefined>): string[] {
+  const unique = new Map<string, string>();
+  for (const value of values) {
+    const clean = value?.trim();
+    if (clean) unique.set(normStr(clean), clean);
+  }
+  return [...unique.values()].sort((a, b) => a.localeCompare(b, "es"));
+}
+
 function esBaqueton(tipo: string): boolean {
   return claveTipoRemolque(tipo) === "baqueton";
 }
@@ -108,13 +117,6 @@ function MedidaSelect({
       </Field>
     );
   }
-  // El valor elegido debe seguir visible aunque los demás filtros dejen una
-  // combinación sin resultados.
-  const valorActual = parseMedida(value);
-  const opciones = uniqueNums([
-    ...disponibles,
-    ...(valorActual !== null ? [valorActual] : []),
-  ]);
   return (
     <Field label={label} hint={hint}>
       <SelectControl
@@ -123,7 +125,7 @@ function MedidaSelect({
         placeholder="—"
         options={[
           { value: "", label: "—" },
-          ...opciones.map((v) => {
+          ...disponibles.map((v) => {
             const fmt = formatMedida(v) || String(v);
             return { value: fmt, label: fmt };
           }),
@@ -167,11 +169,13 @@ export function CamposTecnicosFamilia({
     const usarBaqueton = esBaqueton(valores.tipo);
     const usarRecogida = usaRecogidaRemolque(valores.tipo);
 
-    const tiposDisp = tiposRemolqueDisponibles([
-      ...(tiposRemolque ?? []).map((t) => t.nombre),
-      ...tiposRemolqueExtra,
-      ...pedidosFamilia.map((p) => p.tipo).filter((t): t is string => !!t),
-    ]);
+    const tiposDisp = tiposRemolqueDisponibles(freeInput
+      ? [
+          ...(tiposRemolque ?? []).map((t) => t.nombre),
+          ...tiposRemolqueExtra,
+          ...pedidosFamilia.map((p) => p.tipo),
+        ]
+      : pedidosFamilia.map((p) => p.tipo));
 
     const aguasN = valores.aguasActivas ? parseMedida(valores.aguas) : null;
     const radioN = parseMedida(valores.radio);
@@ -181,6 +185,10 @@ export function CamposTecnicosFamilia({
       if (excepto !== "largo" && largoN !== null && !eq(p.largo, largoN)) return false;
       if (excepto !== "ancho" && anchoN !== null && !eq(p.ancho, anchoN)) return false;
       if (excepto !== "alto" && altoN !== null && !eq(p.alto, altoN)) return false;
+      if (usarRadioYAguas) {
+        if (valores.aguasActivas && p.aguas === null) return false;
+        if (!valores.aguasActivas && p.aguas !== null) return false;
+      }
       if (excepto !== "aguas" && aguasN !== null && !eq(p.aguas, aguasN)) return false;
       if (excepto !== "radio" && radioN !== null && !eq(p.radio, radioN)) return false;
       return true;
@@ -195,7 +203,6 @@ export function CamposTecnicosFamilia({
     const tiposParaMostrar = !freeInput && hayMedidaSeleccionada
       ? tiposRemolqueDisponibles([
           ...compatiblesExcepto("tipo").map((p) => p.tipo),
-          valores.tipo,
         ])
       : tiposDisp;
 
@@ -301,21 +308,25 @@ export function CamposTecnicosFamilia({
   if (familiaNombre === FAMILIA_PUERTAS) {
     const anchoN    = parseMedida(valores.ancho);
     const altoN = parseMedida(valores.alto);
+    const pedidosCompatiblesId = freeInput
+      ? pedidosFamilia
+      : pedidosFamilia.filter((p) => p.impresion_digital === valores.impresionDigital);
     const coincideTipo = (p: Pedido) => !valores.tipo || normStr(p.tipo) === normStr(valores.tipo);
-    const anchosDisp = uniqueNums(pedidosFamilia
+    const anchosDisp = uniqueNums(pedidosCompatiblesId
       .filter((p) => coincideTipo(p) && (altoN === null || eq(p.alto, altoN)))
       .map((p) => p.ancho));
-    const altosDisp = uniqueNums(pedidosFamilia
+    const altosDisp = uniqueNums(pedidosCompatiblesId
       .filter((p) => coincideTipo(p) && (anchoN === null || eq(p.ancho, anchoN)))
       .map((p) => p.alto));
+    const tiposPuertaBase = freeInput
+      ? uniqueStrings(tiposPuerta.map((tipo) => tipo.nombre))
+      : uniqueStrings(pedidosCompatiblesId.map((pedido) => pedido.tipo));
     const tiposPuertaFiltrados = !freeInput && (anchoN !== null || altoN !== null)
-      ? tiposPuerta.filter((tipo) =>
-          normStr(tipo.nombre) === normStr(valores.tipo) ||
-          pedidosFamilia.some((p) =>
-            normStr(p.tipo) === normStr(tipo.nombre) &&
-            (anchoN === null || eq(p.ancho, anchoN)) &&
-            (altoN === null || eq(p.alto, altoN))))
-      : tiposPuerta;
+      ? tiposPuertaBase.filter((tipo) => pedidosCompatiblesId.some((p) =>
+          normStr(p.tipo) === normStr(tipo)
+          && (anchoN === null || eq(p.ancho, anchoN))
+          && (altoN === null || eq(p.alto, altoN))))
+      : tiposPuertaBase;
 
     const fields = (
       <>
@@ -330,7 +341,7 @@ export function CamposTecnicosFamilia({
                   placeholder="— Tipo —"
                   options={[
                     { value: "", label: "— Tipo —" },
-                    ...tiposPuertaFiltrados.map((t) => ({ value: t.nombre, label: t.nombre })),
+                    ...tiposPuertaFiltrados.map((tipo) => ({ value: tipo, label: tipo })),
                   ]}
                 />
                 <Button variant="secondary" onClick={onNuevoTipo}>+</Button>
@@ -342,7 +353,7 @@ export function CamposTecnicosFamilia({
                 placeholder="— Tipo —"
                 options={[
                   { value: "", label: "— Tipo —" },
-                  ...tiposPuertaFiltrados.map((t) => ({ value: t.nombre, label: t.nombre })),
+                  ...tiposPuertaFiltrados.map((tipo) => ({ value: tipo, label: tipo })),
                 ]}
               />
             )}

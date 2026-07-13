@@ -95,6 +95,7 @@ export function esCoincidenciaExacta(
   pedido: Pedido,
   c: CriteriosBusqueda,
 ): boolean {
+  if (pedido.estado_planteo === "PENDIENTE") return false;
   if (pedido.cliente_id !== c.clienteId) return false;
 
   if (c.familiaNombre === FAMILIA_REMOLQUES) {
@@ -140,86 +141,8 @@ export function esCoincidenciaExacta(
   });
 }
 
-export interface PedidoParecido {
-  pedido: Pedido;
-  diferencias: string[];
-}
-
-const TOLERANCIA_CM = 1;
-
-function dentroDeTolerancia(
-  a: number | null,
-  b: number | null,
-): boolean {
-  if (a === null || b === null) return a === b; // vacío solo "cerca" de vacío
-  return Math.abs(a - b) <= TOLERANCIA_CM;
-}
-
-// Pedidos parecidos: misma familia, medidas principales dentro de ±1 cm.
-// Si hay clienteId filtra por ese cliente; si no, busca en todos.
-// Aguas/radio solo se comparan si el usuario los rellenó.
-export function buscarParecidos(
-  pedidos: Pedido[],
-  c: CriteriosBusqueda,
-): PedidoParecido[] {
-  const resultado: PedidoParecido[] = [];
-
-  for (const p of pedidos) {
-    if (c.clienteId && p.cliente_id !== c.clienteId) continue;
-    if (c.clienteId && esCoincidenciaExacta(p, c)) continue;
-
-    const diferencias: string[] = [];
-
-    if (c.familiaNombre === FAMILIA_REMOLQUES) {
-      if (c.tipo && tipoNormalizado(p.tipo) !== tipoNormalizado(c.tipo)) continue;
-      if (!dentroDeTolerancia(p.largo, c.largo)) continue;
-      if (!dentroDeTolerancia(p.ancho, c.ancho)) continue;
-      if (!dentroDeTolerancia(p.alto, c.alto)) continue;
-
-      if (!igualMedida(p.largo, c.largo)) diferencias.push("largo");
-      if (!igualMedida(p.ancho, c.ancho)) diferencias.push("ancho");
-      if (!igualMedida(p.alto, c.alto)) diferencias.push("alto");
-      // Aguas/radio: si el usuario los especificó, excluir registros sin ese campo y filtrar por tolerancia
-      if (c.aguas !== null) {
-        if (p.aguas === null) continue;
-        if (!dentroDeTolerancia(p.aguas, c.aguas)) continue;
-        if (!igualMedida(p.aguas, c.aguas)) diferencias.push("aguas");
-      }
-      if (c.radio !== null) {
-        if (p.radio === null) continue;
-        if (!dentroDeTolerancia(p.radio, c.radio)) continue;
-        if (!igualMedida(p.radio, c.radio)) diferencias.push("radio");
-      }
-      if (c.recogidaDelante && recogidaNormalizada(p.recogida_delante) !== recogidaNormalizada(c.recogidaDelante)) diferencias.push("recogida_delante");
-      if (c.recogidaAtras && recogidaNormalizada(p.recogida_atras) !== recogidaNormalizada(c.recogidaAtras)) diferencias.push("recogida_atras");
-    } else if (c.familiaNombre === FAMILIA_PUERTAS) {
-      if (p.impresion_digital !== c.impresionDigital) continue;
-      if (!dentroDeTolerancia(p.ancho, c.ancho)) continue;
-      if (!dentroDeTolerancia(p.alto, c.alto)) continue;
-
-      if (tipoNormalizado(p.tipo) !== tipoNormalizado(c.tipo)) diferencias.push("tipo");
-      if (!igualMedida(p.ancho, c.ancho)) diferencias.push("ancho");
-      if (!igualMedida(p.alto, c.alto)) diferencias.push("alto");
-    } else {
-      const stored = p.datos_tecnicos ?? {};
-      const definition = getFamiliaDefinition(c.familiaNombre);
-      const matches = definition.campos.every((field) => {
-        const expected = c.extra[field.key];
-        if (expected === "" || expected === undefined) return true;
-        return String(stored[field.key] ?? "").toLocaleLowerCase("es-ES") === String(expected).toLocaleLowerCase("es-ES");
-      });
-      if (!matches) continue;
-    }
-
-    resultado.push({ pedido: p, diferencias });
-  }
-
-  return resultado;
-}
-
 // Búsqueda en tiempo real con criterios parciales (cualquier campo puede ser null).
-// Muestra resultados a medida que el usuario rellena campos.
-// Cuando aguas/radio son especificados, excluye registros sin esos campos.
+// Cada criterio informado se compara de forma exacta.
 export function buscarConCriteriosParciales(
   pedidos: Pedido[],
   c: CriteriosBusqueda,
@@ -234,28 +157,27 @@ export function buscarConCriteriosParciales(
   if (!hayCriterio) return [];
 
   const encontrados = pedidos.filter((p) => {
+    if (p.estado_planteo === "PENDIENTE") return false;
     if (c.clienteId && p.cliente_id !== c.clienteId) return false;
 
     if (c.familiaNombre === FAMILIA_REMOLQUES) {
       if (c.tipo && tipoNormalizado(c.tipo) !== "" && tipoNormalizado(p.tipo) !== tipoNormalizado(c.tipo)) return false;
-      if (c.largo !== null && !dentroDeTolerancia(p.largo, c.largo)) return false;
-      if (c.ancho !== null && !dentroDeTolerancia(p.ancho, c.ancho)) return false;
-      if (c.alto !== null && !dentroDeTolerancia(p.alto, c.alto)) return false;
-      if (c.aguas !== null) {
-        if (p.aguas === null) return false;
-        if (!dentroDeTolerancia(p.aguas, c.aguas)) return false;
+      if (c.largo !== null && !igualMedida(p.largo, c.largo)) return false;
+      if (c.ancho !== null && !igualMedida(p.ancho, c.ancho)) return false;
+      if (c.alto !== null && !igualMedida(p.alto, c.alto)) return false;
+      if (pideRadioYAguas(c.tipo)) {
+        if (c.aguasActivas && p.aguas === null) return false;
+        if (!c.aguasActivas && p.aguas !== null) return false;
       }
-      if (c.radio !== null) {
-        if (p.radio === null) return false;
-        if (!dentroDeTolerancia(p.radio, c.radio)) return false;
-      }
+      if (c.aguas !== null && !igualMedida(p.aguas, c.aguas)) return false;
+      if (c.radio !== null && !igualMedida(p.radio, c.radio)) return false;
       if (c.recogidaDelante && recogidaNormalizada(p.recogida_delante) !== recogidaNormalizada(c.recogidaDelante)) return false;
       if (c.recogidaAtras && recogidaNormalizada(p.recogida_atras) !== recogidaNormalizada(c.recogidaAtras)) return false;
     } else if (c.familiaNombre === FAMILIA_PUERTAS) {
       if (p.impresion_digital !== c.impresionDigital) return false;
       if (c.tipo && tipoNormalizado(c.tipo) !== "" && tipoNormalizado(p.tipo) !== tipoNormalizado(c.tipo)) return false;
-      if (c.ancho !== null && !dentroDeTolerancia(p.ancho, c.ancho)) return false;
-      if (c.alto !== null && !dentroDeTolerancia(p.alto, c.alto)) return false;
+      if (c.ancho !== null && !igualMedida(p.ancho, c.ancho)) return false;
+      if (c.alto !== null && !igualMedida(p.alto, c.alto)) return false;
     } else {
       const stored = p.datos_tecnicos ?? {};
       const definition = getFamiliaDefinition(c.familiaNombre);
@@ -269,27 +191,8 @@ export function buscarConCriteriosParciales(
     return true;
   });
 
-  // Orden estable y útil: primero coincidencias exactas, después las que
-  // acumulan menor desviación respecto a las medidas buscadas y, a igualdad,
-  // los pedidos más recientes.
-  const distancia = (pedido: Pedido): number => {
-    const pares: Array<[number | null, number | null]> = c.familiaNombre === FAMILIA_REMOLQUES
-      ? [
-          [pedido.largo, c.largo],
-          [pedido.ancho, c.ancho],
-          [pedido.alto, c.alto],
-          [pedido.aguas, c.aguas],
-          [pedido.radio, c.radio],
-        ]
-      : c.familiaNombre === FAMILIA_PUERTAS
-        ? [[pedido.ancho, c.ancho], [pedido.alto, c.alto]]
-        : [];
-    return pares.reduce((total, [actual, esperado]) => {
-      if (esperado === null) return total;
-      if (actual === null) return total + 1000;
-      return total + Math.abs(actual - esperado);
-    }, 0);
-  };
+  // Todos coinciden exactamente con lo informado; dentro del resultado se
+  // priorizan los pedidos más recientes.
   const fechaOrden = (pedido: Pedido): number => {
     const valor = pedido.fecha ? `${pedido.fecha}T00:00:00Z` : pedido.created_at;
     const timestamp = Date.parse(valor);
@@ -297,10 +200,6 @@ export function buscarConCriteriosParciales(
   };
 
   return encontrados.sort((a, b) => {
-    const diferencias = calcularDiferencias(a, c).length - calcularDiferencias(b, c).length;
-    if (diferencias !== 0) return diferencias;
-    const desviacion = distancia(a) - distancia(b);
-    if (desviacion !== 0) return desviacion;
     const fecha = fechaOrden(b) - fechaOrden(a);
     if (fecha !== 0) return fecha;
     return b.numero_pedido.localeCompare(a.numero_pedido, "es", { numeric: true });

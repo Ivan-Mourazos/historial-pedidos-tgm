@@ -87,6 +87,11 @@ CREATE TABLE historico.pedidos
     -- General
     fecha DATE NULL,
     observaciones NVARCHAR(MAX) NULL,
+    -- Estado del planteo. Solo los REALIZADOS participan en las coincidencias.
+    estado_planteo NVARCHAR(20) NOT NULL DEFAULT 'REALIZADO',
+    estado_planteo_manual BIT NOT NULL DEFAULT 0,
+    rps_numero_linea INT NULL,
+    rps_planteo_progreso DECIMAL(5, 2) NULL,
     -- Campos propios de futuras familias. JSON versionado para poder evolucionar
     -- cada definición sin añadir columnas por cada familia.
     datos_tecnicos NVARCHAR(MAX) NULL,
@@ -97,7 +102,8 @@ CREATE TABLE historico.pedidos
     CONSTRAINT FK_pedidos_cliente FOREIGN KEY (cliente_id) REFERENCES historico.clientes(id),
     CONSTRAINT FK_pedidos_familia FOREIGN KEY (familia_id) REFERENCES historico.familias(id),
     CONSTRAINT FK_pedidos_tecnico FOREIGN KEY (tecnico_id) REFERENCES historico.tecnicos(id),
-    CONSTRAINT CK_pedidos_datos_tecnicos_json CHECK (datos_tecnicos IS NULL OR ISJSON(datos_tecnicos) = 1)
+    CONSTRAINT CK_pedidos_datos_tecnicos_json CHECK (datos_tecnicos IS NULL OR ISJSON(datos_tecnicos) = 1),
+    CONSTRAINT CK_pedidos_estado_planteo CHECK (estado_planteo IN ('PENDIENTE', 'REALIZADO'))
 );
 GO
 
@@ -105,6 +111,8 @@ CREATE INDEX IX_pedidos_numero         ON historico.pedidos (numero_pedido);
 CREATE INDEX IX_pedidos_cliente_familia ON historico.pedidos (cliente_id, familia_id);
 CREATE INDEX IX_pedidos_created        ON historico.pedidos (created_at DESC);
 CREATE INDEX IX_pedidos_familia_fecha  ON historico.pedidos (familia_id, fecha DESC, created_at DESC);
+CREATE INDEX IX_pedidos_familia_estado_fecha ON historico.pedidos (familia_id, estado_planteo, fecha DESC, created_at DESC);
+CREATE INDEX IX_pedidos_rps_linea ON historico.pedidos (numero_pedido, rps_numero_linea) WHERE rps_numero_linea IS NOT NULL;
 GO
 
 -- ── DATOS INICIALES ──────────────────────────────────────────

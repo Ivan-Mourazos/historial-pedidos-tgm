@@ -57,11 +57,17 @@ export interface Pedido {
   fecha: string | null;
   tecnico_id: string | null;
   observaciones: string | null;
+  estado_planteo: EstadoPlanteo;
+  estado_planteo_manual: boolean;
+  rps_numero_linea: number | null;
+  rps_planteo_progreso: number | null;
   datos_tecnicos?: Record<string, string | number | boolean | null> | null;
   datos_tecnicos_version?: number;
   created_at: string;
   updated_at: string;
 }
+
+export type EstadoPlanteo = "PENDIENTE" | "REALIZADO";
 
 // Pedido con datos relacionados embebidos (PostgREST resource embedding).
 export interface PedidoConRelaciones extends Pedido {
@@ -73,10 +79,16 @@ export interface PedidoConRelaciones extends Pedido {
 export const FAMILIA_REMOLQUES = "REMOLQUES";
 export const FAMILIA_PUERTAS = "PUERTAS";
 
+type PedidoCamposEstado =
+  | "estado_planteo"
+  | "estado_planteo_manual"
+  | "rps_numero_linea"
+  | "rps_planteo_progreso";
+
 export type PedidoInput = Omit<
   Pedido,
-  "id" | "created_at" | "updated_at"
->;
+  "id" | "created_at" | "updated_at" | PedidoCamposEstado
+> & Partial<Pick<Pedido, PedidoCamposEstado>>;
 
 export type PedidoOrdenCampo =
   | "aguas"
@@ -96,6 +108,7 @@ export interface PedidoPageQuery {
   recogida?: string;
   fechaDesde?: string;
   fechaHasta?: string;
+  estadoPlanteo?: EstadoPlanteo;
   sortBy?: PedidoOrdenCampo;
   sortDirection?: "asc" | "desc";
 }

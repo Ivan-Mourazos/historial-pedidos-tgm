@@ -21,6 +21,8 @@ export interface LineaPedidoRps {
   descripcion: string;
   detalle: string;
   requiereRevision: boolean;
+  progresoPlanteo: number | null;
+  estadoPlanteo: "PENDIENTE" | "REALIZADO" | "SIN_TAREA";
 }
 
 export interface PedidoRps {
@@ -68,7 +70,12 @@ const numeroMedida = (value: string | undefined): number | null => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
-function interpretarLinea(numeroLinea: number, description: string, comment: string | null): LineaPedidoRps | null {
+function interpretarLinea(
+  numeroLinea: number,
+  description: string,
+  comment: string | null,
+  progresoPlanteoRaw: number | null = null,
+): LineaPedidoRps | null {
   const detalle = (comment ?? "").trim();
   const texto = `${description} ${detalle}`.toLocaleUpperCase("es-ES");
   const esPuerta = texto.includes("PUERTA ENROLLABLE") || texto.includes("PUERTA PLEGABLE") || texto.includes("PUERTA APILABLE");
@@ -85,6 +92,8 @@ function interpretarLinea(numeroLinea: number, description: string, comment: str
     : texto.includes("GANADO")
       ? "Ganado"
       : (altoBase !== null && altoBase <= 25 && altoExtra === null ? "Baquetón" : "Lona alta");
+  const progresoNumero = progresoPlanteoRaw == null ? null : Number(progresoPlanteoRaw);
+  const progresoPlanteo = progresoNumero !== null && Number.isFinite(progresoNumero) ? progresoNumero : null;
   return {
     numeroLinea,
     familia: esPuerta ? "PUERTAS" : "REMOLQUES",
@@ -99,6 +108,8 @@ function interpretarLinea(numeroLinea: number, description: string, comment: str
     detalle,
     requiereRevision: !match
       || (esPuerta ? primera === null || segunda === null : primera === null || segunda === null || altoBase === null),
+    progresoPlanteo,
+    estadoPlanteo: progresoPlanteo === null ? "SIN_TAREA" : progresoPlanteo >= 100 ? "REALIZADO" : "PENDIENTE",
   };
 }
 
@@ -121,9 +132,20 @@ export async function pedidoRpsPorNumero(numero: string): Promise<PedidoRps | nu
   if (!cabecera) return null;
   const lineasResult = await pool.request()
     .input("idOrder", sql.VarChar(255), cabecera.IDOrder)
-    .query(`SELECT NumLine, Description, Comment FROM dbo.FACOrderLineSL WHERE IDOrder = @idOrder ORDER BY NumLine`);
+    .query(`SELECT l.NumLine, l.Description, l.Comment, planteo.PercentProgress AS ProgresoPlanteo
+      FROM dbo.FACOrderLineSL l
+      OUTER APPLY (
+        SELECT TOP 1 t.PercentProgress
+        FROM dbo.CPRMOTask t
+        WHERE t.IDManufacturingOrder = l.IDManufacturingOrder
+          AND (UPPER(t.Description) LIKE '%PLANTEAR%' OR UPPER(t.Description) LIKE '%PLANTEAMIENTO%')
+        ORDER BY CASE WHEN t.CodMOTask = '5' THEN 0 ELSE 1 END, t.[Order]
+      ) planteo
+      WHERE l.IDOrder = @idOrder
+      ORDER BY l.NumLine`);
   const lineas = lineasResult.recordset
-    .map((linea: { NumLine: number; Description: string; Comment: string | null }) => interpretarLinea(linea.NumLine, linea.Description ?? "", linea.Comment))
+    .map((linea: { NumLine: number; Description: string; Comment: string | null; ProgresoPlanteo: number | null }) =>
+      interpretarLinea(linea.NumLine, linea.Description ?? "", linea.Comment, linea.ProgresoPlanteo))
     .filter((linea: LineaPedidoRps | null): linea is LineaPedidoRps => linea !== null);
   return {
     numero: cabecera.numero,
@@ -141,11 +163,18 @@ export async function pedidosRpsDesde(fechaDesde: string): Promise<PedidoRps[]> 
         c.CodCustomer AS codigo,
         LTRIM(RTRIM(COALESCE(NULLIF(c.CompanyName, ''), c.Description))) AS nombre,
         NULLIF(LTRIM(RTRIM(cc.Alias)), '') AS alias,
-        l.NumLine, l.Description, l.Comment
+        l.NumLine, l.Description, l.Comment, planteo.PercentProgress AS ProgresoPlanteo
       FROM dbo.FACOrderSL o
       INNER JOIN dbo.FACCustomer c ON c.IDCustomer = o.IDCustomer
       LEFT JOIN dbo._FACCustomer_Custom cc ON cc.IDCustomer = c.IDCustomer
       INNER JOIN dbo.FACOrderLineSL l ON l.IDOrder = o.IDOrder
+      OUTER APPLY (
+        SELECT TOP 1 t.PercentProgress
+        FROM dbo.CPRMOTask t
+        WHERE t.IDManufacturingOrder = l.IDManufacturingOrder
+          AND (UPPER(t.Description) LIKE '%PLANTEAR%' OR UPPER(t.Description) LIKE '%PLANTEAMIENTO%')
+        ORDER BY CASE WHEN t.CodMOTask = '5' THEN 0 ELSE 1 END, t.[Order]
+      ) planteo
       WHERE o.CodCompany = '001' AND o.OrderDate >= @fechaDesde
         AND REPLACE(REPLACE(UPPER(o.CodOrder), '.', ''), ' ', '') LIKE 'AR%'
         AND (
@@ -159,11 +188,11 @@ export async function pedidosRpsDesde(fechaDesde: string): Promise<PedidoRps[]> 
 
   type Fila = {
     IDOrder: string; numero: string; fecha: Date | null; codigo: string; nombre: string; alias: string | null;
-    NumLine: number; Description: string | null; Comment: string | null;
+    NumLine: number; Description: string | null; Comment: string | null; ProgresoPlanteo: number | null;
   };
   const agrupados = new Map<string, PedidoRps>();
   for (const fila of result.recordset as Fila[]) {
-    const linea = interpretarLinea(fila.NumLine, fila.Description ?? "", fila.Comment);
+    const linea = interpretarLinea(fila.NumLine, fila.Description ?? "", fila.Comment, fila.ProgresoPlanteo);
     if (!linea) continue;
     let pedido = agrupados.get(fila.IDOrder);
     if (!pedido) {

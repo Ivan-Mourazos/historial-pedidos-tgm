@@ -14,6 +14,7 @@ import type {
   PedidoOrdenCampo,
   PedidoPage,
   PedidoPageQuery,
+  EstadoPlanteo,
   Tecnico,
   TipoPuerta,
   TipoRemolque,
@@ -72,6 +73,10 @@ const PEDIDO_COLUMN_TYPES: Record<string, () => sql.ISqlType> = {
   // evitar desfases de zona horaria al convertir a Date.
   fecha: () => sql.NVarChar(10),
   observaciones: () => sql.NVarChar(sql.MAX),
+  estado_planteo: () => sql.NVarChar(20),
+  estado_planteo_manual: () => sql.Bit(),
+  rps_numero_linea: () => sql.Int(),
+  rps_planteo_progreso: () => sql.Decimal(5, 2),
   datos_tecnicos: () => sql.NVarChar(sql.MAX),
   datos_tecnicos_version: () => sql.Int(),
 };
@@ -86,6 +91,10 @@ function normalizePedido<T extends Record<string, unknown>>(row: T): T {
   if (normalized.impresion_digital === undefined) {
     normalized.impresion_digital = false;
   }
+  if (normalized.estado_planteo === undefined) normalized.estado_planteo = "REALIZADO";
+  if (normalized.estado_planteo_manual === undefined) normalized.estado_planteo_manual = false;
+  if (normalized.rps_numero_linea === undefined) normalized.rps_numero_linea = null;
+  if (normalized.rps_planteo_progreso === undefined) normalized.rps_planteo_progreso = null;
   if (row.fecha instanceof Date) {
     normalized.fecha = row.fecha.toISOString().slice(0, 10);
   }
@@ -426,6 +435,7 @@ export const dbServer = {
     if (query.recogida) filters.push("(@recogida = p.recogida_delante OR @recogida = p.recogida_atras)");
     if (query.fechaDesde) filters.push("p.fecha >= CONVERT(DATE, @fechaDesde, 23)");
     if (query.fechaHasta) filters.push("p.fecha <= CONVERT(DATE, @fechaHasta, 23)");
+    if (query.estadoPlanteo) filters.push("p.estado_planteo = @estadoPlanteo");
 
     const search = query.search?.trim();
     if (search) {
@@ -447,6 +457,7 @@ export const dbServer = {
       if (query.recogida) request.input("recogida", sql.NVarChar(100), query.recogida);
       if (query.fechaDesde) request.input("fechaDesde", sql.NVarChar(10), query.fechaDesde);
       if (query.fechaHasta) request.input("fechaHasta", sql.NVarChar(10), query.fechaHasta);
+      if (query.estadoPlanteo) request.input("estadoPlanteo", sql.NVarChar(20), query.estadoPlanteo);
       return request;
     };
 
@@ -488,7 +499,8 @@ export const dbServer = {
       .request()
       .input("familia", sql.UniqueIdentifier, familiaId)
       .query(
-        `SELECT DISTINCT cliente_id FROM ${SCHEMA}.pedidos WHERE familia_id = @familia`,
+        `SELECT DISTINCT cliente_id FROM ${SCHEMA}.pedidos
+         WHERE familia_id = @familia AND estado_planteo = 'REALIZADO'`,
       );
     return res.recordset.map((r: { cliente_id: string }) => r.cliente_id);
   },
@@ -506,6 +518,7 @@ export const dbServer = {
       .query(
         `SELECT * FROM ${SCHEMA}.pedidos
          WHERE cliente_id = @cliente AND familia_id = @familia
+           AND estado_planteo = 'REALIZADO'
          ORDER BY created_at DESC`,
       );
     return res.recordset.map(normalizePedido) as Pedido[];
@@ -520,7 +533,9 @@ export const dbServer = {
       .request()
       .input("familia", sql.UniqueIdentifier, familiaId)
       .query(
-        `${PEDIDO_SELECT_JOIN} WHERE p.familia_id = @familia ORDER BY p.created_at DESC`,
+        `${PEDIDO_SELECT_JOIN}
+         WHERE p.familia_id = @familia AND p.estado_planteo = 'REALIZADO'
+         ORDER BY p.created_at DESC`,
       );
     return res.recordset.map(mapPedidoConRelaciones);
   },
@@ -591,6 +606,24 @@ export const dbServer = {
        WHERE id = @id`,
     );
     return normalizePedido(res.recordset[0]) as Pedido;
+  },
+
+  async setEstadoPlanteoPedido(id: string, estado: EstadoPlanteo): Promise<Pedido> {
+    if (estado !== "PENDIENTE" && estado !== "REALIZADO") {
+      throw new Error("Estado de planteo no válido.");
+    }
+    const pool = await getPool();
+    const result = await pool.request()
+      .input("id", sql.UniqueIdentifier, id)
+      .input("estado", sql.NVarChar(20), estado)
+      .query(`UPDATE ${SCHEMA}.pedidos
+        SET estado_planteo = @estado, estado_planteo_manual = 1,
+            updated_at = SYSDATETIMEOFFSET()
+        OUTPUT INSERTED.*
+        WHERE id = @id`);
+    const row = result.recordset[0];
+    if (!row) throw new Error("No se encontró el pedido.");
+    return normalizePedido(row) as Pedido;
   },
 
   async deletePedido(id: string): Promise<void> {

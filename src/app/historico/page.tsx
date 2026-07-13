@@ -54,6 +54,8 @@ export default async function HistoricoPage({ searchParams }: { searchParams: Se
       recogida: one(params.recogida),
       fechaDesde: one(params.desde),
       fechaHasta: one(params.hasta),
+      estadoPlanteo: one(params.estado) === "PENDIENTE" ? "PENDIENTE"
+        : one(params.estado) === "REALIZADO" ? "REALIZADO" : undefined,
       sortBy,
       sortDirection: direction,
     }),

@@ -16,7 +16,10 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json() as { confirmar?: string };
+    const body = await request.json() as { confirmar?: string; accion?: string };
+    if (body.accion === "SINCRONIZAR") {
+      return NextResponse.json(await obtenerPendientesRps(true));
+    }
     if (body.confirmar !== "IMPORTAR") {
       return NextResponse.json({ error: "Falta confirmar la importación." }, { status: 400 });
     }

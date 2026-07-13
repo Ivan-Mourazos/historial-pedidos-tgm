@@ -61,14 +61,11 @@ function Th({ children, className = "" }: { children?: React.ReactNode; classNam
   );
 }
 
-function CoincidenciaBadge({ exacta, diferencias }: { exacta: boolean; diferencias: number }) {
+function CoincidenciaBadge({ exacta }: { exacta: boolean }) {
   if (exacta) {
     return <span className="rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-300">Exacto</span>;
   }
-  if (diferencias === 0) {
-    return <span className="rounded-md bg-sky-500/12 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sky-700 dark:text-sky-300">Coincide</span>;
-  }
-  return <span className="rounded-md bg-amber-500/12 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-300">±1 cm</span>;
+  return <span className="rounded-md bg-sky-500/12 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sky-700 dark:text-sky-300">Coincide</span>;
 }
 
 function valoresDesdeUrl(params: URLSearchParams): CamposTecnicosValores {
@@ -311,6 +308,8 @@ function BuscadorPageContent() {
         fecha:         fecha || null,
         tecnico_id:    tecnicoId || null,
         observaciones: observaciones.trim() || null,
+        estado_planteo: "REALIZADO",
+        estado_planteo_manual: true,
         ...tecnicosCampos,
       });
       setOkMsg(`Pedido ${numeroNorm} registrado correctamente.`);
@@ -631,7 +630,7 @@ function BuscadorPageContent() {
           </p>
           {resultadosLive.length > 1 ? (
             <p className="text-xs text-app-muted">
-              Mejor coincidencia primero · después, más recientes
+              Solo combinaciones existentes · más recientes primero
             </p>
           ) : !clienteId && completos && (
             <p className="text-xs text-app-muted">
@@ -662,7 +661,7 @@ function BuscadorPageContent() {
           </p>
         ) : resultadosLive.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-app-muted">
-            No hay pedidos similares con esas medidas.
+            No existe ningún pedido realizado con esa combinación exacta.
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -717,7 +716,7 @@ function BuscadorPageContent() {
                             <span className={`font-mono font-bold ${isExacto ? "text-emerald-300" : "text-app-text"}`}>
                               {pr.numero_pedido}
                             </span>
-                            <CoincidenciaBadge exacta={isExacto} diferencias={diffs.length} />
+                            <CoincidenciaBadge exacta={isExacto} />
                           </span>
                         </td>
                         <td className="px-3 py-2.5 text-app-muted">{pr.cliente?.nombre ?? "—"}</td>
@@ -793,7 +792,7 @@ function BuscadorPageContent() {
                             <span className={`font-mono font-bold ${isExacto ? "text-emerald-300" : "text-app-text"}`}>
                               {pr.numero_pedido}
                             </span>
-                            <CoincidenciaBadge exacta={isExacto} diferencias={diffs.length} />
+                            <CoincidenciaBadge exacta={isExacto} />
                           </span>
                         </td>
                         <td className="px-3 py-2.5 text-app-muted">{pr.cliente?.nombre ?? "—"}</td>

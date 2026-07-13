@@ -87,7 +87,12 @@ function NuevoPedidoPageContent() {
       numeroLinea: number; familia: string; tipo: string; largo: number | null; ancho: number | null;
       alto: number | null; aguas: number | null; altoBase: number | null; altoExtra: number | null; descripcion: string;
       detalle: string; requiereRevision: boolean;
+      progresoPlanteo: number | null; estadoPlanteo: "PENDIENTE" | "REALIZADO" | "SIN_TAREA";
     }>;
+  } | null>(null);
+  const [lineaRpsSeleccionada, setLineaRpsSeleccionada] = useState<{
+    numeroLinea: number;
+    progresoPlanteo: number | null;
   } | null>(null);
   const importacionInicialRps = useRef(false);
 
@@ -106,6 +111,7 @@ function NuevoPedidoPageContent() {
     setAvisoNumero(null);
     setClienteId(null);
     setPedidosCliente([]);
+    setLineaRpsSeleccionada(null);
   }
 
   function cambiarCliente(nextClientId: string | null) {
@@ -230,6 +236,7 @@ function NuevoPedidoPageContent() {
     });
     if (pedidoRps?.fecha) setFecha(pedidoRps.fecha);
     if (linea.detalle) setObservaciones(linea.detalle);
+    setLineaRpsSeleccionada({ numeroLinea: linea.numeroLinea, progresoPlanteo: linea.progresoPlanteo });
     setConfirmarDuplicado(false);
   }
 
@@ -266,6 +273,7 @@ function NuevoPedidoPageContent() {
         });
         if (payload.pedido.fecha) setFecha(payload.pedido.fecha);
         if (linea.detalle) setObservaciones(linea.detalle);
+        setLineaRpsSeleccionada({ numeroLinea: linea.numeroLinea, progresoPlanteo: linea.progresoPlanteo });
       } catch (cause) {
         if (activo) setAvisoRps(cause instanceof Error ? cause.message : "No se pudo consultar RPS");
       }
@@ -323,6 +331,10 @@ function NuevoPedidoPageContent() {
         fecha: fecha || null,
         tecnico_id: tecnicoId || null,
         observaciones: observaciones.trim() || null,
+        estado_planteo: "REALIZADO",
+        estado_planteo_manual: true,
+        rps_numero_linea: lineaRpsSeleccionada?.numeroLinea ?? null,
+        rps_planteo_progreso: lineaRpsSeleccionada?.progresoPlanteo ?? null,
         ...tecnicos,
       });
       setOkMsg(`Pedido ${numeroNorm} guardado correctamente.`);
@@ -330,6 +342,7 @@ function NuevoPedidoPageContent() {
       setNumero("");
       setValores(camposTecnicosVacios);
       setObservaciones("");
+      setLineaRpsSeleccionada(null);
       setConfirmarDuplicado(false);
       setPedidosCliente(
         await dbService.getPedidosPorClienteFamilia(clienteId!, familiaId),
@@ -402,6 +415,7 @@ function NuevoPedidoPageContent() {
                     setAvisoNumero(null);
                     setAvisoRps(null);
                     setPedidoRps(null);
+                    setLineaRpsSeleccionada(null);
                   }}
                   onBlur={completarClienteDesdePedido}
                   placeholder="AR2600000"
@@ -431,6 +445,9 @@ function NuevoPedidoPageContent() {
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-sm font-semibold text-app-text">Línea {linea.numeroLinea} · {linea.tipo}</span>
                           {linea.requiereRevision && <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-700 dark:text-amber-300">Revisar</span>}
+                          <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${linea.estadoPlanteo === "REALIZADO" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" : "bg-amber-500/15 text-amber-700 dark:text-amber-300"}`}>
+                            {linea.estadoPlanteo === "REALIZADO" ? "Planteado" : linea.estadoPlanteo === "PENDIENTE" ? "Pendiente" : "Sin tarea RPS"}
+                          </span>
                         </div>
                         <p className="mt-1 font-mono text-sm font-semibold text-brand">
                           {[linea.largo, linea.ancho, linea.alto].filter((value) => value !== null).join(" × ")} cm

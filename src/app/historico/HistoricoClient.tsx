@@ -7,12 +7,14 @@ import { AbrirExcelButton } from "@/components/AbrirExcelButton";
 import { AbrirZwcadButton } from "@/components/AbrirZwcadButton";
 import { EditarPedidoModal } from "@/components/EditarPedidoModal";
 import {
+  Banner,
   PageTitle,
   SelectControl,
   inputClass,
   modalOverlayClass,
   modalPanelClass,
 } from "@/components/ui";
+import { dbService } from "@/lib/db/db-service";
 import { formatFecha, formatMedida } from "@/lib/display";
 import { familiaPuedeTenerExcel, getFamiliaDefinition } from "@/lib/familias";
 import { tipoRemolqueCanonico } from "@/lib/tipos-remolque";
@@ -113,8 +115,10 @@ export function HistoricoClient({
   const [isPending, startTransition] = useTransition();
   const [editando, setEditando] = useState<PedidoConRelaciones | null>(null);
   const [verComentario, setVerComentario] = useState<PedidoConRelaciones | null>(null);
+  const [cambiandoEstado, setCambiandoEstado] = useState<string | null>(null);
+  const [estadoError, setEstadoError] = useState<string | null>(null);
   const [mostrarFiltros, setMostrarFiltros] = useState(
-    () => searchParams.has("tipo") || searchParams.has("recogida") || searchParams.has("desde") || searchParams.has("hasta"),
+    () => searchParams.has("tipo") || searchParams.has("recogida") || searchParams.has("estado") || searchParams.has("desde") || searchParams.has("hasta"),
   );
   const definition = getFamiliaDefinition(selectedFamilyName);
   const isDoors = definition.variante === "puertas";
@@ -153,6 +157,22 @@ export function HistoricoClient({
   function changeSort(campo: PedidoOrdenCampo) {
     const nextDirection = activeSort === campo && direction === "asc" ? "desc" : "asc";
     navigate({ sort: campo, dir: nextDirection, page: null });
+  }
+
+  async function cambiarEstadoPlanteo(pedido: PedidoConRelaciones) {
+    setCambiandoEstado(pedido.id);
+    setEstadoError(null);
+    try {
+      await dbService.setEstadoPlanteoPedido(
+        pedido.id,
+        pedido.estado_planteo === "REALIZADO" ? "PENDIENTE" : "REALIZADO",
+      );
+      router.refresh();
+    } catch (cause) {
+      setEstadoError(cause instanceof Error ? cause.message : "No se pudo cambiar el estado del planteo.");
+    } finally {
+      setCambiandoEstado(null);
+    }
   }
 
   const start = pedidosPage.total === 0 ? 0 : (pedidosPage.page - 1) * pedidosPage.pageSize + 1;
@@ -210,14 +230,14 @@ export function HistoricoClient({
           className="inline-flex h-9 items-center rounded-xl border border-[var(--border)] bg-surface px-3 text-sm font-medium text-app-text transition-colors hover:bg-surface-2"
         >
           Filtros
-          {["tipo", "recogida", "desde", "hasta"].some((key) => searchParams.has(key)) && (
+          {["tipo", "recogida", "estado", "desde", "hasta"].some((key) => searchParams.has(key)) && (
             <span className="ml-2 h-2 w-2 rounded-full bg-brand" aria-label="Filtros activos" />
           )}
         </button>
       </div>
 
       {mostrarFiltros && (
-        <div className="mb-4 grid grid-cols-4 gap-3 rounded-xl border border-[var(--border)] bg-surface/70 p-3">
+        <div className="mb-4 grid grid-cols-5 gap-3 rounded-xl border border-[var(--border)] bg-surface/70 p-3">
           <div>
             <label className="mb-1 block text-xs font-medium text-app-muted">Tipo</label>
             <SelectControl
@@ -238,6 +258,18 @@ export function HistoricoClient({
               options={[{ value: "", label: "Todas" }, ...TIPOS_RECOGIDA_REMOLQUE.map((value) => ({ value, label: value }))]}
             />
           </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-app-muted">Planteo</label>
+            <SelectControl
+              value={searchParams.get("estado") ?? ""}
+              onChange={(value) => navigate({ estado: value || null, page: null })}
+              options={[
+                { value: "", label: "Todos" },
+                { value: "REALIZADO", label: "Realizados" },
+                { value: "PENDIENTE", label: "Pendientes" },
+              ]}
+            />
+          </div>
           <label className="text-xs font-medium text-app-muted">Desde
             <input type="date" className={`${inputClass} mt-1`} value={searchParams.get("desde") ?? ""} onChange={(event) => navigate({ desde: event.target.value || null, page: null })} />
           </label>
@@ -247,14 +279,16 @@ export function HistoricoClient({
         </div>
       )}
 
+      {estadoError && <div className="mb-4"><Banner tone="warning">{estadoError}</Banner></div>}
+
       <div className="overflow-hidden rounded-[18px] border border-white/10 bg-surface/80 shadow-sm ring-1 ring-black/5 backdrop-blur-xl dark:bg-slate-950/50 dark:ring-white/10">
         {pedidosPage.items.length === 0 ? (
           <p className="px-4 py-6 text-sm text-app-muted">No hay pedidos que coincidan.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1053px] table-fixed text-sm">
+            <table className="w-full min-w-[1070px] table-fixed text-sm">
               <colgroup>
-                <col className="w-[90px]" />
+                <col className="w-[105px]" />
                 <col className="w-[140px]" />
                 <col className="w-[80px]" />
                 <col className="w-[130px]" />
@@ -288,7 +322,18 @@ export function HistoricoClient({
                       key={pedido.id}
                       className={`transition-colors hover:bg-surface-2/70 ${index < pedidosPage.items.length - 1 ? "border-b border-[var(--border)]" : ""}`}
                     >
-                      <td className="whitespace-nowrap px-3 py-3 font-mono text-sm font-semibold text-app-text">{pedido.numero_pedido}</td>
+                      <td className="whitespace-nowrap px-3 py-3">
+                        <p className="font-mono text-sm font-semibold text-app-text">{pedido.numero_pedido}</p>
+                        <button
+                          type="button"
+                          disabled={cambiandoEstado === pedido.id}
+                          onClick={() => void cambiarEstadoPlanteo(pedido)}
+                          className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase transition-opacity disabled:opacity-50 ${pedido.estado_planteo === "REALIZADO" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" : "bg-amber-500/15 text-amber-700 dark:text-amber-300"}`}
+                          title={pedido.estado_planteo === "REALIZADO" ? "Marcar manualmente como pendiente" : "Marcar manualmente como realizado"}
+                        >
+                          {cambiandoEstado === pedido.id ? "Guardando…" : pedido.estado_planteo === "REALIZADO" ? "Realizado" : "Pendiente"}
+                        </button>
+                      </td>
                       <td className="max-w-[180px] truncate px-3 py-3 text-app-text" title={pedido.cliente?.nombre}>{pedido.cliente?.nombre ?? "—"}</td>
                       <td className="max-w-[150px] truncate px-3 py-3 text-app-muted">
                         {isTrailers ? tipoRemolqueCanonico(pedido.tipo) || "—" : pedido.tipo ?? "—"}

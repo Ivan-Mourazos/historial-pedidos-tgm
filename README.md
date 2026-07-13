@@ -131,6 +131,13 @@ Para almacenar la recogida delantera y trasera de las lonas de remolque, aplica 
 Para vincular los clientes con su código de RPS, aplica con una cuenta con permisos DDL
 [`db/migration-2026-07-12-codigo-cliente-rps.sql`](db/migration-2026-07-12-codigo-cliente-rps.sql).
 
+Para separar pedidos pendientes y realizados por línea de RPS, y excluir los pendientes
+de las coincidencias, aplica también
+[`db/migration-2026-07-13-estados-planteo-rps.sql`](db/migration-2026-07-13-estados-planteo-rps.sql).
+La actualización de RPS usa la tarea `PLANTEAR...`: progreso 100 significa realizado;
+las líneas sin esa tarea quedan pendientes en nuevas importaciones y pueden confirmarse
+manualmente desde el histórico.
+
 ## Reglas de negocio clave
 
 - **Coincidencia exacta REMOLQUES:** cliente + largo + ancho + altura + aguas + radio
@@ -138,7 +145,7 @@ Para vincular los clientes con su código de RPS, aplica con una cuenta con perm
 - **Coincidencia exacta PUERTAS:** cliente + tipo + ancho + alto.
 - Solo se marca "Ya existe un pedido igual" cuando **todos** los campos requeridos están
   completos y coinciden. Si faltan datos → "Faltan datos para comprobar coincidencia exacta".
-- **Pedidos parecidos** (mismo cliente y familia, medidas ±1 cm) se muestran solo como ayuda.
+- **Búsqueda parcial exacta:** cada medida seleccionada debe coincidir exactamente y los desplegables solo ofrecen combinaciones existentes entre pedidos realizados.
 - Comparación de medidas con el valor exacto guardado (DECIMAL con 2 decimales).
 - Clientes anti-duplicados por nombre normalizado (trim + minúsculas + espacios colapsados).
 - El número de pedido es único; se avisa si el formato no encaja con `^[A-Z]{2}[0-9]{2}[0-9]+$`.

@@ -19,6 +19,8 @@ interface Pendiente {
   detalle: string;
   requiereRevision: boolean;
   coincideCon: string | null;
+  progresoPlanteo: number | null;
+  estadoPlanteo: "PENDIENTE" | "REALIZADO" | "SIN_TAREA";
 }
 
 interface Resumen {
@@ -27,6 +29,7 @@ interface Resumen {
   totalLineasRps: number;
   totalRegistradas: number;
   totalImportables: number;
+  estadosActualizados: number;
 }
 
 const normalizar = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es-ES");
@@ -57,10 +60,18 @@ export default function PendientesPage() {
     setCargando(true);
     setError(null);
     try {
-      const response = await fetch("/api/rps/pendientes", { cache: "no-store" });
+      const response = await fetch("/api/rps/pendientes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({ accion: "SINCRONIZAR" }),
+      });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "No se pudo consultar RPS.");
       setResumen(payload);
+      if (payload.estadosActualizados > 0) {
+        setOkMsg(`${payload.estadosActualizados} estados de planteo actualizados desde RPS.`);
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "No se pudo consultar RPS.");
     } finally {
@@ -91,7 +102,12 @@ export default function PendientesPage() {
 
   useEffect(() => {
     let activo = true;
-    void fetch("/api/rps/pendientes", { cache: "no-store" })
+    void fetch("/api/rps/pendientes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      cache: "no-store",
+      body: JSON.stringify({ accion: "SINCRONIZAR" }),
+    })
       .then(async (response) => {
         const payload = await response.json();
         if (!response.ok) throw new Error(payload.error ?? "No se pudo consultar RPS.");
@@ -196,7 +212,7 @@ export default function PendientesPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[980px] border-collapse text-left">
+            <table className="w-full min-w-[1100px] border-collapse text-left">
               <thead className="bg-surface-2/70 text-[11px] uppercase tracking-wide text-app-muted">
                 <tr>
                   <th className="px-4 py-2.5">Pedido / línea</th>
@@ -204,6 +220,7 @@ export default function PendientesPage() {
                   <th className="px-3 py-2.5">Familia</th>
                   <th className="px-3 py-2.5">Tipo</th>
                   <th className="px-3 py-2.5">Medidas</th>
+                  <th className="px-3 py-2.5">Planteo</th>
                   <th className="px-3 py-2.5">Estado</th>
                   <th className="px-3 py-2.5">Fecha</th>
                   <th className="px-4 py-2.5 text-right">Acción</th>
@@ -227,6 +244,11 @@ export default function PendientesPage() {
                       {pendiente.requiereRevision && <span className="ml-2 rounded-full bg-amber-400/15 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:text-amber-300">Revisar</span>}
                     </td>
                     <td className="whitespace-nowrap px-3 py-3 font-mono text-sm font-semibold text-app-text">{medidas(pendiente)}</td>
+                    <td className="px-3 py-3">
+                      <span className={`inline-flex rounded-full px-2 py-1 text-[11px] font-semibold ${pendiente.estadoPlanteo === "REALIZADO" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" : "bg-amber-500/15 text-amber-700 dark:text-amber-300"}`}>
+                        {pendiente.estadoPlanteo === "REALIZADO" ? "Realizado" : pendiente.estadoPlanteo === "PENDIENTE" ? "Pendiente" : "Sin tarea RPS"}
+                      </span>
+                    </td>
                     <td className="px-3 py-3">
                       {pendiente.coincideCon ? (
                         <span className="inline-flex rounded-full bg-sky-400/15 px-2 py-1 text-[11px] font-semibold text-sky-700 dark:text-sky-300" title={`Coincide técnicamente con ${pendiente.coincideCon}`}>

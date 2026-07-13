@@ -1,5 +1,5 @@
 import "server-only";
-import { getPool, SCHEMA } from "./db/sqlserver";
+import { getPool, SCHEMA, sql } from "./db/sqlserver";
 import { dbServer } from "./db/server-service";
 import { pedidosRpsDesde, type LineaPedidoRps, type PedidoPendienteRps } from "./rps-clientes";
 import type { PedidoInput } from "./types";
@@ -10,6 +10,7 @@ export interface ResumenPendientesRps {
   totalLineasRps: number;
   totalRegistradas: number;
   totalImportables: number;
+  estadosActualizados: number;
 }
 
 export interface ResultadoImportacionRps {
@@ -19,6 +20,7 @@ export interface ResultadoImportacionRps {
 }
 
 interface LineaLocal {
+  id: string;
   numero: string;
   familia: string;
   tipo: string | null;
@@ -26,6 +28,16 @@ interface LineaLocal {
   ancho: number | null;
   alto: number | null;
   aguas: number | null;
+  estadoPlanteo: "PENDIENTE" | "REALIZADO";
+  estadoManual: boolean;
+  rpsNumeroLinea: number | null;
+  rpsProgreso: number | null;
+}
+
+interface ActualizacionEstadoRps {
+  id: string;
+  numeroLinea: number;
+  progreso: number | null;
 }
 
 const normalizarNumero = (value: string) => value.toLocaleUpperCase("es-ES").replace(/[^A-Z0-9]/g, "");
@@ -51,7 +63,42 @@ function esImportable(linea: PedidoPendienteRps): boolean {
   return linea.ancho !== null && linea.alto !== null;
 }
 
-export async function obtenerPendientesRps(): Promise<ResumenPendientesRps> {
+function estadoDesdeRps(linea: LineaPedidoRps): "PENDIENTE" | "REALIZADO" | null {
+  if (linea.progresoPlanteo === null) return null;
+  return linea.progresoPlanteo >= 100 ? "REALIZADO" : "PENDIENTE";
+}
+
+async function guardarEstadosRps(actualizaciones: ActualizacionEstadoRps[]): Promise<number> {
+  if (actualizaciones.length === 0) return 0;
+  const pool = await getPool();
+  const result = await pool.request()
+    .input("actualizaciones", sql.NVarChar(sql.MAX), JSON.stringify(actualizaciones))
+    .query(`UPDATE p
+      SET rps_numero_linea = j.numeroLinea,
+          rps_planteo_progreso = j.progreso,
+          estado_planteo = CASE
+            WHEN p.estado_planteo_manual = 1 OR j.progreso IS NULL THEN p.estado_planteo
+            WHEN j.progreso >= 100 THEN 'REALIZADO'
+            ELSE 'PENDIENTE'
+          END,
+          updated_at = SYSDATETIMEOFFSET()
+      FROM ${SCHEMA}.pedidos p
+      INNER JOIN OPENJSON(@actualizaciones)
+        WITH (
+          id UNIQUEIDENTIFIER '$.id',
+          numeroLinea INT '$.numeroLinea',
+          progreso DECIMAL(5, 2) '$.progreso'
+        ) j ON j.id = p.id
+      WHERE ISNULL(p.rps_numero_linea, -1) <> ISNULL(j.numeroLinea, -1)
+         OR ISNULL(p.rps_planteo_progreso, -1) <> ISNULL(j.progreso, -1)
+         OR (
+           p.estado_planteo_manual = 0 AND j.progreso IS NOT NULL
+           AND p.estado_planteo <> CASE WHEN j.progreso >= 100 THEN 'REALIZADO' ELSE 'PENDIENTE' END
+         )`);
+  return result.rowsAffected[0] ?? 0;
+}
+
+export async function obtenerPendientesRps(sincronizarEstados = false): Promise<ResumenPendientesRps> {
   const pool = await getPool();
   const inicioResult = await pool.request().query(
     `SELECT TOP 1 UPPER(REPLACE(REPLACE(numero_pedido, '.', ''), ' ', '')) AS numero
@@ -64,8 +111,9 @@ export async function obtenerPendientesRps(): Promise<ResumenPendientesRps> {
   const fechaDesde = anioPedido ? `20${anioPedido}-01-01` : new Date().toISOString().slice(0, 10);
   const [pedidosRps, localesResult] = await Promise.all([
     pedidosRpsDesde(fechaDesde),
-    pool.request().query(`SELECT p.numero_pedido AS numero, f.nombre AS familia, p.tipo,
-        p.largo, p.ancho, p.alto, p.aguas
+    pool.request().query(`SELECT p.id, p.numero_pedido AS numero, f.nombre AS familia, p.tipo,
+        p.largo, p.ancho, p.alto, p.aguas, p.estado_planteo,
+        p.estado_planteo_manual, p.rps_numero_linea, p.rps_planteo_progreso
       FROM ${SCHEMA}.pedidos p
       INNER JOIN ${SCHEMA}.familias f ON f.id = p.familia_id`),
   ]);
@@ -73,6 +121,7 @@ export async function obtenerPendientesRps(): Promise<ResumenPendientesRps> {
   const localesPorPedido = new Map<string, LineaLocal[]>();
   for (const row of localesResult.recordset as Array<Record<string, unknown>>) {
     const local: LineaLocal = {
+      id: String(row.id),
       numero: String(row.numero ?? ""),
       familia: String(row.familia ?? ""),
       tipo: row.tipo === null ? null : String(row.tipo),
@@ -80,14 +129,28 @@ export async function obtenerPendientesRps(): Promise<ResumenPendientesRps> {
       ancho: medida(row.ancho),
       alto: medida(row.alto),
       aguas: medida(row.aguas),
+      estadoPlanteo: row.estado_planteo === "PENDIENTE" ? "PENDIENTE" : "REALIZADO",
+      estadoManual: Boolean(row.estado_planteo_manual),
+      rpsNumeroLinea: medida(row.rps_numero_linea),
+      rpsProgreso: medida(row.rps_planteo_progreso),
     };
     const key = `${normalizarNumero(local.numero)}|${local.familia}`;
     localesPorPedido.set(key, [...(localesPorPedido.get(key) ?? []), local]);
   }
 
   const pendientesBase: PedidoPendienteRps[] = [];
+  const actualizaciones: ActualizacionEstadoRps[] = [];
   let totalLineasRps = 0;
   let totalRegistradas = 0;
+  const relacionar = (linea: LineaPedidoRps, local: LineaLocal) => {
+    const estadoRps = estadoDesdeRps(linea);
+    local.rpsNumeroLinea = linea.numeroLinea;
+    local.rpsProgreso = linea.progresoPlanteo;
+    if (!local.estadoManual && estadoRps) local.estadoPlanteo = estadoRps;
+    if (sincronizarEstados) {
+      actualizaciones.push({ id: local.id, numeroLinea: linea.numeroLinea, progreso: linea.progresoPlanteo });
+    }
+  };
   for (const pedido of pedidosRps) {
     for (const familia of ["REMOLQUES", "PUERTAS"] as const) {
       const lineas = pedido.lineas.filter((linea) => linea.familia === familia);
@@ -96,9 +159,13 @@ export async function obtenerPendientesRps(): Promise<ResumenPendientesRps> {
       const disponibles = [...(localesPorPedido.get(`${normalizarNumero(pedido.numero)}|${familia}`) ?? [])];
       const sinCoincidenciaExacta: LineaPedidoRps[] = [];
       for (const linea of lineas) {
-        const indiceExacto = disponibles.findIndex((local) => puntuacion(linea, local) === 0);
+        const indiceVinculado = disponibles.findIndex((local) => local.rpsNumeroLinea === linea.numeroLinea);
+        const indiceExacto = indiceVinculado >= 0
+          ? indiceVinculado
+          : disponibles.findIndex((local) => puntuacion(linea, local) === 0);
         if (indiceExacto >= 0) {
-          disponibles.splice(indiceExacto, 1);
+          const [local] = disponibles.splice(indiceExacto, 1);
+          relacionar(linea, local);
           totalRegistradas += 1;
         } else {
           sinCoincidenciaExacta.push(linea);
@@ -118,15 +185,18 @@ export async function obtenerPendientesRps(): Promise<ResumenPendientesRps> {
             mejorPuntuacion = actual;
           }
         }
-        disponibles.splice(mejorIndice, 1);
+        const [local] = disponibles.splice(mejorIndice, 1);
+        relacionar(linea, local);
         totalRegistradas += 1;
       }
     }
   }
 
   const todosLocales = [...localesPorPedido.values()].flat();
+  const estadosActualizados = sincronizarEstados ? await guardarEstadosRps(actualizaciones) : 0;
+  const localesRealizados = todosLocales.filter((local) => local.estadoPlanteo === "REALIZADO");
   const pendientes = pendientesBase.map((pendiente) => {
-    const coincidencia = todosLocales.find((local) =>
+    const coincidencia = localesRealizados.find((local) =>
       local.familia === pendiente.familia
       && normalizarNumero(local.numero) !== normalizarNumero(pendiente.numero)
       && puntuacion(pendiente, local) === 0,
@@ -140,11 +210,12 @@ export async function obtenerPendientesRps(): Promise<ResumenPendientesRps> {
     totalLineasRps,
     totalRegistradas,
     totalImportables: pendientes.filter(esImportable).length,
+    estadosActualizados,
   };
 }
 
 export async function importarPendientesRps(): Promise<ResultadoImportacionRps> {
-  const resumen = await obtenerPendientesRps();
+  const resumen = await obtenerPendientesRps(true);
   const importables = resumen.pendientes.filter(esImportable);
   const familias = await dbServer.getFamilias();
   const familiaPorNombre = new Map(familias.map((familia) => [familia.nombre, familia.id]));
@@ -179,6 +250,10 @@ export async function importarPendientesRps(): Promise<ResultadoImportacionRps> 
         fecha: linea.fecha,
         tecnico_id: null,
         observaciones: linea.detalle || linea.descripcion || null,
+        estado_planteo: linea.estadoPlanteo === "REALIZADO" ? "REALIZADO" : "PENDIENTE",
+        estado_planteo_manual: false,
+        rps_numero_linea: linea.numeroLinea,
+        rps_planteo_progreso: linea.progresoPlanteo,
       } as PedidoInput;
       await dbServer.createPedido(pedido);
       importados += 1;
