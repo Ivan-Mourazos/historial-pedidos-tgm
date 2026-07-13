@@ -108,6 +108,13 @@ function MedidaSelect({
       </Field>
     );
   }
+  // El valor elegido debe seguir visible aunque los demás filtros dejen una
+  // combinación sin resultados.
+  const valorActual = parseMedida(value);
+  const opciones = uniqueNums([
+    ...disponibles,
+    ...(valorActual !== null ? [valorActual] : []),
+  ]);
   return (
     <Field label={label} hint={hint}>
       <SelectControl
@@ -116,7 +123,7 @@ function MedidaSelect({
         placeholder="—"
         options={[
           { value: "", label: "—" },
-          ...disponibles.map((v) => {
+          ...opciones.map((v) => {
             const fmt = formatMedida(v) || String(v);
             return { value: fmt, label: fmt };
           }),
@@ -166,22 +173,31 @@ export function CamposTecnicosFamilia({
       ...pedidosFamilia.map((p) => p.tipo).filter((t): t is string => !!t),
     ]);
 
-    const filtTipo = valores.tipo.trim()
-      ? pedidosFamilia.filter(
-          (p) => claveTipoRemolque(p.tipo) === claveTipoRemolque(valores.tipo),
-        )
-      : pedidosFamilia;
-    const largosDisp = uniqueNums(filtTipo.map((p) => p.largo));
+    const aguasN = valores.aguasActivas ? parseMedida(valores.aguas) : null;
+    const radioN = parseMedida(valores.radio);
+    type CampoRemolque = "tipo" | "largo" | "ancho" | "alto" | "aguas" | "radio";
+    const compatiblesExcepto = (excepto: CampoRemolque) => pedidosFamilia.filter((p) => {
+      if (excepto !== "tipo" && valores.tipo.trim() && claveTipoRemolque(p.tipo) !== claveTipoRemolque(valores.tipo)) return false;
+      if (excepto !== "largo" && largoN !== null && !eq(p.largo, largoN)) return false;
+      if (excepto !== "ancho" && anchoN !== null && !eq(p.ancho, anchoN)) return false;
+      if (excepto !== "alto" && altoN !== null && !eq(p.alto, altoN)) return false;
+      if (excepto !== "aguas" && aguasN !== null && !eq(p.aguas, aguasN)) return false;
+      if (excepto !== "radio" && radioN !== null && !eq(p.radio, radioN)) return false;
+      return true;
+    });
 
-    const filt1      = largoN !== null ? filtTipo.filter((p) => eq(p.largo, largoN)) : filtTipo;
-    const anchosDisp = uniqueNums(filt1.map((p) => p.ancho));
-
-    const filt2     = anchoN !== null ? filt1.filter((p) => eq(p.ancho, anchoN)) : filt1;
-    const altosDisp = uniqueNums(filt2.map((p) => p.alto));
-
-    const filt3      = altoN !== null ? filt2.filter((p) => eq(p.alto, altoN)) : filt2;
-    const aguasDisp  = uniqueNums(filt3.filter((p) => p.aguas !== null).map((p) => p.aguas));
-    const radiosDisp = uniqueNums(filt3.filter((p) => p.radio !== null).map((p) => p.radio));
+    const largosDisp = uniqueNums(compatiblesExcepto("largo").map((p) => p.largo));
+    const anchosDisp = uniqueNums(compatiblesExcepto("ancho").map((p) => p.ancho));
+    const altosDisp = uniqueNums(compatiblesExcepto("alto").map((p) => p.alto));
+    const aguasDisp = uniqueNums(compatiblesExcepto("aguas").map((p) => p.aguas));
+    const radiosDisp = uniqueNums(compatiblesExcepto("radio").map((p) => p.radio));
+    const hayMedidaSeleccionada = largoN !== null || anchoN !== null || altoN !== null || aguasN !== null || radioN !== null;
+    const tiposParaMostrar = !freeInput && hayMedidaSeleccionada
+      ? tiposRemolqueDisponibles([
+          ...compatiblesExcepto("tipo").map((p) => p.tipo),
+          valores.tipo,
+        ])
+      : tiposDisp;
 
     const fields = (
       <>
@@ -196,7 +212,7 @@ export function CamposTecnicosFamilia({
                   placeholder="— Tipo —"
                   options={[
                     { value: "", label: "— Tipo —" },
-                    ...tiposDisp.map((t) => ({ value: t, label: t })),
+                    ...tiposParaMostrar.map((t) => ({ value: t, label: t })),
                   ]}
                 />
                 <Button variant="secondary" onClick={onNuevoTipo}>+</Button>
@@ -208,7 +224,7 @@ export function CamposTecnicosFamilia({
                 placeholder={freeInput ? "— Tipo —" : "— Todos —"}
                 options={[
                   { value: "", label: freeInput ? "— Tipo —" : "— Todos —" },
-                  ...tiposDisp.map((t) => ({ value: t, label: t })),
+                  ...tiposParaMostrar.map((t) => ({ value: t, label: t })),
                 ]}
               />
             )}
@@ -283,12 +299,23 @@ export function CamposTecnicosFamilia({
   }
 
   if (familiaNombre === FAMILIA_PUERTAS) {
-    const filt1      = valores.tipo ? pedidosFamilia.filter((p) => normStr(p.tipo) === normStr(valores.tipo)) : pedidosFamilia;
-    const anchosDisp = uniqueNums(filt1.map((p) => p.ancho));
-
     const anchoN    = parseMedida(valores.ancho);
-    const filt2     = anchoN !== null ? filt1.filter((p) => eq(p.ancho, anchoN)) : filt1;
-    const altosDisp = uniqueNums(filt2.map((p) => p.alto));
+    const altoN = parseMedida(valores.alto);
+    const coincideTipo = (p: Pedido) => !valores.tipo || normStr(p.tipo) === normStr(valores.tipo);
+    const anchosDisp = uniqueNums(pedidosFamilia
+      .filter((p) => coincideTipo(p) && (altoN === null || eq(p.alto, altoN)))
+      .map((p) => p.ancho));
+    const altosDisp = uniqueNums(pedidosFamilia
+      .filter((p) => coincideTipo(p) && (anchoN === null || eq(p.ancho, anchoN)))
+      .map((p) => p.alto));
+    const tiposPuertaFiltrados = !freeInput && (anchoN !== null || altoN !== null)
+      ? tiposPuerta.filter((tipo) =>
+          normStr(tipo.nombre) === normStr(valores.tipo) ||
+          pedidosFamilia.some((p) =>
+            normStr(p.tipo) === normStr(tipo.nombre) &&
+            (anchoN === null || eq(p.ancho, anchoN)) &&
+            (altoN === null || eq(p.alto, altoN))))
+      : tiposPuerta;
 
     const fields = (
       <>
@@ -303,7 +330,7 @@ export function CamposTecnicosFamilia({
                   placeholder="— Tipo —"
                   options={[
                     { value: "", label: "— Tipo —" },
-                    ...tiposPuerta.map((t) => ({ value: t.nombre, label: t.nombre })),
+                    ...tiposPuertaFiltrados.map((t) => ({ value: t.nombre, label: t.nombre })),
                   ]}
                 />
                 <Button variant="secondary" onClick={onNuevoTipo}>+</Button>
@@ -315,7 +342,7 @@ export function CamposTecnicosFamilia({
                 placeholder="— Tipo —"
                 options={[
                   { value: "", label: "— Tipo —" },
-                  ...tiposPuerta.map((t) => ({ value: t.nombre, label: t.nombre })),
+                  ...tiposPuertaFiltrados.map((t) => ({ value: t.nombre, label: t.nombre })),
                 ]}
               />
             )}

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   CamposTecnicosFamilia,
   camposTecnicosVacios,
@@ -39,18 +39,37 @@ import {
 import type { Pedido } from "@/lib/types";
 import { useCatalogos } from "@/lib/useCatalogos";
 
-export default function NuevoPedidoPage() {
+function NuevoPedidoPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const cat = useCatalogos();
+  const catalogosCargando = cat.cargando;
+  const familiasCatalogo = cat.familias;
+  const recargarClientes = cat.recargarClientes;
 
-  const [numero, setNumero] = useState("");
-  const [familiaId, setFamiliaId] = useState("");
-  const [clienteId, setClienteId] = useState<string | null>(null);
+  const valoresIniciales = (): CamposTecnicosValores => ({
+    ...camposTecnicosVacios,
+    tipo: searchParams.get("tipo") ?? "",
+    largo: searchParams.get("largo") ?? "",
+    ancho: searchParams.get("ancho") ?? "",
+    alto: searchParams.get("alto") ?? "",
+    aguas: searchParams.get("aguas") ?? "",
+    aguasActivas: searchParams.has("aguas"),
+    radio: searchParams.get("radio") ?? "",
+    recogidaDelante: searchParams.get("recogeDelante") ?? "",
+    recogidaAtras: searchParams.get("recogeAtras") ?? "",
+    extra: Object.fromEntries(
+      [...searchParams.entries()].filter(([key]) => key.startsWith("campo_")).map(([key, value]) => [key.slice(6), value]),
+    ),
+  });
+
+  const [numero, setNumero] = useState(() => normalizarNumeroPedido(searchParams.get("pedido") ?? ""));
+  const [familiaId, setFamiliaId] = useState(() => searchParams.get("familia") ?? "");
+  const [clienteId, setClienteId] = useState<string | null>(() => searchParams.get("cliente"));
   const [fecha, setFecha] = useState(todayInputValue);
   const [tecnicoId, setTecnicoId] = useState("");
   const [observaciones, setObservaciones] = useState("");
-  const [valores, setValores] =
-    useState<CamposTecnicosValores>(camposTecnicosVacios);
+  const [valores, setValores] = useState<CamposTecnicosValores>(valoresIniciales);
 
   const [pedidosCliente, setPedidosCliente] = useState<Pedido[]>([]);
   const [guardando, setGuardando] = useState(false);
@@ -60,20 +79,24 @@ export default function NuevoPedidoPage() {
   const [confirmarDuplicado, setConfirmarDuplicado] = useState(false);
   const [confirmarNumero, setConfirmarNumero] = useState(false);
   const [avisoNumero, setAvisoNumero] = useState<string | null>(null);
+  const [avisoRps, setAvisoRps] = useState<string | null>(null);
+  const [pedidoRps, setPedidoRps] = useState<{
+    numero: string;
+    fecha: string | null;
+    lineas: Array<{
+      numeroLinea: number; familia: string; tipo: string; largo: number | null; ancho: number | null;
+      alto: number | null; aguas: number | null; altoBase: number | null; altoExtra: number | null; descripcion: string;
+      detalle: string; requiereRevision: boolean;
+    }>;
+  } | null>(null);
+  const importacionInicialRps = useRef(false);
 
   const familia = cat.familias.find((f) => f.id === familiaId);
   const familiaNombre = familia?.nombre ?? "";
   const familiasOrdenadas = useMemo(() => ordenarFamilias(cat.familias), [cat.familias]);
-  const [clienteIdsDeFamilia, setClienteIdsDeFamilia] = useState<string[] | null>(null);
-  const clientesDeFamilia = useMemo(
-    () =>
-      clienteIdsDeFamilia === null
-        ? []
-        : cat.clientes.filter(
-            (c) => clienteIdsDeFamilia.includes(c.id) || c.id === clienteId,
-          ),
-    [cat.clientes, clienteId, clienteIdsDeFamilia],
-  );
+  // En el alta deben aparecer todos los clientes activos, aunque todavía no
+  // tengan pedidos en la familia seleccionada.
+  const clientesDisponibles = cat.clientes;
 
   function cambiarFamilia(nextFamilyId: string) {
     setFamiliaId(nextFamilyId);
@@ -82,7 +105,6 @@ export default function NuevoPedidoPage() {
     setConfirmarNumero(false);
     setAvisoNumero(null);
     setClienteId(null);
-    setClienteIdsDeFamilia(null);
     setPedidosCliente([]);
   }
 
@@ -90,18 +112,6 @@ export default function NuevoPedidoPage() {
     setClienteId(nextClientId);
     setPedidosCliente([]);
   }
-
-  useEffect(() => {
-    if (!familiaId) return;
-    let activo = true;
-    dbService
-      .getClienteIdsDeFamilia(familiaId)
-      .then((ids) => activo && setClienteIdsDeFamilia(ids))
-      .catch(() => activo && setClienteIdsDeFamilia([]));
-    return () => {
-      activo = false;
-    };
-  }, [familiaId]);
 
   // Carga pedidos del cliente+familia para detectar duplicado técnico.
   useEffect(() => {
@@ -133,6 +143,36 @@ export default function NuevoPedidoPage() {
   const formatoNumeroOk =
     numero.trim() === "" || numeroPedidoEncajaFormato(numero);
 
+  const hayCambiosSinGuardar = numero.trim() !== "" || observaciones.trim() !== "" ||
+    Object.entries(valores).some(([key, value]) => key === "extra"
+      ? Object.values(valores.extra).some((extra) => extra !== "" && extra !== false)
+      : typeof value === "boolean" ? value : value !== "");
+
+  useEffect(() => {
+    if (!hayCambiosSinGuardar) return;
+    const avisar = (event: BeforeUnloadEvent) => event.preventDefault();
+    const interceptarEnlaces = (event: MouseEvent) => {
+      const enlace = (event.target as HTMLElement | null)?.closest("a");
+      if (!enlace || enlace.target === "_blank" || enlace.href === window.location.href) return;
+      if (!window.confirm("Hay datos del pedido sin guardar. ¿Quieres salir igualmente?")) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+    window.addEventListener("beforeunload", avisar);
+    document.addEventListener("click", interceptarEnlaces, true);
+    return () => {
+      window.removeEventListener("beforeunload", avisar);
+      document.removeEventListener("click", interceptarEnlaces, true);
+    };
+  }, [hayCambiosSinGuardar]);
+
+  function irAlHistorico() {
+    if (!hayCambiosSinGuardar || window.confirm("Hay datos del pedido sin guardar. ¿Quieres salir igualmente?")) {
+      router.push("/historico");
+    }
+  }
+
   function setCampo(
     campo: keyof CamposTecnicosValores,
     valor: string | boolean | Record<string, string | boolean>,
@@ -152,6 +192,86 @@ export default function NuevoPedidoPage() {
     });
     setConfirmarDuplicado(false);
   }
+
+  async function completarClienteDesdePedido() {
+    const pedido = normalizarNumeroPedido(numero);
+    if (!pedido) return;
+    setAvisoRps("Buscando cliente en RPS…");
+    try {
+      const response = await fetch(`/api/rps/pedido?numero=${encodeURIComponent(pedido)}`);
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? "Error consultando RPS");
+      if (!payload.cliente) {
+        setAvisoRps("RPS no encontró ese número de pedido.");
+        setPedidoRps(null);
+        return;
+      }
+      const local = await dbService.getOrCreateClienteRps(payload.cliente.codigo, payload.cliente.nombre, payload.cliente.alias);
+      await cat.recargarClientes();
+      setClienteId(local.id);
+      setPedidoRps(payload.pedido ?? null);
+      setAvisoRps([payload.cliente.codigo, payload.cliente.alias, payload.cliente.nombre].filter(Boolean).join(" · "));
+    } catch (e) {
+      setAvisoRps(e instanceof Error ? e.message : "No se pudo consultar RPS");
+    }
+  }
+
+  function aplicarLineaRps(linea: NonNullable<typeof pedidoRps>["lineas"][number]) {
+    const familiaDestino = cat.familias.find((familia) => familia.nombre === linea.familia);
+    if (familiaDestino) setFamiliaId(familiaDestino.id);
+    setValores({
+      ...camposTecnicosVacios,
+      tipo: linea.tipo,
+      largo: linea.largo === null ? "" : String(linea.largo).replace(".", ","),
+      ancho: linea.ancho === null ? "" : String(linea.ancho).replace(".", ","),
+      alto: linea.alto === null ? "" : String(linea.alto).replace(".", ","),
+      aguas: linea.aguas === null ? "" : String(linea.aguas).replace(".", ","),
+      aguasActivas: linea.aguas !== null,
+    });
+    if (pedidoRps?.fecha) setFecha(pedidoRps.fecha);
+    if (linea.detalle) setObservaciones(linea.detalle);
+    setConfirmarDuplicado(false);
+  }
+
+  useEffect(() => {
+    const pedidoInicial = searchParams.get("pedido");
+    const lineaInicial = Number(searchParams.get("linea"));
+    if (!pedidoInicial || !Number.isFinite(lineaInicial) || catalogosCargando || importacionInicialRps.current) return;
+    importacionInicialRps.current = true;
+    let activo = true;
+    setAvisoRps("Cargando la línea seleccionada desde RPS…");
+    void (async () => {
+      try {
+        const response = await fetch(`/api/rps/pedido?numero=${encodeURIComponent(pedidoInicial)}`);
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error ?? "Error consultando RPS");
+        const linea = payload.pedido?.lineas?.find((item: { numeroLinea: number }) => item.numeroLinea === lineaInicial);
+        if (!payload.cliente || !linea) throw new Error("RPS ya no encuentra la línea seleccionada.");
+        const local = await dbService.getOrCreateClienteRps(payload.cliente.codigo, payload.cliente.nombre, payload.cliente.alias);
+        await recargarClientes();
+        if (!activo) return;
+        const familiaDestino = familiasCatalogo.find((familia) => familia.nombre === linea.familia);
+        setClienteId(local.id);
+        setPedidoRps(payload.pedido);
+        setAvisoRps([payload.cliente.codigo, payload.cliente.alias, payload.cliente.nombre].filter(Boolean).join(" · "));
+        if (familiaDestino) setFamiliaId(familiaDestino.id);
+        setValores({
+          ...camposTecnicosVacios,
+          tipo: linea.tipo,
+          largo: linea.largo === null ? "" : String(linea.largo).replace(".", ","),
+          ancho: linea.ancho === null ? "" : String(linea.ancho).replace(".", ","),
+          alto: linea.alto === null ? "" : String(linea.alto).replace(".", ","),
+          aguas: linea.aguas === null ? "" : String(linea.aguas).replace(".", ","),
+          aguasActivas: linea.aguas !== null,
+        });
+        if (payload.pedido.fecha) setFecha(payload.pedido.fecha);
+        if (linea.detalle) setObservaciones(linea.detalle);
+      } catch (cause) {
+        if (activo) setAvisoRps(cause instanceof Error ? cause.message : "No se pudo consultar RPS");
+      }
+    })();
+    return () => { activo = false; };
+  }, [catalogosCargando, familiasCatalogo, recargarClientes, searchParams]);
 
   const puedeGuardar =
     numero.trim() !== "" &&
@@ -227,7 +347,7 @@ export default function NuevoPedidoPage() {
         title="Nuevo pedido"
         subtitle="Registra un pedido realizado. Se avisa si ya existe uno igual."
         actions={
-          <Button variant="secondary" onClick={() => router.push("/historico")}>
+          <Button variant="secondary" onClick={irAlHistorico}>
             Ver histórico
           </Button>
         }
@@ -280,18 +400,51 @@ export default function NuevoPedidoPage() {
                     setNumero(e.target.value.toUpperCase());
                     setConfirmarNumero(false);
                     setAvisoNumero(null);
+                    setAvisoRps(null);
+                    setPedidoRps(null);
                   }}
+                  onBlur={completarClienteDesdePedido}
                   placeholder="AR2600000"
                 />
               </Field>
               <ClienteSelect
-                clientes={clientesDeFamilia}
+                clientes={clientesDisponibles}
                 value={clienteId}
                 onChange={cambiarCliente}
                 onClienteCreado={() => cat.recargarClientes()}
               />
+              {avisoRps && <p className="mt-1 text-xs text-app-muted">{avisoRps}</p>}
             </div>
           </section>
+
+          {pedidoRps && pedidoRps.lineas.length > 0 && (
+            <section className="border-t border-[var(--border)] pt-4">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wider text-app-muted">Datos encontrados en RPS</p>
+                <span className="text-xs text-app-muted">{pedidoRps.numero}</span>
+              </div>
+              <div className="grid gap-2 lg:grid-cols-2">
+                {pedidoRps.lineas.map((linea) => (
+                  <div key={linea.numeroLinea} className="rounded-xl border border-[var(--border)] bg-surface-2/55 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-semibold text-app-text">Línea {linea.numeroLinea} · {linea.tipo}</span>
+                          {linea.requiereRevision && <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-700 dark:text-amber-300">Revisar</span>}
+                        </div>
+                        <p className="mt-1 font-mono text-sm font-semibold text-brand">
+                          {[linea.largo, linea.ancho, linea.alto].filter((value) => value !== null).join(" × ")} cm
+                          {linea.aguas !== null && <span className="ml-2 font-sans text-xs font-normal text-app-muted">(alto base {linea.altoBase} + aguas {linea.aguas})</span>}
+                        </p>
+                      </div>
+                      <Button variant="secondary" onClick={() => aplicarLineaRps(linea)}>Usar datos</Button>
+                    </div>
+                    <p className="mt-2 line-clamp-3 text-xs leading-5 text-app-muted" title={linea.detalle}>{linea.detalle || linea.descripcion}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {familiaNombre && (
             <section className="border-t border-[var(--border)] pt-4">
@@ -375,5 +528,13 @@ export default function NuevoPedidoPage() {
         </Button>
       </div>}
     </div>
+  );
+}
+
+export default function NuevoPedidoPage() {
+  return (
+    <Suspense fallback={<div className="py-12 text-center text-sm text-app-muted">Cargando formulario…</div>}>
+      <NuevoPedidoPageContent />
+    </Suspense>
   );
 }

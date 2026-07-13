@@ -8,6 +8,7 @@ import { AbrirZwcadButton } from "@/components/AbrirZwcadButton";
 import { EditarPedidoModal } from "@/components/EditarPedidoModal";
 import {
   PageTitle,
+  SelectControl,
   inputClass,
   modalOverlayClass,
   modalPanelClass,
@@ -15,6 +16,7 @@ import {
 import { formatFecha, formatMedida } from "@/lib/display";
 import { familiaPuedeTenerExcel, getFamiliaDefinition } from "@/lib/familias";
 import { tipoRemolqueCanonico } from "@/lib/tipos-remolque";
+import { TIPOS_RECOGIDA_REMOLQUE } from "@/lib/recogida-remolque";
 import type {
   Familia,
   PedidoConRelaciones,
@@ -111,6 +113,9 @@ export function HistoricoClient({
   const [isPending, startTransition] = useTransition();
   const [editando, setEditando] = useState<PedidoConRelaciones | null>(null);
   const [verComentario, setVerComentario] = useState<PedidoConRelaciones | null>(null);
+  const [mostrarFiltros, setMostrarFiltros] = useState(
+    () => searchParams.has("tipo") || searchParams.has("recogida") || searchParams.has("desde") || searchParams.has("hasta"),
+  );
   const definition = getFamiliaDefinition(selectedFamilyName);
   const isDoors = definition.variante === "puertas";
   const isTrailers = definition.variante === "remolques";
@@ -198,7 +203,49 @@ export function HistoricoClient({
             }, 250);
           }}
         />
+        <button
+          type="button"
+          aria-expanded={mostrarFiltros}
+          onClick={() => setMostrarFiltros((actual) => !actual)}
+          className="inline-flex h-9 items-center rounded-xl border border-[var(--border)] bg-surface px-3 text-sm font-medium text-app-text transition-colors hover:bg-surface-2"
+        >
+          Filtros
+          {["tipo", "recogida", "desde", "hasta"].some((key) => searchParams.has(key)) && (
+            <span className="ml-2 h-2 w-2 rounded-full bg-brand" aria-label="Filtros activos" />
+          )}
+        </button>
       </div>
+
+      {mostrarFiltros && (
+        <div className="mb-4 grid grid-cols-4 gap-3 rounded-xl border border-[var(--border)] bg-surface/70 p-3">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-app-muted">Tipo</label>
+            <SelectControl
+              value={searchParams.get("tipo") ?? ""}
+              onChange={(value) => navigate({ tipo: value || null, page: null })}
+              options={[
+                { value: "", label: "Todos" },
+                ...(isTrailers ? tiposRemolque : tiposPuerta).map((tipo) => ({ value: tipo.nombre, label: tipo.nombre })),
+              ]}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-app-muted">Recogida</label>
+            <SelectControl
+              disabled={!isTrailers}
+              value={searchParams.get("recogida") ?? ""}
+              onChange={(value) => navigate({ recogida: value || null, page: null })}
+              options={[{ value: "", label: "Todas" }, ...TIPOS_RECOGIDA_REMOLQUE.map((value) => ({ value, label: value }))]}
+            />
+          </div>
+          <label className="text-xs font-medium text-app-muted">Desde
+            <input type="date" className={`${inputClass} mt-1`} value={searchParams.get("desde") ?? ""} onChange={(event) => navigate({ desde: event.target.value || null, page: null })} />
+          </label>
+          <label className="text-xs font-medium text-app-muted">Hasta
+            <input type="date" className={`${inputClass} mt-1`} value={searchParams.get("hasta") ?? ""} onChange={(event) => navigate({ hasta: event.target.value || null, page: null })} />
+          </label>
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-[18px] border border-white/10 bg-surface/80 shadow-sm ring-1 ring-black/5 backdrop-blur-xl dark:bg-slate-950/50 dark:ring-white/10">
         {pedidosPage.items.length === 0 ? (

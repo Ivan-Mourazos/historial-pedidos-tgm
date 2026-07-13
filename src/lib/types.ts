@@ -2,6 +2,7 @@ export interface Cliente {
   id: string;
   nombre: string;
   nombre_normalizado: string;
+  codigo_cliente: string | null;
   activo: boolean;
   created_at: string;
   updated_at: string;
@@ -91,6 +92,10 @@ export interface PedidoPageQuery {
   page?: number;
   pageSize?: number;
   search?: string;
+  tipo?: string;
+  recogida?: string;
+  fechaDesde?: string;
+  fechaHasta?: string;
   sortBy?: PedidoOrdenCampo;
   sortDirection?: "asc" | "desc";
 }

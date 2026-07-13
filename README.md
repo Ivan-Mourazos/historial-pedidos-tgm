@@ -128,6 +128,9 @@ del histórico paginado. Los pedidos actuales no se modifican.
 Para almacenar la recogida delantera y trasera de las lonas de remolque, aplica además
 [`db/migration-2026-07-10-recogida-remolques.sql`](db/migration-2026-07-10-recogida-remolques.sql).
 
+Para vincular los clientes con su código de RPS, aplica con una cuenta con permisos DDL
+[`db/migration-2026-07-12-codigo-cliente-rps.sql`](db/migration-2026-07-12-codigo-cliente-rps.sql).
+
 ## Reglas de negocio clave
 
 - **Coincidencia exacta REMOLQUES:** cliente + largo + ancho + altura + aguas + radio

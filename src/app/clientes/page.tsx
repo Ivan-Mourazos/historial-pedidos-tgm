@@ -59,9 +59,10 @@ export default function ClientesPage() {
       .finally(() => setCargando(false));
   }, []);
 
-  const clientesFiltrados = clientes.filter((c) =>
-    c.nombre.toLowerCase().includes(busqueda.toLowerCase().trim()),
-  );
+  const clientesFiltrados = clientes.filter((c) => {
+    const query = busqueda.toLowerCase().trim();
+    return c.nombre.toLowerCase().includes(query) || (c.codigo_cliente ?? "").toLowerCase().includes(query);
+  });
 
   function toggle(id: string) {
     setClientes((prev) =>
@@ -81,7 +82,7 @@ export default function ClientesPage() {
       <div className="mb-4">
         <input
           className={`${inputClass} max-w-xs`}
-          placeholder="Buscar cliente…"
+          placeholder="Buscar por código o nombre…"
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
         />
@@ -104,6 +105,7 @@ export default function ClientesPage() {
               >
                 <div className="flex items-center gap-2.5">
                   <span className="font-medium text-app-text">{c.nombre}</span>
+                  {c.codigo_cliente && <span className="font-mono text-xs font-semibold text-brand">{c.codigo_cliente}</span>}
                   {!c.activo && (
                     <span className="rounded-full border border-[var(--border-strong)] px-2 py-0.5 text-xs text-app-muted">
                       Inactivo

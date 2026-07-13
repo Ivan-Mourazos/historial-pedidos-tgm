@@ -233,7 +233,7 @@ export function buscarConCriteriosParciales(
 
   if (!hayCriterio) return [];
 
-  return pedidos.filter((p) => {
+  const encontrados = pedidos.filter((p) => {
     if (c.clienteId && p.cliente_id !== c.clienteId) return false;
 
     if (c.familiaNombre === FAMILIA_REMOLQUES) {
@@ -267,6 +267,43 @@ export function buscarConCriteriosParciales(
     }
 
     return true;
+  });
+
+  // Orden estable y útil: primero coincidencias exactas, después las que
+  // acumulan menor desviación respecto a las medidas buscadas y, a igualdad,
+  // los pedidos más recientes.
+  const distancia = (pedido: Pedido): number => {
+    const pares: Array<[number | null, number | null]> = c.familiaNombre === FAMILIA_REMOLQUES
+      ? [
+          [pedido.largo, c.largo],
+          [pedido.ancho, c.ancho],
+          [pedido.alto, c.alto],
+          [pedido.aguas, c.aguas],
+          [pedido.radio, c.radio],
+        ]
+      : c.familiaNombre === FAMILIA_PUERTAS
+        ? [[pedido.ancho, c.ancho], [pedido.alto, c.alto]]
+        : [];
+    return pares.reduce((total, [actual, esperado]) => {
+      if (esperado === null) return total;
+      if (actual === null) return total + 1000;
+      return total + Math.abs(actual - esperado);
+    }, 0);
+  };
+  const fechaOrden = (pedido: Pedido): number => {
+    const valor = pedido.fecha ? `${pedido.fecha}T00:00:00Z` : pedido.created_at;
+    const timestamp = Date.parse(valor);
+    return Number.isNaN(timestamp) ? 0 : timestamp;
+  };
+
+  return encontrados.sort((a, b) => {
+    const diferencias = calcularDiferencias(a, c).length - calcularDiferencias(b, c).length;
+    if (diferencias !== 0) return diferencias;
+    const desviacion = distancia(a) - distancia(b);
+    if (desviacion !== 0) return desviacion;
+    const fecha = fechaOrden(b) - fechaOrden(a);
+    if (fecha !== 0) return fecha;
+    return b.numero_pedido.localeCompare(a.numero_pedido, "es", { numeric: true });
   });
 }
 

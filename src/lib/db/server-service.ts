@@ -21,6 +21,22 @@ import type {
 
 const TIPOS_REMOLQUE_BASE = ["Baquetón", "Ganado", "Lona alta"];
 
+function claveClienteRps(nombre: string): string {
+  return normalizarNombre(nombre)
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\b(s l u|s l n e|s l|s a|sociedad limitada|sociedad anonima)\b/g, "")
+    .replace(/\s+/g, "")
+    .trim();
+}
+
+function nombreVisibleClienteRps(nombre: string, alias?: string | null): string {
+  const fiscal = nombre.trim();
+  const comercial = alias?.trim();
+  if (!comercial || claveClienteRps(comercial) === claveClienteRps(fiscal)) return fiscal;
+  return `${comercial} · ${fiscal}`;
+}
+
 function tiposRemolqueFallback(): TipoRemolque[] {
   const now = new Date().toISOString();
   return TIPOS_REMOLQUE_BASE.map((nombre) => ({
@@ -155,6 +171,61 @@ export const dbServer = {
     return (res.recordset[0] as Cliente) ?? null;
   },
 
+  async getOrCreateClienteRps(codigo: string, nombre: string, alias?: string | null): Promise<Cliente> {
+    const pool = await getPool();
+    const code = codigo.trim();
+    const nombreVisible = nombreVisibleClienteRps(nombre, alias);
+    const norm = normalizarNombre(nombreVisible);
+    const normFiscal = normalizarNombre(nombre);
+    const clientesLocales = await this.getClientes(false);
+    const claveRps = claveClienteRps(nombre);
+    const coincidenciaExacta = clientesLocales.find((cliente) =>
+      cliente.nombre_normalizado === norm || cliente.nombre_normalizado === normFiscal,
+    );
+    const coincidenciasFlexibles = clientesLocales.filter((cliente) => {
+      const claveLocal = claveClienteRps(cliente.nombre);
+      return claveLocal === claveRps || claveLocal.endsWith(claveRps);
+    });
+    const coincidenciaFlexible = coincidenciasFlexibles.length === 1 ? coincidenciasFlexibles[0] : null;
+    const schemaDisponible = await pool.request().query(
+      `SELECT COL_LENGTH('${SCHEMA}.clientes', 'codigo_cliente') AS longitud`,
+    );
+    // Compatibilidad mientras la migración no haya sido ejecutada por una
+    // cuenta con permisos DDL: la vinculación por nombre sigue funcionando.
+    if (schemaDisponible.recordset[0]?.longitud == null) {
+      const cliente = coincidenciaExacta ?? coincidenciaFlexible;
+      if (cliente) {
+        return cliente.nombre === nombreVisible ? cliente : this.updateCliente(cliente.id, nombreVisible, true);
+      }
+      return this.getOrCreateCliente(nombreVisible);
+    }
+    const existente = await pool.request()
+      .input("codigo", sql.NVarChar(50), code)
+      .input("norm", sql.NVarChar(255), norm)
+      .query(`SELECT TOP 1 * FROM ${SCHEMA}.clientes
+        WHERE codigo_cliente = @codigo OR nombre_normalizado = @norm
+        ORDER BY CASE WHEN codigo_cliente = @codigo THEN 0 ELSE 1 END`);
+    const cliente = (existente.recordset[0] as Cliente | undefined) ?? coincidenciaExacta ?? coincidenciaFlexible ?? undefined;
+    if (cliente) {
+      const actualizado = await pool.request()
+        .input("id", sql.UniqueIdentifier, cliente.id)
+        .input("codigo", sql.NVarChar(50), code)
+        .input("nombre", sql.NVarChar(255), nombreVisible)
+        .input("norm", sql.NVarChar(255), norm)
+        .query(`UPDATE ${SCHEMA}.clientes SET codigo_cliente = @codigo, nombre = @nombre,
+          nombre_normalizado = @norm, activo = 1, updated_at = SYSDATETIMEOFFSET()
+          OUTPUT INSERTED.* WHERE id = @id`);
+      return actualizado.recordset[0] as Cliente;
+    }
+    const creado = await pool.request()
+      .input("nombre", sql.NVarChar(255), nombreVisible)
+      .input("norm", sql.NVarChar(255), norm)
+      .input("codigo", sql.NVarChar(50), code)
+      .query(`INSERT INTO ${SCHEMA}.clientes (nombre, nombre_normalizado, codigo_cliente, activo)
+        OUTPUT INSERTED.* VALUES (@nombre, @norm, @codigo, 1)`);
+    return creado.recordset[0] as Cliente;
+  },
+
   async createCliente(nombre: string): Promise<Cliente> {
     const pool = await getPool();
     const res = await pool
@@ -174,7 +245,12 @@ export const dbServer = {
     const existente = await this.getClienteByNormalizado(
       normalizarNombre(nombre),
     );
-    if (existente) return existente;
+    if (existente) {
+      if (!existente.activo) {
+        return this.updateCliente(existente.id, existente.nombre, true);
+      }
+      return existente;
+    }
     return this.createCliente(nombre);
   },
 
@@ -198,6 +274,17 @@ export const dbServer = {
          WHERE id = @id`,
       );
     return res.recordset[0] as Cliente;
+  },
+
+  async deleteClienteSiSinPedidos(id: string): Promise<boolean> {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input("id", sql.UniqueIdentifier, id)
+      .query(`DELETE FROM ${SCHEMA}.clientes
+        OUTPUT DELETED.id
+        WHERE id = @id
+          AND NOT EXISTS (SELECT 1 FROM ${SCHEMA}.pedidos WHERE cliente_id = @id)`);
+    return result.rowsAffected[0] > 0;
   },
 
   // ----------------------------- TECNICOS -----------------------------
@@ -335,6 +422,10 @@ export const dbServer = {
 
     if (query.familiaId) filters.push("p.familia_id = @familiaId");
     else if (query.familiaNombre) filters.push("f.nombre = @familiaNombre");
+    if (query.tipo) filters.push("LOWER(p.tipo) = LOWER(@tipo)");
+    if (query.recogida) filters.push("(@recogida = p.recogida_delante OR @recogida = p.recogida_atras)");
+    if (query.fechaDesde) filters.push("p.fecha >= CONVERT(DATE, @fechaDesde, 23)");
+    if (query.fechaHasta) filters.push("p.fecha <= CONVERT(DATE, @fechaHasta, 23)");
 
     const search = query.search?.trim();
     if (search) {
@@ -352,6 +443,10 @@ export const dbServer = {
       if (query.familiaId) request.input("familiaId", sql.UniqueIdentifier, query.familiaId);
       else if (query.familiaNombre) request.input("familiaNombre", sql.NVarChar(100), query.familiaNombre);
       if (search) request.input("search", sql.NVarChar(400), `%${search.toLocaleLowerCase("es-ES")}%`);
+      if (query.tipo) request.input("tipo", sql.NVarChar(100), query.tipo);
+      if (query.recogida) request.input("recogida", sql.NVarChar(100), query.recogida);
+      if (query.fechaDesde) request.input("fechaDesde", sql.NVarChar(10), query.fechaDesde);
+      if (query.fechaHasta) request.input("fechaHasta", sql.NVarChar(10), query.fechaHasta);
       return request;
     };
 

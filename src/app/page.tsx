@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   CamposTecnicosFamilia,
   camposTecnicosVacios,
@@ -60,12 +61,43 @@ function Th({ children, className = "" }: { children?: React.ReactNode; classNam
   );
 }
 
-export default function BuscadorPage() {
-  const cat = useCatalogos();
+function CoincidenciaBadge({ exacta, diferencias }: { exacta: boolean; diferencias: number }) {
+  if (exacta) {
+    return <span className="rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-300">Exacto</span>;
+  }
+  if (diferencias === 0) {
+    return <span className="rounded-md bg-sky-500/12 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sky-700 dark:text-sky-300">Coincide</span>;
+  }
+  return <span className="rounded-md bg-amber-500/12 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-300">±1 cm</span>;
+}
 
-  const [familiaId, setFamiliaId]             = useState<string>("");
-  const [clienteId, setClienteId]             = useState<string | null>(null);
-  const [valores, setValores]                 = useState<CamposTecnicosValores>(camposTecnicosVacios);
+function valoresDesdeUrl(params: URLSearchParams): CamposTecnicosValores {
+  const extra = Object.fromEntries(
+    [...params.entries()].filter(([key]) => key.startsWith("campo_")).map(([key, value]) => [key.slice(6), value]),
+  );
+  return {
+    ...camposTecnicosVacios,
+    tipo: params.get("tipo") ?? "",
+    largo: params.get("largo") ?? "",
+    ancho: params.get("ancho") ?? "",
+    alto: params.get("alto") ?? "",
+    aguas: params.get("aguas") ?? "",
+    aguasActivas: params.has("aguas"),
+    radio: params.get("radio") ?? "",
+    recogidaDelante: params.get("recogeDelante") ?? "",
+    recogidaAtras: params.get("recogeAtras") ?? "",
+    extra,
+  };
+}
+
+function BuscadorPageContent() {
+  const cat = useCatalogos();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const [familiaId, setFamiliaId]             = useState<string>(() => searchParams.get("familia") ?? "");
+  const [clienteId, setClienteId]             = useState<string | null>(() => searchParams.get("cliente"));
+  const [valores, setValores]                 = useState<CamposTecnicosValores>(() => valoresDesdeUrl(new URLSearchParams(searchParams.toString())));
   const [pedidosFamilia, setPedidosFamilia]   = useState<PedidoConRelaciones[]>([]);
   const [clienteIdsDeFamilia, setClienteIdsDeFamilia] = useState<string[] | null>(null);
 
@@ -83,6 +115,7 @@ export default function BuscadorPage() {
   const [modalTipoPuerta, setModalTipoPuerta]   = useState(false);
   const [modalTipoRemolque, setModalTipoRemolque] = useState(false);
   const [mostrarRegistro, setMostrarRegistro]   = useState(false);
+  const [limiteResultados, setLimiteResultados] = useState(50);
 
   const familiasOrdenadas = useMemo(
     () => ordenarFamilias(cat.familias),
@@ -136,6 +169,7 @@ export default function BuscadorPage() {
     setConfirmarNumero(false);
     setPedidosFamilia([]);
     setClienteIdsDeFamilia(null);
+    setLimiteResultados(50);
   }
 
   // Criterios sin cliente → búsqueda global en tiempo real
@@ -171,6 +205,24 @@ export default function BuscadorPage() {
       clienteId ? criteriosConCliente : criterios,
     );
   }, [hayAlgunCriterio, pedidosFamilia, criterios, criteriosConCliente, clienteId]);
+  const resultadosVisibles = resultadosLive.slice(0, limiteResultados);
+
+  useEffect(() => {
+    if (!familiasOrdenadas.length) return;
+    const params = new URLSearchParams();
+    params.set("familia", selectedFamiliaId);
+    if (clienteId) params.set("cliente", clienteId);
+    const campos: Array<[string, string]> = [
+      ["tipo", valores.tipo], ["largo", valores.largo], ["ancho", valores.ancho],
+      ["alto", valores.alto], ["radio", valores.radio],
+      ["recogeDelante", valores.recogidaDelante], ["recogeAtras", valores.recogidaAtras],
+    ];
+    if (valores.aguasActivas && valores.aguas) campos.push(["aguas", valores.aguas]);
+    for (const [key, value] of campos) if (value) params.set(key, value);
+    for (const [key, value] of Object.entries(valores.extra)) if (value !== "" && value !== false) params.set(`campo_${key}`, String(value));
+    const query = params.toString();
+    router.replace(query ? `/?${query}` : "/", { scroll: false });
+  }, [clienteId, familiasOrdenadas.length, router, selectedFamiliaId, valores]);
 
   // Coincidencia exacta (requiere cliente + todos los campos obligatorios)
   const exacto = useMemo(() => {
@@ -201,6 +253,7 @@ export default function BuscadorPage() {
       }
       return siguiente;
     });
+    setLimiteResultados(50);
     setMostrarRegistro(false);
   }
 
@@ -211,6 +264,22 @@ export default function BuscadorPage() {
     setErrorMsg(null);
     setConfirmarNumero(false);
     setMostrarRegistro(false);
+    setLimiteResultados(50);
+  }
+
+  function abrirAlta() {
+    const params = new URLSearchParams();
+    params.set("familia", selectedFamiliaId);
+    if (clienteId) params.set("cliente", clienteId);
+    const campos: Array<[string, string]> = [
+      ["tipo", valores.tipo], ["largo", valores.largo], ["ancho", valores.ancho],
+      ["alto", valores.alto], ["radio", valores.radio],
+      ["recogeDelante", valores.recogidaDelante], ["recogeAtras", valores.recogidaAtras],
+    ];
+    if (valores.aguasActivas && valores.aguas) campos.push(["aguas", valores.aguas]);
+    for (const [key, value] of campos) if (value) params.set(key, value);
+    for (const [key, value] of Object.entries(valores.extra)) if (value !== "" && value !== false) params.set(`campo_${key}`, String(value));
+    router.push(`/nuevo?${params.toString()}`);
   }
 
   const hayAlgoDato = !!clienteId || hayAlgunCriterio;
@@ -262,9 +331,20 @@ export default function BuscadorPage() {
 
   return (
     <div>
-      <h1 className="sr-only">Buscar pedidos existentes</h1>
+      <div className="mb-3 flex items-end justify-between gap-6 border-b border-[var(--border)] pb-3">
+        <div>
+          <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.18em] text-brand">Archivo técnico</p>
+          <h1 className="text-xl font-bold tracking-tight text-app-text">Buscar pedidos</h1>
+          <p className="mt-1 text-sm text-app-muted">Selecciona cualquier dato; las demás opciones se adaptan automáticamente.</p>
+        </div>
+        {hayAlgoDato && (
+          <button type="button" onClick={limpiarBusqueda} className="rounded-lg px-3 py-2 text-sm font-medium text-app-muted transition-colors hover:bg-surface-2 hover:text-app-text">
+            Limpiar búsqueda
+          </button>
+        )}
+      </div>
       {/* ── Barra de familia + acciones ── */}
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="mb-3 flex flex-wrap items-center gap-3">
         <div
           className="flex rounded-full border border-white/10 bg-surface/75 p-0.5 shadow-sm ring-1 ring-black/5 backdrop-blur-xl dark:ring-white/10"
           style={{ boxShadow: "var(--shadow-sm)" }}
@@ -286,18 +366,6 @@ export default function BuscadorPage() {
           ))}
         </div>
 
-        {hayAlgoDato && (
-          <button
-            onClick={limpiarBusqueda}
-            className="flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-sm text-app-muted transition-colors hover:bg-surface-2/80 hover:text-app-text"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-            Limpiar
-          </button>
-        )}
       </div>
 
       {/* ── Formulario de búsqueda ── */}
@@ -310,7 +378,10 @@ export default function BuscadorPage() {
               <SelectControl
                 className="min-w-0 flex-1"
                 value={clienteId ?? ""}
-                onChange={(next) => setClienteId(next || null)}
+                onChange={(next) => {
+                  setClienteId(next || null);
+                  setLimiteResultados(50);
+                }}
                 placeholder="— Todos —"
                 options={[
                   { value: "", label: "— Todos —" },
@@ -344,7 +415,7 @@ export default function BuscadorPage() {
               <span className="text-app-muted">Selecciona un cliente para registrar este pedido.</span>
               <button
                 type="button"
-                onClick={() => setMostrarRegistro(true)}
+                onClick={abrirAlta}
                 className="cursor-pointer rounded-full bg-brand px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--brand-hover)]"
               >
                 + Nuevo registro
@@ -371,7 +442,7 @@ export default function BuscadorPage() {
                 <AbrirZwcadButton numeroPedido={exacto.numero_pedido} label="Abrir en ZWCAD" />
                 <button
                   type="button"
-                  onClick={() => setMostrarRegistro(true)}
+                  onClick={abrirAlta}
                   className="cursor-pointer text-xs text-app-muted underline underline-offset-2 hover:text-app-text hover:no-underline"
                 >
                   Registrar igualmente con otro número
@@ -386,7 +457,7 @@ export default function BuscadorPage() {
               <span className="text-app-muted">No hay coincidencia exacta para este cliente y esas medidas.</span>
               <button
                 type="button"
-                onClick={() => setMostrarRegistro(true)}
+                onClick={abrirAlta}
                 className="cursor-pointer rounded-full bg-brand px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--brand-hover)]"
               >
                 + Registrar pedido
@@ -400,7 +471,7 @@ export default function BuscadorPage() {
               <span className="text-app-muted">Completa todas las medidas para registrar el pedido.</span>
               <button
                 type="button"
-                onClick={() => setMostrarRegistro(true)}
+                onClick={abrirAlta}
                 className="cursor-pointer text-xs text-brand underline underline-offset-2 hover:no-underline"
               >
                 Registrar con medidas parciales
@@ -558,7 +629,11 @@ export default function BuscadorPage() {
               ? "Sin coincidencias"
               : `${resultadosLive.length} pedido${resultadosLive.length !== 1 ? "s" : ""} encontrado${resultadosLive.length !== 1 ? "s" : ""}`}
           </p>
-          {!clienteId && completos && (
+          {resultadosLive.length > 1 ? (
+            <p className="text-xs text-app-muted">
+              Mejor coincidencia primero · después, más recientes
+            </p>
+          ) : !clienteId && completos && (
             <p className="text-xs text-app-muted">
               Selecciona cliente para comprobar coincidencia exacta
             </p>
@@ -583,7 +658,7 @@ export default function BuscadorPage() {
       >
         {!hayAlgunCriterio ? (
           <p className="px-4 py-8 text-center text-sm text-app-muted">
-            Introduce medidas para buscar pedidos similares.
+            Selecciona cualquier medida para localizar planteos anteriores.
           </p>
         ) : resultadosLive.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-app-muted">
@@ -608,12 +683,12 @@ export default function BuscadorPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {resultadosLive.map((p, i) => {
+                  {resultadosVisibles.map((p, i) => {
                     const pr       = p as PedidoConRelaciones;
                     const diffs    = calcularDiferencias(p as Pedido, criterios);
                     const isExacto = completos && diffs.length === 0;
                     const rowBg    = isExacto ? "bg-emerald-950/20" : "";
-                    const sep      = i < resultadosLive.length - 1 ? "border-b border-[var(--border)]" : "";
+                    const sep      = i < resultadosVisibles.length - 1 ? "border-b border-[var(--border)]" : "";
 
                     function tdVal(field: keyof Pedido, diffKey: string, inCriteria: boolean) {
                       const val    = p[field] as number | null;
@@ -642,11 +717,7 @@ export default function BuscadorPage() {
                             <span className={`font-mono font-bold ${isExacto ? "text-emerald-300" : "text-app-text"}`}>
                               {pr.numero_pedido}
                             </span>
-                            {isExacto && (
-                              <span className="rounded bg-emerald-900/40 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-400">
-                                Exacto
-                              </span>
-                            )}
+                            <CoincidenciaBadge exacta={isExacto} diferencias={diffs.length} />
                           </span>
                         </td>
                         <td className="px-3 py-2.5 text-app-muted">{pr.cliente?.nombre ?? "—"}</td>
@@ -703,12 +774,12 @@ export default function BuscadorPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {resultadosLive.map((p, i) => {
+                  {resultadosVisibles.map((p, i) => {
                     const pr       = p as PedidoConRelaciones;
                     const diffs    = calcularDiferencias(p as Pedido, criterios);
                     const isExacto = completos && diffs.length === 0;
                     const rowBg    = isExacto ? "bg-emerald-950/20" : "";
-                    const sep      = i < resultadosLive.length - 1 ? "border-b border-[var(--border)]" : "";
+                    const sep      = i < resultadosVisibles.length - 1 ? "border-b border-[var(--border)]" : "";
 
                     return (
                       <tr key={pr.id} className={`transition-colors hover:bg-surface-2/70 ${rowBg} ${sep}`}>
@@ -722,11 +793,7 @@ export default function BuscadorPage() {
                             <span className={`font-mono font-bold ${isExacto ? "text-emerald-300" : "text-app-text"}`}>
                               {pr.numero_pedido}
                             </span>
-                            {isExacto && (
-                              <span className="rounded bg-emerald-900/40 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-400">
-                                Exacto
-                              </span>
-                            )}
+                            <CoincidenciaBadge exacta={isExacto} diferencias={diffs.length} />
                           </span>
                         </td>
                         <td className="px-3 py-2.5 text-app-muted">{pr.cliente?.nombre ?? "—"}</td>
@@ -780,6 +847,14 @@ export default function BuscadorPage() {
           </div>
         )}
       </div>
+
+      {resultadosLive.length > resultadosVisibles.length && (
+        <div className="-mt-1 mb-5 flex items-center justify-center border-t border-[var(--border)] pt-3">
+          <Button variant="secondary" onClick={() => setLimiteResultados((actual) => actual + 25)}>
+            Mostrar 25 más ({resultadosLive.length - resultadosVisibles.length} restantes)
+          </Button>
+        </div>
+      )}
 
       {modalCliente && (
         <CrearEntidadModal
@@ -841,5 +916,13 @@ export default function BuscadorPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function BuscadorPage() {
+  return (
+    <Suspense fallback={<div className="py-12 text-center text-sm text-app-muted">Cargando buscador…</div>}>
+      <BuscadorPageContent />
+    </Suspense>
   );
 }

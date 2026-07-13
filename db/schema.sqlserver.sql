@@ -12,6 +12,7 @@ CREATE TABLE historico.clientes
     id UNIQUEIDENTIFIER NOT NULL DEFAULT NEWID(),
     nombre NVARCHAR(255) NOT NULL,
     nombre_normalizado NVARCHAR(255) NOT NULL,
+    codigo_cliente NVARCHAR(50) NULL,
     -- nombre en minúsculas sin espacios extra
     activo BIT NOT NULL DEFAULT 1,
     created_at DATETIMEOFFSET NOT NULL DEFAULT SYSDATETIMEOFFSET(),
@@ -19,6 +20,7 @@ CREATE TABLE historico.clientes
     CONSTRAINT PK_clientes PRIMARY KEY (id),
     CONSTRAINT UQ_clientes_normalizado UNIQUE (nombre_normalizado)
 );
+CREATE UNIQUE INDEX UX_clientes_codigo_cliente ON historico.clientes(codigo_cliente) WHERE codigo_cliente IS NOT NULL;
 GO
 
 -- ── TECNICOS ─────────────────────────────────────────────────
