@@ -138,6 +138,9 @@ La actualización de RPS usa la tarea `PLANTEAR...`: progreso 100 significa real
 las líneas sin esa tarea quedan pendientes en nuevas importaciones y pueden confirmarse
 manualmente desde el histórico.
 
+Las migraciones y la sincronización con RPS son compatibles con SQL Server 2014;
+la validación del JSON de campos flexibles se realiza en la aplicación.
+
 ## Reglas de negocio clave
 
 - **Coincidencia exacta REMOLQUES:** cliente + largo + ancho + altura + aguas + radio

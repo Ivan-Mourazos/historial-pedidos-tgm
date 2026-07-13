@@ -71,31 +71,44 @@ function estadoDesdeRps(linea: LineaPedidoRps): "PENDIENTE" | "REALIZADO" | null
 async function guardarEstadosRps(actualizaciones: ActualizacionEstadoRps[]): Promise<number> {
   if (actualizaciones.length === 0) return 0;
   const pool = await getPool();
-  const result = await pool.request()
-    .input("actualizaciones", sql.NVarChar(sql.MAX), JSON.stringify(actualizaciones))
-    .query(`UPDATE p
-      SET rps_numero_linea = j.numeroLinea,
-          rps_planteo_progreso = j.progreso,
+  // SQL Server 2014 no dispone de OPENJSON. Actualizamos cada relación dentro
+  // de una única transacción para mantener la operación atómica y compatible.
+  const unicas = [...new Map(actualizaciones.map((item) => [item.id, item])).values()];
+  const transaction = new sql.Transaction(pool);
+  await transaction.begin();
+  let actualizadas = 0;
+  try {
+    for (const actualizacion of unicas) {
+      const result = await new sql.Request(transaction)
+        .input("id", sql.UniqueIdentifier, actualizacion.id)
+        .input("numeroLinea", sql.Int, actualizacion.numeroLinea)
+        .input("progreso", sql.Decimal(5, 2), actualizacion.progreso)
+        .query(`UPDATE ${SCHEMA}.pedidos
+      SET rps_numero_linea = @numeroLinea,
+          rps_planteo_progreso = @progreso,
           estado_planteo = CASE
-            WHEN p.estado_planteo_manual = 1 OR j.progreso IS NULL THEN p.estado_planteo
-            WHEN j.progreso >= 100 THEN 'REALIZADO'
+            WHEN estado_planteo_manual = 1 OR @progreso IS NULL THEN estado_planteo
+            WHEN @progreso >= 100 THEN 'REALIZADO'
             ELSE 'PENDIENTE'
           END,
           updated_at = SYSDATETIMEOFFSET()
-      FROM ${SCHEMA}.pedidos p
-      INNER JOIN OPENJSON(@actualizaciones)
-        WITH (
-          id UNIQUEIDENTIFIER '$.id',
-          numeroLinea INT '$.numeroLinea',
-          progreso DECIMAL(5, 2) '$.progreso'
-        ) j ON j.id = p.id
-      WHERE ISNULL(p.rps_numero_linea, -1) <> ISNULL(j.numeroLinea, -1)
-         OR ISNULL(p.rps_planteo_progreso, -1) <> ISNULL(j.progreso, -1)
+      WHERE id = @id
+        AND (
+          ISNULL(rps_numero_linea, -1) <> ISNULL(@numeroLinea, -1)
+         OR ISNULL(rps_planteo_progreso, -1) <> ISNULL(@progreso, -1)
          OR (
-           p.estado_planteo_manual = 0 AND j.progreso IS NOT NULL
-           AND p.estado_planteo <> CASE WHEN j.progreso >= 100 THEN 'REALIZADO' ELSE 'PENDIENTE' END
-         )`);
-  return result.rowsAffected[0] ?? 0;
+           estado_planteo_manual = 0 AND @progreso IS NOT NULL
+           AND estado_planteo <> CASE WHEN @progreso >= 100 THEN 'REALIZADO' ELSE 'PENDIENTE' END
+         )
+        )`);
+      actualizadas += result.rowsAffected[0] ?? 0;
+    }
+    await transaction.commit();
+    return actualizadas;
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
 }
 
 export async function obtenerPendientesRps(sincronizarEstados = false): Promise<ResumenPendientesRps> {

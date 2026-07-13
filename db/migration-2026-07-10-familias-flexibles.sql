@@ -14,13 +14,9 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('historico.CK_pedidos_datos_tecnicos_json', 'C') IS NULL
-BEGIN
-    ALTER TABLE historico.pedidos WITH CHECK
-        ADD CONSTRAINT CK_pedidos_datos_tecnicos_json
-        CHECK (datos_tecnicos IS NULL OR ISJSON(datos_tecnicos) = 1);
-END
-GO
+-- SQL Server 2014 no incluye ISJSON. El contenido se serializa y valida en la
+-- aplicación antes de guardarlo, por lo que esta columna permanece NVARCHAR(MAX)
+-- sin una restricción JSON en la base de datos.
 
 IF NOT EXISTS (
     SELECT 1

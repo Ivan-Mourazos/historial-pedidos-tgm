@@ -102,7 +102,6 @@ CREATE TABLE historico.pedidos
     CONSTRAINT FK_pedidos_cliente FOREIGN KEY (cliente_id) REFERENCES historico.clientes(id),
     CONSTRAINT FK_pedidos_familia FOREIGN KEY (familia_id) REFERENCES historico.familias(id),
     CONSTRAINT FK_pedidos_tecnico FOREIGN KEY (tecnico_id) REFERENCES historico.tecnicos(id),
-    CONSTRAINT CK_pedidos_datos_tecnicos_json CHECK (datos_tecnicos IS NULL OR ISJSON(datos_tecnicos) = 1),
     CONSTRAINT CK_pedidos_estado_planteo CHECK (estado_planteo IN ('PENDIENTE', 'REALIZADO'))
 );
 GO
