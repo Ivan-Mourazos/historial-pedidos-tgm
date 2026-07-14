@@ -18,6 +18,9 @@ export function construirCriterios(
     largo: parseMedida(valores.largo),
     ancho: parseMedida(valores.ancho),
     alto: parseMedida(valores.alto),
+    altoDelante: parseMedida(valores.altoDelante),
+    altoAtras: parseMedida(valores.altoAtras),
+    alturasDistintas: valores.alturasDistintas,
     aguas: valores.aguasActivas ? parseMedida(valores.aguas) : null,
     aguasActivas: valores.aguasActivas,
     radio: parseMedida(valores.radio),
@@ -39,6 +42,8 @@ export function camposTecnicosParaGuardar(
   largo: number | null;
   ancho: number | null;
   alto: number | null;
+  alto_delante: number | null;
+  alto_atras: number | null;
   aguas: number | null;
   radio: number | null;
   impresion_digital: boolean;
@@ -52,11 +57,14 @@ export function camposTecnicosParaGuardar(
     const tipoNorm = claveTipoRemolque(tipo);
     const usaRadioYAguas = tipoNorm === "ganado" || tipoNorm === "lona alta";
     const usaRecogida = usaRecogidaRemolque(tipo);
+    const alturasDistintas = tipoNorm !== "baqueton" && valores.alturasDistintas;
     return {
       tipo: tipo === "" ? null : tipo,
       largo: parseMedida(valores.largo),
       ancho: parseMedida(valores.ancho),
-      alto: parseMedida(valores.alto),
+      alto: alturasDistintas ? null : parseMedida(valores.alto),
+      alto_delante: alturasDistintas ? parseMedida(valores.altoDelante) : null,
+      alto_atras: alturasDistintas ? parseMedida(valores.altoAtras) : null,
       aguas: usaRadioYAguas && valores.aguasActivas ? parseMedida(valores.aguas) : null,
       radio: usaRadioYAguas ? parseMedida(valores.radio) : null,
       impresion_digital: false,
@@ -70,6 +78,8 @@ export function camposTecnicosParaGuardar(
       largo: null,
       ancho: parseMedida(valores.ancho),
       alto: parseMedida(valores.alto),
+      alto_delante: null,
+      alto_atras: null,
       aguas: null,
       radio: null,
       impresion_digital: valores.impresionDigital,
@@ -90,6 +100,8 @@ export function camposTecnicosParaGuardar(
     largo: null,
     ancho: null,
     alto: null,
+    alto_delante: null,
+    alto_atras: null,
     aguas: null,
     radio: null,
     impresion_digital: false,

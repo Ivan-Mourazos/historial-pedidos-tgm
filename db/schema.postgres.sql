@@ -93,6 +93,8 @@ create table if not exists historico.pedidos (
   largo         numeric(10,2),        -- REMOLQUES
   ancho         numeric(10,2),        -- REMOLQUES y PUERTAS
   alto          numeric(10,2),        -- altura (remolques) / alto (puertas)
+  alto_delante  numeric(10,2),        -- REMOLQUES con distinta altura delante/detrás
+  alto_atras    numeric(10,2),        -- REMOLQUES con distinta altura delante/detrás
   aguas         numeric(10,2),        -- REMOLQUES, opcional (NULL solo coincide con NULL)
   radio         numeric(10,2),        -- REMOLQUES, opcional (NULL solo coincide con NULL)
   impresion_digital boolean not null default false, -- PUERTAS

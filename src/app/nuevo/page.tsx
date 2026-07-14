@@ -22,6 +22,7 @@ import {
 import { dbService } from "@/lib/db/db-service";
 import { resumenMedidas } from "@/lib/display";
 import { ordenarFamilias } from "@/lib/familias";
+import { claveTipoRemolque } from "@/lib/tipos-remolque";
 import { usaRecogidaRemolque } from "@/lib/recogida-remolque";
 import {
   camposRequeridosCompletos,
@@ -53,6 +54,9 @@ function NuevoPedidoPageContent() {
     largo: searchParams.get("largo") ?? "",
     ancho: searchParams.get("ancho") ?? "",
     alto: searchParams.get("alto") ?? "",
+    altoDelante: searchParams.get("altoDelante") ?? "",
+    altoAtras: searchParams.get("altoAtras") ?? "",
+    alturasDistintas: searchParams.get("alturas") === "dos" || searchParams.has("altoDelante") || searchParams.has("altoAtras"),
     aguas: searchParams.get("aguas") ?? "",
     aguasActivas: searchParams.has("aguas"),
     radio: searchParams.get("radio") ?? "",
@@ -85,7 +89,8 @@ function NuevoPedidoPageContent() {
     fecha: string | null;
     lineas: Array<{
       numeroLinea: number; familia: string; tipo: string; largo: number | null; ancho: number | null;
-      alto: number | null; aguas: number | null; altoBase: number | null; altoExtra: number | null; descripcion: string;
+      alto: number | null; altoDelante: number | null; altoAtras: number | null; aguas: number | null;
+      altoBase: number | null; altoExtra: number | null; descripcion: string;
       detalle: string; requiereRevision: boolean;
       progresoPlanteo: number | null; estadoPlanteo: "PENDIENTE" | "REALIZADO" | "SIN_TAREA";
     }>;
@@ -186,6 +191,11 @@ function NuevoPedidoPageContent() {
     setValores((v) => {
       const siguiente = { ...v, [campo]: valor } as CamposTecnicosValores;
       if (campo === "tipo") {
+        if (typeof valor === "string" && claveTipoRemolque(valor) === "baqueton" && v.alturasDistintas) {
+          siguiente.altoDelante = "";
+          siguiente.altoAtras = "";
+          siguiente.alturasDistintas = false;
+        }
         siguiente.radio = "";
         siguiente.aguas = "";
         siguiente.aguasActivas = false;
@@ -231,6 +241,9 @@ function NuevoPedidoPageContent() {
       largo: linea.largo === null ? "" : String(linea.largo).replace(".", ","),
       ancho: linea.ancho === null ? "" : String(linea.ancho).replace(".", ","),
       alto: linea.alto === null ? "" : String(linea.alto).replace(".", ","),
+      altoDelante: linea.altoDelante === null ? "" : String(linea.altoDelante).replace(".", ","),
+      altoAtras: linea.altoAtras === null ? "" : String(linea.altoAtras).replace(".", ","),
+      alturasDistintas: linea.altoDelante !== null || linea.altoAtras !== null,
       aguas: linea.aguas === null ? "" : String(linea.aguas).replace(".", ","),
       aguasActivas: linea.aguas !== null,
     });
@@ -268,6 +281,9 @@ function NuevoPedidoPageContent() {
           largo: linea.largo === null ? "" : String(linea.largo).replace(".", ","),
           ancho: linea.ancho === null ? "" : String(linea.ancho).replace(".", ","),
           alto: linea.alto === null ? "" : String(linea.alto).replace(".", ","),
+          altoDelante: linea.altoDelante === null ? "" : String(linea.altoDelante).replace(".", ","),
+          altoAtras: linea.altoAtras === null ? "" : String(linea.altoAtras).replace(".", ","),
+          alturasDistintas: linea.altoDelante !== null || linea.altoAtras !== null,
           aguas: linea.aguas === null ? "" : String(linea.aguas).replace(".", ","),
           aguasActivas: linea.aguas !== null,
         });
@@ -466,7 +482,7 @@ function NuevoPedidoPageContent() {
                           </span>
                         </div>
                         <p className="mt-1 font-mono text-sm font-semibold text-brand">
-                          {[linea.largo, linea.ancho, linea.alto].filter((value) => value !== null).join(" × ")} cm
+                          {[linea.largo, linea.ancho, linea.alto ?? (linea.altoDelante !== null || linea.altoAtras !== null ? `${linea.altoDelante ?? "—"}/${linea.altoAtras ?? "—"}` : null)].filter((value) => value !== null).join(" × ")} cm
                           {linea.aguas !== null && <span className="ml-2 font-sans text-xs font-normal text-app-muted">(alto base {linea.altoBase} + aguas {linea.aguas})</span>}
                         </p>
                       </div>

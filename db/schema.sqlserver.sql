@@ -77,6 +77,8 @@ CREATE TABLE historico.pedidos
     largo DECIMAL(10, 2) NULL,
     ancho DECIMAL(10, 2) NULL,
     alto DECIMAL(10, 2) NULL,
+    alto_delante DECIMAL(10, 2) NULL,
+    alto_atras DECIMAL(10, 2) NULL,
     aguas DECIMAL(10, 2) NULL,
     radio DECIMAL(10, 2) NULL,
     recogida_delante NVARCHAR(100) NULL,

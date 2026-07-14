@@ -16,6 +16,9 @@ export interface CriteriosBusqueda {
   largo: number | null;
   ancho: number | null;
   alto: number | null;
+  altoDelante: number | null;
+  altoAtras: number | null;
+  alturasDistintas: boolean;
   aguas: number | null;
   aguasActivas: boolean;
   radio: number | null;
@@ -64,7 +67,10 @@ function recogidaNormalizada(value: string | null | undefined): string {
 export function camposRequeridosCompletos(c: CriteriosBusqueda): boolean {
   if (c.familiaNombre === FAMILIA_REMOLQUES) {
     if (tipoNormalizado(c.tipo) === "") return false;
-    const base = c.largo !== null && c.ancho !== null && c.alto !== null;
+    const alturaCompleta = c.alturasDistintas
+      ? c.altoDelante !== null && c.altoAtras !== null
+      : c.alto !== null;
+    const base = c.largo !== null && c.ancho !== null && alturaCompleta;
     if (!base) return false;
     if (esBaqueton(c.tipo)) return true;
     if (pideRadioYAguas(c.tipo)) {
@@ -99,17 +105,20 @@ export function esCoincidenciaExacta(
 
   if (c.familiaNombre === FAMILIA_REMOLQUES) {
     if (tipoNormalizado(pedido.tipo) !== tipoNormalizado(c.tipo)) return false;
+    const coincideAltura = c.alturasDistintas
+      ? igualMedida(pedido.alto_delante, c.altoDelante) && igualMedida(pedido.alto_atras, c.altoAtras)
+      : igualMedida(pedido.alto, c.alto);
     if (esBaqueton(c.tipo)) {
       return (
         igualMedida(pedido.largo, c.largo) &&
         igualMedida(pedido.ancho, c.ancho) &&
-        igualMedida(pedido.alto, c.alto)
+        coincideAltura
       );
     }
     return (
       igualMedida(pedido.largo, c.largo) &&
       igualMedida(pedido.ancho, c.ancho) &&
-      igualMedida(pedido.alto, c.alto) &&
+      coincideAltura &&
       igualMedida(pedido.aguas, c.aguas) &&
       igualMedida(pedido.radio, c.radio) &&
       (!usaRecogidaRemolque(c.tipo) || (
@@ -148,7 +157,7 @@ export function buscarConCriteriosParciales(
 ): Pedido[] {
   const hayCriterio =
     c.familiaNombre === FAMILIA_REMOLQUES
-      ? c.tipo !== null || c.largo !== null || c.ancho !== null || c.alto !== null || c.aguas !== null || c.radio !== null || c.recogidaDelante !== "" || c.recogidaAtras !== ""
+      ? c.tipo !== null || c.largo !== null || c.ancho !== null || c.alto !== null || c.altoDelante !== null || c.altoAtras !== null || c.aguas !== null || c.radio !== null || c.recogidaDelante !== "" || c.recogidaAtras !== ""
       : c.familiaNombre === FAMILIA_PUERTAS
         ? c.tipo !== null || c.ancho !== null || c.alto !== null || c.impresionDigital
         : Object.values(c.extra).some((value) => typeof value === "boolean" ? value : value.trim() !== "");
@@ -163,7 +172,10 @@ export function buscarConCriteriosParciales(
       if (c.tipo && tipoNormalizado(c.tipo) !== "" && tipoNormalizado(p.tipo) !== tipoNormalizado(c.tipo)) return false;
       if (c.largo !== null && !igualMedida(p.largo, c.largo)) return false;
       if (c.ancho !== null && !igualMedida(p.ancho, c.ancho)) return false;
-      if (c.alto !== null && !igualMedida(p.alto, c.alto)) return false;
+      if (c.alturasDistintas) {
+        if (c.altoDelante !== null && !igualMedida(p.alto_delante, c.altoDelante)) return false;
+        if (c.altoAtras !== null && !igualMedida(p.alto_atras, c.altoAtras)) return false;
+      } else if (c.alto !== null && !igualMedida(p.alto, c.alto)) return false;
       if (pideRadioYAguas(c.tipo)) {
         if (c.aguasActivas && p.aguas === null) return false;
         if (!c.aguasActivas && p.aguas !== null) return false;
@@ -213,7 +225,10 @@ export function calcularDiferencias(pedido: Pedido, c: CriteriosBusqueda): strin
     if (c.tipo && tipoNormalizado(pedido.tipo) !== tipoNormalizado(c.tipo)) diffs.push("tipo");
     if (c.largo !== null && !igualMedida(pedido.largo, c.largo)) diffs.push("largo");
     if (c.ancho !== null && !igualMedida(pedido.ancho, c.ancho)) diffs.push("ancho");
-    if (c.alto !== null && !igualMedida(pedido.alto, c.alto)) diffs.push("alto");
+    if (c.alturasDistintas) {
+      if (c.altoDelante !== null && !igualMedida(pedido.alto_delante, c.altoDelante)) diffs.push("alto_delante");
+      if (c.altoAtras !== null && !igualMedida(pedido.alto_atras, c.altoAtras)) diffs.push("alto_atras");
+    } else if (c.alto !== null && !igualMedida(pedido.alto, c.alto)) diffs.push("alto");
     if (c.aguas !== null && !igualMedida(pedido.aguas, c.aguas)) diffs.push("aguas");
     if (c.radio !== null && !igualMedida(pedido.radio, c.radio)) diffs.push("radio");
     if (c.recogidaDelante && recogidaNormalizada(pedido.recogida_delante) !== recogidaNormalizada(c.recogidaDelante)) diffs.push("recogida_delante");

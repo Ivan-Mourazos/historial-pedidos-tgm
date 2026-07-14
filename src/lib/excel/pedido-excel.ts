@@ -46,7 +46,7 @@ function excelSuffixOrder(fileName: string, numeroPedido: string): number {
   const exact = new RegExp(`^${escapeRegExp(numeroPedido)}\\.`, "i");
   if (exact.test(fileName)) return 0;
 
-  const match = fileName.match(new RegExp(`^${escapeRegExp(numeroPedido)}\\s*-\\s*(\\d+)`, "i"));
+  const match = fileName.match(new RegExp(`^${escapeRegExp(numeroPedido)}\\s*[-_]\\s*(\\d+)`, "i"));
   return match ? Number(match[1]) : 999_999;
 }
 
@@ -78,7 +78,7 @@ async function getExcelFilesInFolder(folder: string): Promise<PedidoExcelFile[]>
 function matchesPedidoExcel(fileName: string, numeroPedido: string): boolean {
   const base = escapeRegExp(numeroPedido);
   const ext = EXCEL_EXTENSIONS.map((item) => escapeRegExp(item.slice(1))).join("|");
-  const pattern = new RegExp(`^${base}(?:\\s*-.+)?\\.(${ext})$`, "i");
+  const pattern = new RegExp(`^${base}(?:\\s*[-_].+)?\\.(${ext})$`, "i");
 
   return pattern.test(fileName);
 }

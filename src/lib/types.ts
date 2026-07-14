@@ -49,6 +49,8 @@ export interface Pedido {
   largo: number | null;
   ancho: number | null;
   alto: number | null;
+  alto_delante: number | null;
+  alto_atras: number | null;
   aguas: number | null;
   radio: number | null;
   recogida_delante: string | null;

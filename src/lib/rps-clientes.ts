@@ -15,6 +15,8 @@ export interface LineaPedidoRps {
   largo: number | null;
   ancho: number | null;
   alto: number | null;
+  altoDelante: number | null;
+  altoAtras: number | null;
   aguas: number | null;
   altoBase: number | null;
   altoExtra: number | null;
@@ -75,23 +77,29 @@ function interpretarLinea(
   description: string,
   comment: string | null,
   progresoPlanteoRaw: number | null = null,
+  codigoArticuloRaw: string | null = null,
 ): LineaPedidoRps | null {
   const detalle = (comment ?? "").trim();
   const texto = `${description} ${detalle}`.toLocaleUpperCase("es-ES");
+  const codigoArticulo = (codigoArticuloRaw ?? "").trim().toLocaleUpperCase("es-ES");
   const esPuerta = texto.includes("PUERTA ENROLLABLE") || texto.includes("PUERTA PLEGABLE") || texto.includes("PUERTA APILABLE");
-  const esRemolque = texto.includes("LONA REMOLQUE") || texto.includes("CANVAS FOR TRAILER");
+  const esRemolque = codigoArticulo === "LONAREMOLQUE"
+    || codigoArticulo === "LONAREMGANA"
+    || texto.includes("LONA REMOLQUE")
+    || texto.includes("CANVAS FOR TRAILER");
   if (!esPuerta && !esRemolque) return null;
-  const match = texto.match(/MEDIDAS?\s+([0-9]+(?:[,.][0-9]+)?)\s*(?:CM)?\s*X\s*([0-9]+(?:[,.][0-9]+)?)\s*(?:CM)?(?:\s*X\s*([0-9]+(?:[,.][0-9]+)?)(?:\s*CM)?(?:\s*\+\s*([0-9]+(?:[,.][0-9]+)?))?)?/i)
-    ?? texto.match(/MEASURES?\s+([0-9]+(?:[,.][0-9]+)?)\s*(?:CM)?\s*X\s*([0-9]+(?:[,.][0-9]+)?)\s*(?:CM)?(?:\s*X\s*([0-9]+(?:[,.][0-9]+)?)(?:\s*CM)?(?:\s*\+\s*([0-9]+(?:[,.][0-9]+)?))?)?/i);
+  const match = texto.match(/MEDIDAS?\s+([0-9]+(?:[,.][0-9]+)?)\s*(?:CM)?\s*X\s*([0-9]+(?:[,.][0-9]+)?)\s*(?:CM)?(?:\s*X\s*([0-9]+(?:[,.][0-9]+)?)(?:\s*CM)?(?:\s*\/\s*([0-9]+(?:[,.][0-9]+)?)(?:\s*CM)?)?(?:\s*\+\s*([0-9]+(?:[,.][0-9]+)?)(?:\s*CM)?)?)?/i)
+    ?? texto.match(/MEASURES?\s+([0-9]+(?:[,.][0-9]+)?)\s*(?:CM)?\s*X\s*([0-9]+(?:[,.][0-9]+)?)\s*(?:CM)?(?:\s*X\s*([0-9]+(?:[,.][0-9]+)?)(?:\s*CM)?(?:\s*\/\s*([0-9]+(?:[,.][0-9]+)?)(?:\s*CM)?)?(?:\s*\+\s*([0-9]+(?:[,.][0-9]+)?)(?:\s*CM)?)?)?/i);
   const primera = numeroMedida(match?.[1]);
   const segunda = numeroMedida(match?.[2]);
   const altoBase = numeroMedida(match?.[3]);
-  const altoExtra = numeroMedida(match?.[4]);
+  const altoAtras = numeroMedida(match?.[4]);
+  const altoExtra = numeroMedida(match?.[5]);
   const tipo = esPuerta
     ? (texto.includes("ENROLLABLE") ? "Enrollable" : "Apilable")
-    : texto.includes("GANADO")
+    : codigoArticulo === "LONAREMGANA" || texto.includes("GANADO")
       ? "Ganado"
-      : (altoBase !== null && altoBase <= 25 && altoExtra === null ? "Baquetón" : "Lona alta");
+      : (altoBase !== null && altoBase <= 25 && altoAtras === null && altoExtra === null ? "Baquetón" : "Lona alta");
   const progresoNumero = progresoPlanteoRaw == null ? null : Number(progresoPlanteoRaw);
   const progresoPlanteo = progresoNumero !== null && Number.isFinite(progresoNumero) ? progresoNumero : null;
   return {
@@ -100,7 +108,9 @@ function interpretarLinea(
     tipo,
     largo: esPuerta ? null : primera,
     ancho: esPuerta ? primera : segunda,
-    alto: esPuerta ? segunda : (altoBase === null ? null : altoBase + (altoExtra ?? 0)),
+    alto: esPuerta ? segunda : (altoAtras !== null ? null : altoBase === null ? null : altoBase + (altoExtra ?? 0)),
+    altoDelante: esRemolque && altoAtras !== null ? altoBase : null,
+    altoAtras: esRemolque && altoAtras !== null ? altoAtras : null,
     aguas: esRemolque ? altoExtra : null,
     altoBase,
     altoExtra,
@@ -132,8 +142,10 @@ export async function pedidoRpsPorNumero(numero: string): Promise<PedidoRps | nu
   if (!cabecera) return null;
   const lineasResult = await pool.request()
     .input("idOrder", sql.VarChar(255), cabecera.IDOrder)
-    .query(`SELECT l.NumLine, l.Description, l.Comment, planteo.PercentProgress AS ProgresoPlanteo
+    .query(`SELECT l.NumLine, l.Description, l.Comment, article.CodArticle,
+        planteo.PercentProgress AS ProgresoPlanteo
       FROM dbo.FACOrderLineSL l
+      LEFT JOIN dbo.STKArticle article ON article.IDArticle = l.IDArticle
       OUTER APPLY (
         SELECT TOP 1 t.PercentProgress
         FROM dbo.CPRMOTask t
@@ -144,8 +156,8 @@ export async function pedidoRpsPorNumero(numero: string): Promise<PedidoRps | nu
       WHERE l.IDOrder = @idOrder
       ORDER BY l.NumLine`);
   const lineas = lineasResult.recordset
-    .map((linea: { NumLine: number; Description: string; Comment: string | null; ProgresoPlanteo: number | null }) =>
-      interpretarLinea(linea.NumLine, linea.Description ?? "", linea.Comment, linea.ProgresoPlanteo))
+    .map((linea: { NumLine: number; Description: string; Comment: string | null; ProgresoPlanteo: number | null; CodArticle: string | null }) =>
+      interpretarLinea(linea.NumLine, linea.Description ?? "", linea.Comment, linea.ProgresoPlanteo, linea.CodArticle))
     .filter((linea: LineaPedidoRps | null): linea is LineaPedidoRps => linea !== null);
   return {
     numero: cabecera.numero,
@@ -163,11 +175,13 @@ export async function pedidosRpsDesde(fechaDesde: string): Promise<PedidoRps[]> 
         c.CodCustomer AS codigo,
         LTRIM(RTRIM(COALESCE(NULLIF(c.CompanyName, ''), c.Description))) AS nombre,
         NULLIF(LTRIM(RTRIM(cc.Alias)), '') AS alias,
-        l.NumLine, l.Description, l.Comment, planteo.PercentProgress AS ProgresoPlanteo
+        l.NumLine, l.Description, l.Comment, article.CodArticle,
+        planteo.PercentProgress AS ProgresoPlanteo
       FROM dbo.FACOrderSL o
       INNER JOIN dbo.FACCustomer c ON c.IDCustomer = o.IDCustomer
       LEFT JOIN dbo._FACCustomer_Custom cc ON cc.IDCustomer = c.IDCustomer
       INNER JOIN dbo.FACOrderLineSL l ON l.IDOrder = o.IDOrder
+      LEFT JOIN dbo.STKArticle article ON article.IDArticle = l.IDArticle
       OUTER APPLY (
         SELECT TOP 1 t.PercentProgress
         FROM dbo.CPRMOTask t
@@ -178,7 +192,8 @@ export async function pedidosRpsDesde(fechaDesde: string): Promise<PedidoRps[]> 
       WHERE o.CodCompany = '001' AND o.OrderDate >= @fechaDesde
         AND REPLACE(REPLACE(UPPER(o.CodOrder), '.', ''), ' ', '') LIKE 'AR%'
         AND (
-          UPPER(COALESCE(l.Description, '') + ' ' + COALESCE(l.Comment, '')) LIKE '%LONA REMOLQUE%'
+          article.CodArticle IN ('LONAREMOLQUE', 'LONAREMGANA')
+          OR UPPER(COALESCE(l.Description, '') + ' ' + COALESCE(l.Comment, '')) LIKE '%LONA REMOLQUE%'
           OR UPPER(COALESCE(l.Description, '') + ' ' + COALESCE(l.Comment, '')) LIKE '%CANVAS FOR TRAILER%'
           OR UPPER(COALESCE(l.Description, '') + ' ' + COALESCE(l.Comment, '')) LIKE '%PUERTA ENROLLABLE%'
           OR UPPER(COALESCE(l.Description, '') + ' ' + COALESCE(l.Comment, '')) LIKE '%PUERTA PLEGABLE%'
@@ -189,10 +204,11 @@ export async function pedidosRpsDesde(fechaDesde: string): Promise<PedidoRps[]> 
   type Fila = {
     IDOrder: string; numero: string; fecha: Date | null; codigo: string; nombre: string; alias: string | null;
     NumLine: number; Description: string | null; Comment: string | null; ProgresoPlanteo: number | null;
+    CodArticle: string | null;
   };
   const agrupados = new Map<string, PedidoRps>();
   for (const fila of result.recordset as Fila[]) {
-    const linea = interpretarLinea(fila.NumLine, fila.Description ?? "", fila.Comment, fila.ProgresoPlanteo);
+    const linea = interpretarLinea(fila.NumLine, fila.Description ?? "", fila.Comment, fila.ProgresoPlanteo, fila.CodArticle);
     if (!linea) continue;
     let pedido = agrupados.get(fila.IDOrder);
     if (!pedido) {

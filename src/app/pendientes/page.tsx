@@ -14,6 +14,8 @@ interface Pendiente {
   largo: number | null;
   ancho: number | null;
   alto: number | null;
+  altoDelante: number | null;
+  altoAtras: number | null;
   aguas: number | null;
   descripcion: string;
   detalle: string;
@@ -38,10 +40,13 @@ const medida = (value: number | null) => value === null ? "—" : String(value).
 const TAMANO_PAGINA = 50;
 
 function medidas(pendiente: Pendiente) {
+  const altura = pendiente.alto ?? (pendiente.altoDelante !== null || pendiente.altoAtras !== null
+    ? `${medida(pendiente.altoDelante)}/${medida(pendiente.altoAtras)}`
+    : null);
   const valores = pendiente.familia === "REMOLQUES"
-    ? [pendiente.largo, pendiente.ancho, pendiente.alto]
+    ? [pendiente.largo, pendiente.ancho, altura]
     : [pendiente.ancho, pendiente.alto];
-  const dimensiones = valores.map(medida).join(" × ");
+  const dimensiones = valores.map((value) => typeof value === "string" ? value : medida(value)).join(" × ");
   return pendiente.aguas === null ? dimensiones : `${dimensiones} · Aguas ${medida(pendiente.aguas)}`;
 }
 
@@ -103,10 +108,8 @@ export default function PendientesPage() {
   useEffect(() => {
     let activo = true;
     void fetch("/api/rps/pendientes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: "GET",
       cache: "no-store",
-      body: JSON.stringify({ accion: "SINCRONIZAR" }),
     })
       .then(async (response) => {
         const payload = await response.json();

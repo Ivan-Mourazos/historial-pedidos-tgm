@@ -21,9 +21,12 @@ export interface CamposTecnicosValores {
   largo: string;
   ancho: string;
   alto: string;
+  altoDelante: string;
+  altoAtras: string;
   aguas: string;
   radio: string;
   tipo: string;
+  alturasDistintas: boolean;
   aguasActivas: boolean;
   impresionDigital: boolean;
   recogidaDelante: string;
@@ -35,9 +38,12 @@ export const camposTecnicosVacios: CamposTecnicosValores = {
   largo: "",
   ancho: "",
   alto: "",
+  altoDelante: "",
+  altoAtras: "",
   aguas: "",
   radio: "",
   tipo: "",
+  alturasDistintas: false,
   aguasActivas: false,
   impresionDigital: false,
   recogidaDelante: "",
@@ -165,6 +171,8 @@ export function CamposTecnicosFamilia({
     const largoN = parseMedida(valores.largo);
     const anchoN = parseMedida(valores.ancho);
     const altoN  = parseMedida(valores.alto);
+    const altoDelanteN = parseMedida(valores.altoDelante);
+    const altoAtrasN = parseMedida(valores.altoAtras);
     const usarRadioYAguas = pideRadioYAguas(valores.tipo);
     const usarBaqueton = esBaqueton(valores.tipo);
     const usarRecogida = usaRecogidaRemolque(valores.tipo);
@@ -179,12 +187,19 @@ export function CamposTecnicosFamilia({
 
     const aguasN = valores.aguasActivas ? parseMedida(valores.aguas) : null;
     const radioN = parseMedida(valores.radio);
-    type CampoRemolque = "tipo" | "largo" | "ancho" | "alto" | "aguas" | "radio";
+    type CampoRemolque = "tipo" | "largo" | "ancho" | "alto" | "alto_delante" | "alto_atras" | "aguas" | "radio";
     const compatiblesExcepto = (excepto: CampoRemolque) => pedidosFamilia.filter((p) => {
       if (excepto !== "tipo" && valores.tipo.trim() && claveTipoRemolque(p.tipo) !== claveTipoRemolque(valores.tipo)) return false;
       if (excepto !== "largo" && largoN !== null && !eq(p.largo, largoN)) return false;
       if (excepto !== "ancho" && anchoN !== null && !eq(p.ancho, anchoN)) return false;
-      if (excepto !== "alto" && altoN !== null && !eq(p.alto, altoN)) return false;
+      if (valores.alturasDistintas) {
+        if (p.alto_delante === null || p.alto_atras === null) return false;
+        if (excepto !== "alto_delante" && altoDelanteN !== null && !eq(p.alto_delante, altoDelanteN)) return false;
+        if (excepto !== "alto_atras" && altoAtrasN !== null && !eq(p.alto_atras, altoAtrasN)) return false;
+      } else {
+        if (p.alto === null) return false;
+        if (excepto !== "alto" && altoN !== null && !eq(p.alto, altoN)) return false;
+      }
       if (usarRadioYAguas) {
         if (valores.aguasActivas && p.aguas === null) return false;
         if (!valores.aguasActivas && p.aguas !== null) return false;
@@ -197,9 +212,12 @@ export function CamposTecnicosFamilia({
     const largosDisp = uniqueNums(compatiblesExcepto("largo").map((p) => p.largo));
     const anchosDisp = uniqueNums(compatiblesExcepto("ancho").map((p) => p.ancho));
     const altosDisp = uniqueNums(compatiblesExcepto("alto").map((p) => p.alto));
+    const altosDelanteDisp = uniqueNums(compatiblesExcepto("alto_delante").map((p) => p.alto_delante));
+    const altosAtrasDisp = uniqueNums(compatiblesExcepto("alto_atras").map((p) => p.alto_atras));
     const aguasDisp = uniqueNums(compatiblesExcepto("aguas").map((p) => p.aguas));
     const radiosDisp = uniqueNums(compatiblesExcepto("radio").map((p) => p.radio));
-    const hayMedidaSeleccionada = largoN !== null || anchoN !== null || altoN !== null || aguasN !== null || radioN !== null;
+    const hayMedidaSeleccionada = largoN !== null || anchoN !== null || altoN !== null
+      || altoDelanteN !== null || altoAtrasN !== null || aguasN !== null || radioN !== null;
     const tiposParaMostrar = !freeInput && hayMedidaSeleccionada
       ? tiposRemolqueDisponibles([
           ...compatiblesExcepto("tipo").map((p) => p.tipo),
@@ -243,9 +261,40 @@ export function CamposTecnicosFamilia({
         <div className={inline ? "min-w-[80px] flex-1" : ""}>
           <MedidaSelect label={freeInput ? "Ancho *" : "Ancho"} value={valores.ancho} onChange={(v) => onChange("ancho", v)} disponibles={anchosDisp} freeInput={freeInput} />
         </div>
-        <div className={inline ? "min-w-[80px] flex-1" : ""}>
-          <MedidaSelect label={`${usarBaqueton ? "Baquetón (alto)" : "Altura"}${freeInput ? " *" : ""}`} value={valores.alto} onChange={(v) => onChange("alto", v)} disponibles={altosDisp} freeInput={freeInput} />
-        </div>
+        {!usarBaqueton && (
+          <div className={inline ? "min-w-[130px] flex-[1.3]" : ""}>
+            <Field label="Formato de altura">
+              <SelectControl
+                value={valores.alturasDistintas ? "dos" : "una"}
+                onChange={(value) => {
+                  const distintas = value === "dos";
+                  onChange("alturasDistintas", distintas);
+                  onChange("alto", "");
+                  onChange("altoDelante", "");
+                  onChange("altoAtras", "");
+                }}
+                options={[
+                  { value: "una", label: "Altura única" },
+                  { value: "dos", label: "Delante / detrás" },
+                ]}
+              />
+            </Field>
+          </div>
+        )}
+        {valores.alturasDistintas && !usarBaqueton ? (
+          <>
+            <div className={inline ? "min-w-[95px] flex-1" : ""}>
+              <MedidaSelect label={`Alto delante${freeInput ? " *" : ""}`} value={valores.altoDelante} onChange={(v) => onChange("altoDelante", v)} disponibles={altosDelanteDisp} freeInput={freeInput} />
+            </div>
+            <div className={inline ? "min-w-[95px] flex-1" : ""}>
+              <MedidaSelect label={`Alto detrás${freeInput ? " *" : ""}`} value={valores.altoAtras} onChange={(v) => onChange("altoAtras", v)} disponibles={altosAtrasDisp} freeInput={freeInput} />
+            </div>
+          </>
+        ) : (
+          <div className={inline ? "min-w-[80px] flex-1" : ""}>
+            <MedidaSelect label={`${usarBaqueton ? "Baquetón (alto)" : "Altura"}${freeInput ? " *" : ""}`} value={valores.alto} onChange={(v) => onChange("alto", v)} disponibles={altosDisp} freeInput={freeInput} />
+          </div>
+        )}
         {usarRadioYAguas && (
           <>
             <div className={inline ? "min-w-[72px] flex-1" : ""}>

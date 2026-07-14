@@ -22,9 +22,9 @@ import {
   todayInputValue,
 } from "@/components/ui";
 import { dbService } from "@/lib/db/db-service";
-import { formatMedida } from "@/lib/display";
+import { formatAlturaRemolque, formatMedida } from "@/lib/display";
 import { ordenarFamilias } from "@/lib/familias";
-import { tipoRemolqueCanonico } from "@/lib/tipos-remolque";
+import { claveTipoRemolque, tipoRemolqueCanonico } from "@/lib/tipos-remolque";
 import { usaRecogidaRemolque } from "@/lib/recogida-remolque";
 import {
   buscarConCriteriosParciales,
@@ -78,6 +78,9 @@ function valoresDesdeUrl(params: URLSearchParams): CamposTecnicosValores {
     largo: params.get("largo") ?? "",
     ancho: params.get("ancho") ?? "",
     alto: params.get("alto") ?? "",
+    altoDelante: params.get("altoDelante") ?? "",
+    altoAtras: params.get("altoAtras") ?? "",
+    alturasDistintas: params.get("alturas") === "dos" || params.has("altoDelante") || params.has("altoAtras"),
     aguas: params.get("aguas") ?? "",
     aguasActivas: params.has("aguas"),
     radio: params.get("radio") ?? "",
@@ -174,6 +177,13 @@ function BuscadorPageContent() {
     () => construirCriterios(familiaNombre, null, valores),
     [familiaNombre, valores],
   );
+  const claveTipoSeleccionado = claveTipoRemolque(criterios.tipo);
+  const esBusquedaBaqueton = claveTipoSeleccionado === "baqueton";
+  const mostrarRadioYAguas = claveTipoSeleccionado === ""
+    || claveTipoSeleccionado === "ganado"
+    || claveTipoSeleccionado === "lona alta";
+  const mostrarRecogida = claveTipoSeleccionado === ""
+    || claveTipoSeleccionado === "lona alta";
   // Criterios con cliente → coincidencia exacta
   const criteriosConCliente = useMemo(
     () => construirCriterios(familiaNombre, clienteId, valores),
@@ -211,9 +221,10 @@ function BuscadorPageContent() {
     if (clienteId) params.set("cliente", clienteId);
     const campos: Array<[string, string]> = [
       ["tipo", valores.tipo], ["largo", valores.largo], ["ancho", valores.ancho],
-      ["alto", valores.alto], ["radio", valores.radio],
+      ["alto", valores.alto], ["altoDelante", valores.altoDelante], ["altoAtras", valores.altoAtras], ["radio", valores.radio],
       ["recogeDelante", valores.recogidaDelante], ["recogeAtras", valores.recogidaAtras],
     ];
+    if (valores.alturasDistintas) params.set("alturas", "dos");
     if (valores.aguasActivas && valores.aguas) campos.push(["aguas", valores.aguas]);
     for (const [key, value] of campos) if (value) params.set(key, value);
     for (const [key, value] of Object.entries(valores.extra)) if (value !== "" && value !== false) params.set(`campo_${key}`, String(value));
@@ -240,6 +251,11 @@ function BuscadorPageContent() {
     setValores((v) => {
       const siguiente = { ...v, [campo]: valor } as CamposTecnicosValores;
       if (campo === "tipo") {
+        if (typeof valor === "string" && claveTipoRemolque(valor) === "baqueton" && v.alturasDistintas) {
+          siguiente.altoDelante = "";
+          siguiente.altoAtras = "";
+          siguiente.alturasDistintas = false;
+        }
         siguiente.radio = "";
         siguiente.aguas = "";
         siguiente.aguasActivas = false;
@@ -270,9 +286,10 @@ function BuscadorPageContent() {
     if (clienteId) params.set("cliente", clienteId);
     const campos: Array<[string, string]> = [
       ["tipo", valores.tipo], ["largo", valores.largo], ["ancho", valores.ancho],
-      ["alto", valores.alto], ["radio", valores.radio],
+      ["alto", valores.alto], ["altoDelante", valores.altoDelante], ["altoAtras", valores.altoAtras], ["radio", valores.radio],
       ["recogeDelante", valores.recogidaDelante], ["recogeAtras", valores.recogidaAtras],
     ];
+    if (valores.alturasDistintas) params.set("alturas", "dos");
     if (valores.aguasActivas && valores.aguas) campos.push(["aguas", valores.aguas]);
     for (const [key, value] of campos) if (value) params.set(key, value);
     for (const [key, value] of Object.entries(valores.extra)) if (value !== "" && value !== false) params.set(`campo_${key}`, String(value));
@@ -510,6 +527,11 @@ function BuscadorPageContent() {
                   setValores((v) => {
                     const siguiente = { ...v, [campo]: valor } as CamposTecnicosValores;
                     if (campo === "tipo") {
+                      if (typeof valor === "string" && claveTipoRemolque(valor) === "baqueton" && v.alturasDistintas) {
+                        siguiente.altoDelante = "";
+                        siguiente.altoAtras = "";
+                        siguiente.alturasDistintas = false;
+                      }
                       siguiente.radio = "";
                       siguiente.aguas = "";
                       siguiente.aguasActivas = false;
@@ -666,7 +688,18 @@ function BuscadorPageContent() {
         ) : (
           <div className="overflow-x-auto">
             {esRemolques ? (
-              <table className="w-full min-w-[580px] text-sm">
+              <table className={`w-full text-sm ${esBusquedaBaqueton ? "table-fixed" : "min-w-[820px]"}`}>
+                {esBusquedaBaqueton && (
+                  <colgroup>
+                    <col className="w-[16%]" />
+                    <col className="w-[27%]" />
+                    <col className="w-[12%]" />
+                    <col className="w-[9%]" />
+                    <col className="w-[9%]" />
+                    <col className="w-[9%]" />
+                    <col className="w-[18%]" />
+                  </colgroup>
+                )}
                 <thead>
                   <tr className="border-b border-[var(--border)]">
                     <Th>Nº PEDIDO</Th>
@@ -675,9 +708,9 @@ function BuscadorPageContent() {
                     <Th>LARGO</Th>
                     <Th>ANCHO</Th>
                     <Th>ALTURA</Th>
-                    <Th>AGUAS</Th>
-                    <Th>RADIO</Th>
-                    <Th>RECOGIDA</Th>
+                    {mostrarRadioYAguas && <Th>AGUAS</Th>}
+                    {mostrarRadioYAguas && <Th>RADIO</Th>}
+                    {mostrarRecogida && <Th>RECOGIDA</Th>}
                     <Th className="w-[190px]">ARCHIVOS</Th>
                   </tr>
                 </thead>
@@ -698,15 +731,35 @@ function BuscadorPageContent() {
                           ? "text-amber-400 font-semibold"
                           : "text-app-text";
                       return (
-                        <td className={`px-3 py-2.5 tabular-nums ${color}`}>
+                        <td className={`whitespace-nowrap px-3 py-2.5 tabular-nums ${color}`}>
                           {val !== null ? `${formatMedida(val)} cm` : "—"}
+                        </td>
+                      );
+                    }
+
+                    function tdAltura() {
+                      const isDiff = criterios.alturasDistintas
+                        ? diffs.includes("alto_delante") || diffs.includes("alto_atras")
+                        : diffs.includes("alto");
+                      const inCriteria = criterios.alturasDistintas
+                        ? criterios.altoDelante !== null || criterios.altoAtras !== null
+                        : criterios.alto !== null;
+                      const color = inCriteria && !isDiff
+                        ? "text-emerald-400 font-semibold"
+                        : isDiff
+                          ? "text-amber-400 font-semibold"
+                          : "text-app-text";
+                      const altura = formatAlturaRemolque(p);
+                      return (
+                        <td className={`whitespace-nowrap px-3 py-2.5 tabular-nums ${color}`}>
+                          {altura ? `${altura} cm` : "—"}
                         </td>
                       );
                     }
 
                     return (
                       <tr key={pr.id} className={`transition-colors hover:bg-surface-2/70 ${rowBg} ${sep}`}>
-                        <td className="px-3 py-2.5">
+                        <td className="whitespace-nowrap px-3 py-2.5">
                           <span className="flex items-center gap-2">
                             {isExacto && (
                               <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500">
@@ -716,10 +769,12 @@ function BuscadorPageContent() {
                             <span className={`font-mono font-bold ${isExacto ? "text-emerald-300" : "text-app-text"}`}>
                               {pr.numero_pedido}
                             </span>
-                            <CoincidenciaBadge exacta={isExacto} />
+                            {completos && <CoincidenciaBadge exacta={isExacto} />}
                           </span>
                         </td>
-                        <td className="px-3 py-2.5 text-app-muted">{pr.cliente?.nombre ?? "—"}</td>
+                        <td className="px-3 py-2.5 text-app-muted">
+                          <span className="block truncate" title={pr.cliente?.nombre ?? undefined}>{pr.cliente?.nombre ?? "—"}</span>
+                        </td>
                         <td className={`px-3 py-2.5 ${
                           criterios.tipo && !diffs.includes("tipo")
                             ? "text-emerald-400 font-semibold"
@@ -729,13 +784,15 @@ function BuscadorPageContent() {
                         }`}>{tipoRemolqueCanonico(pr.tipo) || "—"}</td>
                         {tdVal("largo", "largo", criterios.largo !== null)}
                         {tdVal("ancho", "ancho", criterios.ancho !== null)}
-                        {tdVal("alto",  "alto",  criterios.alto  !== null)}
-                        {tdVal("aguas", "aguas", criterios.aguas !== null)}
-                        {tdVal("radio", "radio", criterios.radio !== null)}
-                        <td className="min-w-[190px] px-3 py-2.5 text-xs text-app-muted">
-                          <span className="block"><strong>Del.:</strong> {pr.recogida_delante ?? "—"}</span>
-                          <span className="block"><strong>Atr.:</strong> {pr.recogida_atras ?? "—"}</span>
-                        </td>
+                        {tdAltura()}
+                        {mostrarRadioYAguas && tdVal("aguas", "aguas", criterios.aguas !== null)}
+                        {mostrarRadioYAguas && tdVal("radio", "radio", criterios.radio !== null)}
+                        {mostrarRecogida && (
+                          <td className="min-w-[190px] px-3 py-2.5 text-xs text-app-muted">
+                            <span className="block"><strong>Del.:</strong> {pr.recogida_delante ?? "—"}</span>
+                            <span className="block"><strong>Atr.:</strong> {pr.recogida_atras ?? "—"}</span>
+                          </td>
+                        )}
                         <td className="w-[190px] px-3 py-2.5">
                           <div className="flex h-8 items-center gap-2">
                             <div className="flex w-[86px] items-center justify-start">

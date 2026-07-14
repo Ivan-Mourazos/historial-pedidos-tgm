@@ -32,6 +32,8 @@ const DEFINICIONES: Record<string, FamiliaDefinition> = {
       { key: "largo", label: "Largo", type: "number", required: true, unit: "cm" },
       { key: "ancho", label: "Ancho", type: "number", required: true, unit: "cm" },
       { key: "alto", label: "Altura", type: "number", required: true, unit: "cm" },
+      { key: "alto_delante", label: "Alto delante", type: "number", unit: "cm" },
+      { key: "alto_atras", label: "Alto detrás", type: "number", unit: "cm" },
       { key: "aguas", label: "Aguas", type: "number", unit: "cm" },
       { key: "radio", label: "Radio", type: "number", unit: "cm" },
       { key: "recogida_delante", label: "Recoge delante", type: "select" },

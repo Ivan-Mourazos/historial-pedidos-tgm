@@ -70,16 +70,22 @@ Para abrir CAD y Excel con un clic desde el servidor Linux, configura
 `TGM_CLIENT_OPEN_URL_TEMPLATE=tgm-pedidos://open?kind={kind}&path={path}` y
 registra el protocolo `tgm-pedidos` en cada PC Windows. El servidor localiza el
 archivo y traduce su ruta Linux a la ruta UNC; el PC abre la aplicación local.
-El instalador se registra por usuario y no requiere administrador:
+El instalador se registra por usuario y no requiere administrador. Copia los
+dos archivos `tools/instalar-apertura-tgm.cmd` y
+`tools/install-tgm-open-protocol.ps1` a la misma carpeta del PC y haz doble clic
+en `instalar-apertura-tgm.cmd`. Así funciona aunque PowerShell se abra en otra
+carpeta.
+
+Como alternativa, desde una copia local completa del proyecto:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools\install-tgm-open-protocol.ps1 -AllowedRoots "\\stinkor\oftecnica"
+& powershell.exe -ExecutionPolicy Bypass -File "$(Resolve-Path '.\tools\install-tgm-open-protocol.ps1')" -AllowedRoots "\\STINKOR\Oftecnica"
 ```
 
 Si se quiere forzar un ejecutable concreto de ZWCAD en el PC:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools\install-tgm-open-protocol.ps1 -AllowedRoots "\\stinkor\oftecnica" -ZwcadExe "C:\Program Files\ZWSOFT\ZWCAD 2025\ZWCAD.exe"
+& powershell.exe -ExecutionPolicy Bypass -File "$(Resolve-Path '.\tools\install-tgm-open-protocol.ps1')" -AllowedRoots "\\STINKOR\Oftecnica" -ZwcadExe "C:\Program Files\ZWSOFT\ZWCAD 2025\ZWCAD.exe"
 ```
 
 El handler valida la carpeta y la extensión antes de abrir el archivo. También
@@ -138,12 +144,19 @@ La actualización de RPS usa la tarea `PLANTEAR...`: progreso 100 significa real
 las líneas sin esa tarea quedan pendientes en nuevas importaciones y pueden confirmarse
 manualmente desde el histórico.
 
+Para registrar remolques cuya altura cambia entre la parte delantera y trasera,
+aplica antes de desplegar el código
+[`db/migration-2026-07-14-alturas-remolques.sql`](db/migration-2026-07-14-alturas-remolques.sql).
+La migración añade ambas alturas y completa AR2600737 como 36 cm delante y
+46 cm detrás. Debe ejecutarla una cuenta con permisos DDL.
+
 Las migraciones y la sincronización con RPS son compatibles con SQL Server 2014;
 la validación del JSON de campos flexibles se realiza en la aplicación.
 
 ## Reglas de negocio clave
 
-- **Coincidencia exacta REMOLQUES:** cliente + largo + ancho + altura + aguas + radio
+- **Coincidencia exacta REMOLQUES:** cliente + largo + ancho + altura única o
+  alturas delante/detrás + aguas + radio
   (un valor vacío en aguas/radio solo coincide con vacío).
 - **Coincidencia exacta PUERTAS:** cliente + tipo + ancho + alto.
 - Solo se marca "Ya existe un pedido igual" cuando **todos** los campos requeridos están

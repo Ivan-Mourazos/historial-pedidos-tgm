@@ -64,6 +64,8 @@ const PEDIDO_COLUMN_TYPES: Record<string, () => sql.ISqlType> = {
   largo: () => sql.Decimal(10, 2),
   ancho: () => sql.Decimal(10, 2),
   alto: () => sql.Decimal(10, 2),
+  alto_delante: () => sql.Decimal(10, 2),
+  alto_atras: () => sql.Decimal(10, 2),
   aguas: () => sql.Decimal(10, 2),
   radio: () => sql.Decimal(10, 2),
   recogida_delante: () => sql.NVarChar(100),
@@ -444,6 +446,8 @@ export const dbServer = {
         CONVERT(NVARCHAR(50), p.largo), N' ',
         CONVERT(NVARCHAR(50), p.ancho), N' ',
         CONVERT(NVARCHAR(50), p.alto), N' ',
+        CONVERT(NVARCHAR(50), p.alto_delante), N' ',
+        CONVERT(NVARCHAR(50), p.alto_atras), N' ',
         p.recogida_delante, N' ', p.recogida_atras
       )) LIKE @search`);
     }

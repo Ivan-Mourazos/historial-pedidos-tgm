@@ -15,7 +15,7 @@ import {
   modalPanelClass,
 } from "@/components/ui";
 import { dbService } from "@/lib/db/db-service";
-import { formatFecha, formatMedida } from "@/lib/display";
+import { formatAlturaRemolque, formatFecha, formatMedida } from "@/lib/display";
 import { familiaPuedeTenerExcel, getFamiliaDefinition } from "@/lib/familias";
 import { tipoRemolqueCanonico } from "@/lib/tipos-remolque";
 import { TIPOS_RECOGIDA_REMOLQUE } from "@/lib/recogida-remolque";
@@ -342,7 +342,7 @@ export function HistoricoClient({
                         {isDoors
                           ? [pedido.ancho, pedido.alto].map((value) => formatMedida(value) || "—").join(" × ")
                           : isTrailers
-                            ? [pedido.largo, pedido.ancho, pedido.alto].map((value) => formatMedida(value) || "—").join(" × ")
+                            ? [formatMedida(pedido.largo) || "—", formatMedida(pedido.ancho) || "—", formatAlturaRemolque(pedido) || "—"].join(" × ")
                             : genericTechnicalSummary(pedido)}
                       </td>
                       {isTrailers && <td className="whitespace-nowrap px-3 py-3 text-app-muted">{formatMedida(pedido.aguas) || "—"}</td>}

@@ -20,7 +20,7 @@ import {
 import { dbService } from "@/lib/db/db-service";
 import { formatMedida } from "@/lib/normalize";
 import { camposTecnicosParaGuardar } from "@/lib/pedido-helpers";
-import { tipoRemolqueCanonico } from "@/lib/tipos-remolque";
+import { claveTipoRemolque, tipoRemolqueCanonico } from "@/lib/tipos-remolque";
 import {
   AVISO_FORMATO_PEDIDO,
   normalizarNumeroPedido,
@@ -40,6 +40,9 @@ function valoresDesdePedido(p: PedidoConRelaciones): CamposTecnicosValores {
     largo: formatMedida(p.largo),
     ancho: formatMedida(p.ancho),
     alto: formatMedida(p.alto),
+    altoDelante: formatMedida(p.alto_delante),
+    altoAtras: formatMedida(p.alto_atras),
+    alturasDistintas: p.alto_delante !== null || p.alto_atras !== null,
     aguas: formatMedida(p.aguas),
     radio: formatMedida(p.radio),
     tipo: tipoRemolqueCanonico(p.tipo),
@@ -101,6 +104,11 @@ export function EditarPedidoModal({
     setValores((v) => {
       const siguiente = { ...v, [campo]: valor } as CamposTecnicosValores;
       if (campo === "tipo") {
+        if (typeof valor === "string" && claveTipoRemolque(valor) === "baqueton" && v.alturasDistintas) {
+          siguiente.altoDelante = "";
+          siguiente.altoAtras = "";
+          siguiente.alturasDistintas = false;
+        }
         siguiente.radio = "";
         siguiente.aguas = "";
         siguiente.aguasActivas = false;

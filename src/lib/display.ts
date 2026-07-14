@@ -1,16 +1,27 @@
 import { formatMedida, formatMedidaCm } from "./normalize";
 import { FAMILIA_PUERTAS, FAMILIA_REMOLQUES, type Pedido } from "./types";
 
+export function formatAlturaRemolque(
+  pedido: Pick<Pedido, "alto" | "alto_delante" | "alto_atras">,
+): string {
+  const delante = pedido.alto_delante ?? null;
+  const atras = pedido.alto_atras ?? null;
+  if (delante !== null || atras !== null) {
+    return `${formatMedida(delante) || "—"}/${formatMedida(atras) || "—"}`;
+  }
+  return formatMedida(pedido.alto);
+}
+
 // Resumen "250 × 140 × 80" (remolques) o "120 × 220" (puertas).
 // Devuelve "—" si todos los campos relevantes son nulos.
 export function resumenMedidas(
-  pedido: Pick<Pedido, "largo" | "ancho" | "alto" | "aguas" | "radio" | "tipo" | "impresion_digital" | "datos_tecnicos" | "recogida_delante" | "recogida_atras">,
+  pedido: Pick<Pedido, "largo" | "ancho" | "alto" | "alto_delante" | "alto_atras" | "aguas" | "radio" | "tipo" | "impresion_digital" | "datos_tecnicos" | "recogida_delante" | "recogida_atras">,
   familiaNombre: string,
 ): string {
   if (familiaNombre === FAMILIA_REMOLQUES) {
-    const vals = [pedido.largo, pedido.ancho, pedido.alto];
-    if (vals.every((v) => v === null)) return "—";
-    const medidas = vals.map((v) => formatMedida(v) || "—").join(" × ");
+    const altura = formatAlturaRemolque(pedido);
+    if (pedido.largo === null && pedido.ancho === null && !altura) return "—";
+    const medidas = [formatMedida(pedido.largo) || "—", formatMedida(pedido.ancho) || "—", altura || "—"].join(" × ");
     const extras = [
       pedido.radio !== null ? `Radio ${formatMedida(pedido.radio)}` : null,
       pedido.aguas !== null ? `Aguas ${formatMedida(pedido.aguas)}` : null,

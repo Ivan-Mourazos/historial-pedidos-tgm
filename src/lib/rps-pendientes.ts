@@ -19,6 +19,19 @@ export interface ResultadoImportacionRps {
   fechaDesde: string;
 }
 
+interface CachePendientesRps {
+  value?: ResumenPendientesRps;
+  expiresAt: number;
+  consulta?: Promise<ResumenPendientesRps>;
+  sincronizacion?: Promise<ResumenPendientesRps>;
+}
+
+const CACHE_PENDIENTES_MS = 5 * 60 * 1000;
+const globalPendientes = globalThis as typeof globalThis & {
+  __cachePendientesRps?: CachePendientesRps;
+};
+const cachePendientes = globalPendientes.__cachePendientesRps ??= { expiresAt: 0 };
+
 interface LineaLocal {
   id: string;
   numero: string;
@@ -27,6 +40,8 @@ interface LineaLocal {
   largo: number | null;
   ancho: number | null;
   alto: number | null;
+  altoDelante: number | null;
+  altoAtras: number | null;
   aguas: number | null;
   estadoPlanteo: "PENDIENTE" | "REALIZADO";
   estadoManual: boolean;
@@ -44,10 +59,24 @@ const normalizarNumero = (value: string) => value.toLocaleUpperCase("es-ES").rep
 const normalizarTipo = (value: string | null) => (value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es-ES").trim();
 const medida = (value: unknown): number | null => value === null || value === undefined ? null : Number(value);
 const iguales = (a: number | null, b: number | null) => a === null || b === null ? a === b : Math.abs(a - b) < 0.01;
+const medidaClave = (value: number | null) => value === null ? "—" : (Math.round(value * 100) / 100).toFixed(2);
+
+function firmaTecnica(linea: Pick<LineaPedidoRps | LineaLocal, "familia" | "tipo" | "largo" | "ancho" | "alto" | "altoDelante" | "altoAtras" | "aguas">): string {
+  return [
+    linea.familia,
+    normalizarTipo(linea.tipo),
+    medidaClave(linea.largo),
+    medidaClave(linea.ancho),
+    medidaClave(linea.alto),
+    medidaClave(linea.altoDelante),
+    medidaClave(linea.altoAtras),
+    medidaClave(linea.aguas),
+  ].join("|");
+}
 
 function puntuacion(linea: LineaPedidoRps, local: LineaLocal): number {
   let score = normalizarTipo(linea.tipo) === normalizarTipo(local.tipo) ? 0 : 1000;
-  for (const [rps, valorLocal] of [[linea.largo, local.largo], [linea.ancho, local.ancho], [linea.alto, local.alto], [linea.aguas, local.aguas]] as const) {
+  for (const [rps, valorLocal] of [[linea.largo, local.largo], [linea.ancho, local.ancho], [linea.alto, local.alto], [linea.altoDelante, local.altoDelante], [linea.altoAtras, local.altoAtras], [linea.aguas, local.aguas]] as const) {
     if (iguales(rps, valorLocal)) continue;
     if (rps === null || valorLocal === null) score += 500;
     else score += Math.abs(rps - valorLocal);
@@ -58,7 +87,8 @@ function puntuacion(linea: LineaPedidoRps, local: LineaLocal): number {
 function esImportable(linea: PedidoPendienteRps): boolean {
   if (linea.requiereRevision || !linea.tipo.trim()) return false;
   if (linea.familia === "REMOLQUES") {
-    return linea.largo !== null && linea.ancho !== null && linea.alto !== null;
+    const alturaCompleta = linea.alto !== null || (linea.altoDelante !== null && linea.altoAtras !== null);
+    return linea.largo !== null && linea.ancho !== null && alturaCompleta;
   }
   return linea.ancho !== null && linea.alto !== null;
 }
@@ -111,7 +141,7 @@ async function guardarEstadosRps(actualizaciones: ActualizacionEstadoRps[]): Pro
   }
 }
 
-export async function obtenerPendientesRps(sincronizarEstados = false): Promise<ResumenPendientesRps> {
+async function calcularPendientesRps(sincronizarEstados: boolean): Promise<ResumenPendientesRps> {
   const pool = await getPool();
   const inicioResult = await pool.request().query(
     `SELECT TOP 1 UPPER(REPLACE(REPLACE(numero_pedido, '.', ''), ' ', '')) AS numero
@@ -125,7 +155,7 @@ export async function obtenerPendientesRps(sincronizarEstados = false): Promise<
   const [pedidosRps, localesResult] = await Promise.all([
     pedidosRpsDesde(fechaDesde),
     pool.request().query(`SELECT p.id, p.numero_pedido AS numero, f.nombre AS familia, p.tipo,
-        p.largo, p.ancho, p.alto, p.aguas, p.estado_planteo,
+        p.largo, p.ancho, p.alto, p.alto_delante, p.alto_atras, p.aguas, p.estado_planteo,
         p.estado_planteo_manual, p.rps_numero_linea, p.rps_planteo_progreso
       FROM ${SCHEMA}.pedidos p
       INNER JOIN ${SCHEMA}.familias f ON f.id = p.familia_id`),
@@ -141,6 +171,8 @@ export async function obtenerPendientesRps(sincronizarEstados = false): Promise<
       largo: medida(row.largo),
       ancho: medida(row.ancho),
       alto: medida(row.alto),
+      altoDelante: medida(row.alto_delante),
+      altoAtras: medida(row.alto_atras),
       aguas: medida(row.aguas),
       estadoPlanteo: row.estado_planteo === "PENDIENTE" ? "PENDIENTE" : "REALIZADO",
       estadoManual: Boolean(row.estado_planteo_manual),
@@ -148,7 +180,9 @@ export async function obtenerPendientesRps(sincronizarEstados = false): Promise<
       rpsProgreso: medida(row.rps_planteo_progreso),
     };
     const key = `${normalizarNumero(local.numero)}|${local.familia}`;
-    localesPorPedido.set(key, [...(localesPorPedido.get(key) ?? []), local]);
+    const grupo = localesPorPedido.get(key);
+    if (grupo) grupo.push(local);
+    else localesPorPedido.set(key, [local]);
   }
 
   const pendientesBase: PedidoPendienteRps[] = [];
@@ -157,10 +191,13 @@ export async function obtenerPendientesRps(sincronizarEstados = false): Promise<
   let totalRegistradas = 0;
   const relacionar = (linea: LineaPedidoRps, local: LineaLocal) => {
     const estadoRps = estadoDesdeRps(linea);
+    const necesitaActualizacion = local.rpsNumeroLinea !== linea.numeroLinea
+      || !iguales(local.rpsProgreso, linea.progresoPlanteo)
+      || (!local.estadoManual && estadoRps !== null && local.estadoPlanteo !== estadoRps);
     local.rpsNumeroLinea = linea.numeroLinea;
     local.rpsProgreso = linea.progresoPlanteo;
     if (!local.estadoManual && estadoRps) local.estadoPlanteo = estadoRps;
-    if (sincronizarEstados) {
+    if (sincronizarEstados && necesitaActualizacion) {
       actualizaciones.push({ id: local.id, numeroLinea: linea.numeroLinea, progreso: linea.progresoPlanteo });
     }
   };
@@ -208,12 +245,17 @@ export async function obtenerPendientesRps(sincronizarEstados = false): Promise<
   const todosLocales = [...localesPorPedido.values()].flat();
   const estadosActualizados = sincronizarEstados ? await guardarEstadosRps(actualizaciones) : 0;
   const localesRealizados = todosLocales.filter((local) => local.estadoPlanteo === "REALIZADO");
+  const realizadosPorFirma = new Map<string, LineaLocal[]>();
+  for (const local of localesRealizados) {
+    const firma = firmaTecnica(local);
+    const grupo = realizadosPorFirma.get(firma);
+    if (grupo) grupo.push(local);
+    else realizadosPorFirma.set(firma, [local]);
+  }
   const pendientes = pendientesBase.map((pendiente) => {
-    const coincidencia = localesRealizados.find((local) =>
-      local.familia === pendiente.familia
-      && normalizarNumero(local.numero) !== normalizarNumero(pendiente.numero)
-      && puntuacion(pendiente, local) === 0,
-    );
+    const numeroPendiente = normalizarNumero(pendiente.numero);
+    const coincidencia = realizadosPorFirma.get(firmaTecnica(pendiente))
+      ?.find((local) => normalizarNumero(local.numero) !== numeroPendiente);
     return { ...pendiente, coincideCon: coincidencia?.numero ?? null };
   });
 
@@ -225,6 +267,39 @@ export async function obtenerPendientesRps(sincronizarEstados = false): Promise<
     totalImportables: pendientes.filter(esImportable).length,
     estadosActualizados,
   };
+}
+
+export async function obtenerPendientesRps(sincronizarEstados = false): Promise<ResumenPendientesRps> {
+  if (!sincronizarEstados && cachePendientes.value && cachePendientes.expiresAt > Date.now()) {
+    return cachePendientes.value;
+  }
+
+  if (sincronizarEstados) {
+    if (cachePendientes.sincronizacion) return cachePendientes.sincronizacion;
+    const sincronizacion = calcularPendientesRps(true);
+    cachePendientes.sincronizacion = sincronizacion;
+    try {
+      const value = await sincronizacion;
+      cachePendientes.value = value;
+      cachePendientes.expiresAt = Date.now() + CACHE_PENDIENTES_MS;
+      return value;
+    } finally {
+      if (cachePendientes.sincronizacion === sincronizacion) cachePendientes.sincronizacion = undefined;
+    }
+  }
+
+  if (cachePendientes.sincronizacion) return cachePendientes.sincronizacion;
+  if (cachePendientes.consulta) return cachePendientes.consulta;
+  const consulta = calcularPendientesRps(false);
+  cachePendientes.consulta = consulta;
+  try {
+    const value = await consulta;
+    cachePendientes.value = value;
+    cachePendientes.expiresAt = Date.now() + CACHE_PENDIENTES_MS;
+    return value;
+  } finally {
+    if (cachePendientes.consulta === consulta) cachePendientes.consulta = undefined;
+  }
 }
 
 export async function importarPendientesRps(): Promise<ResultadoImportacionRps> {
@@ -257,6 +332,8 @@ export async function importarPendientesRps(): Promise<ResultadoImportacionRps> 
         largo: linea.familia === "REMOLQUES" ? linea.largo : null,
         ancho: linea.ancho,
         alto: linea.alto,
+        alto_delante: linea.altoDelante,
+        alto_atras: linea.altoAtras,
         aguas: linea.familia === "REMOLQUES" ? linea.aguas : null,
         radio: null,
         impresion_digital: false,
@@ -272,6 +349,9 @@ export async function importarPendientesRps(): Promise<ResultadoImportacionRps> 
       importados += 1;
     }));
   }
+
+  cachePendientes.value = undefined;
+  cachePendientes.expiresAt = 0;
 
   return {
     importados,
