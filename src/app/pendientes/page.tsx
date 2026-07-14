@@ -212,17 +212,22 @@ export default function PendientesPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] border-collapse text-left">
+            <table className="w-full table-fixed border-collapse text-left">
+              <colgroup>
+                <col className="w-[14%]" />
+                <col className="w-[24%]" />
+                <col className="w-[17%]" />
+                <col className="w-[17%]" />
+                <col className="w-[17%]" />
+                <col className="w-[11%]" />
+              </colgroup>
               <thead className="bg-surface-2/70 text-[11px] uppercase tracking-wide text-app-muted">
                 <tr>
                   <th className="px-4 py-2.5">Pedido / línea</th>
                   <th className="px-3 py-2.5">Cliente</th>
-                  <th className="px-3 py-2.5">Familia</th>
-                  <th className="px-3 py-2.5">Tipo</th>
+                  <th className="px-3 py-2.5">Trabajo</th>
                   <th className="px-3 py-2.5">Medidas</th>
-                  <th className="px-3 py-2.5">Planteo</th>
-                  <th className="px-3 py-2.5">Estado</th>
-                  <th className="px-3 py-2.5">Fecha</th>
+                  <th className="px-3 py-2.5">Situación</th>
                   <th className="px-4 py-2.5 text-right">Acción</th>
                 </tr>
               </thead>
@@ -232,39 +237,43 @@ export default function PendientesPage() {
                     <td className="px-4 py-3">
                       <p className="font-mono text-sm font-semibold text-app-text">{pendiente.numero}</p>
                       <p className="mt-0.5 text-xs text-app-muted">Línea {pendiente.numeroLinea}</p>
+                      <p className="mt-1 text-[11px] text-app-muted">{fecha(pendiente.fecha)}</p>
                     </td>
-                    <td className="max-w-[260px] px-3 py-3">
+                    <td className="px-3 py-3">
                       <p className="truncate text-sm font-medium text-app-text" title={pendiente.cliente.alias ?? pendiente.cliente.nombre}>{pendiente.cliente.alias ?? pendiente.cliente.nombre}</p>
                       {pendiente.cliente.alias && <p className="truncate text-xs text-app-muted" title={pendiente.cliente.nombre}>{pendiente.cliente.nombre}</p>}
                       <p className="mt-0.5 font-mono text-xs text-app-muted">{pendiente.cliente.codigo}</p>
                     </td>
-                    <td className="px-3 py-3 text-xs font-semibold text-app-muted">{pendiente.familia === "REMOLQUES" ? "Remolque" : "Puerta"}</td>
-                    <td className="px-3 py-3 text-sm text-app-text">
-                      <span>{pendiente.tipo}</span>
-                      {pendiente.requiereRevision && <span className="ml-2 rounded-full bg-amber-400/15 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:text-amber-300">Revisar</span>}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-3 font-mono text-sm font-semibold text-app-text">{medidas(pendiente)}</td>
                     <td className="px-3 py-3">
-                      <span className={`inline-flex rounded-full px-2 py-1 text-[11px] font-semibold ${pendiente.estadoPlanteo === "REALIZADO" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" : "bg-amber-500/15 text-amber-700 dark:text-amber-300"}`}>
-                        {pendiente.estadoPlanteo === "REALIZADO" ? "Realizado" : pendiente.estadoPlanteo === "PENDIENTE" ? "Pendiente" : "Sin tarea RPS"}
-                      </span>
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-app-muted">{pendiente.familia === "REMOLQUES" ? "Remolque" : "Puerta"}</p>
+                      <div className="mt-1 flex min-w-0 items-center gap-1.5">
+                        <span className="truncate text-sm font-medium text-app-text" title={pendiente.tipo}>{pendiente.tipo}</span>
+                        {pendiente.requiereRevision && <span className="shrink-0 rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">Revisar</span>}
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 font-mono text-sm font-semibold text-app-text" title={medidas(pendiente)}>
+                      <span className="block truncate">{medidas(pendiente)}</span>
                     </td>
                     <td className="px-3 py-3">
-                      {pendiente.coincideCon ? (
-                        <span className="inline-flex rounded-full bg-sky-400/15 px-2 py-1 text-[11px] font-semibold text-sky-700 dark:text-sky-300" title={`Coincide técnicamente con ${pendiente.coincideCon}`}>
-                          Diseño de {pendiente.coincideCon}
+                      <div className="flex flex-col items-start gap-1">
+                        <span className={`inline-flex whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-semibold ${pendiente.estadoPlanteo === "REALIZADO" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" : "bg-amber-500/15 text-amber-700 dark:text-amber-300"}`}>
+                          {pendiente.estadoPlanteo === "REALIZADO" ? "Realizado" : pendiente.estadoPlanteo === "PENDIENTE" ? "Pendiente" : "Sin tarea RPS"}
                         </span>
-                      ) : (
-                        <span className="inline-flex rounded-full bg-orange-400/15 px-2 py-1 text-[11px] font-semibold text-orange-700 dark:text-orange-300">Sin registrar</span>
-                      )}
+                        {pendiente.coincideCon ? (
+                          <span className="inline-flex max-w-full rounded-full bg-sky-400/15 px-2 py-1 text-[10px] font-semibold text-sky-700 dark:text-sky-300" title={`Coincide técnicamente con ${pendiente.coincideCon}`}>
+                            <span className="truncate">Diseño {pendiente.coincideCon}</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex rounded-full bg-orange-400/15 px-2 py-1 text-[10px] font-semibold text-orange-700 dark:text-orange-300">Sin registrar</span>
+                        )}
+                      </div>
                     </td>
-                    <td className="whitespace-nowrap px-3 py-3 text-sm text-app-muted">{fecha(pendiente.fecha)}</td>
                     <td className="px-4 py-3 text-right">
                       <Link
                         href={`/nuevo?pedido=${encodeURIComponent(pendiente.numero)}&linea=${pendiente.numeroLinea}`}
-                        className="inline-flex h-8 items-center rounded-[10px] bg-brand px-3 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[var(--brand-hover)]"
+                        className="inline-flex h-8 items-center justify-center whitespace-nowrap rounded-[10px] bg-brand px-3 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[var(--brand-hover)]"
                       >
-                        Revisar y registrar
+                        Revisar
                       </Link>
                     </td>
                   </tr>

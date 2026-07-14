@@ -281,14 +281,15 @@ function NuevoPedidoPageContent() {
     return () => { activo = false; };
   }, [catalogosCargando, familiasCatalogo, recargarClientes, searchParams]);
 
-  const puedeGuardar =
-    numero.trim() !== "" &&
-    !!clienteId &&
-    !!familiaId &&
-    completos &&
-    !guardando &&
-    (!duplicadoTecnico || confirmarDuplicado) &&
-    (!avisoNumero || confirmarNumero);
+  const faltantesGuardar: string[] = [];
+  if (!numero.trim()) faltantesGuardar.push("número de pedido");
+  if (!clienteId) faltantesGuardar.push("cliente");
+  if (!familiaId) faltantesGuardar.push("familia");
+  if (!completos) faltantesGuardar.push("datos técnicos obligatorios");
+  const formularioListo = faltantesGuardar.length === 0;
+  const puedeGuardar = formularioListo
+    && !guardando
+    && (!avisoNumero || confirmarNumero);
 
   async function guardar() {
     setError(null);
@@ -427,21 +428,36 @@ function NuevoPedidoPageContent() {
                 onChange={cambiarCliente}
                 onClienteCreado={() => cat.recargarClientes()}
               />
-              {avisoRps && <p className="mt-1 text-xs text-app-muted">{avisoRps}</p>}
+              {avisoRps && (
+                <div className="flex items-center gap-2 rounded-[10px] border border-sky-400/15 bg-sky-400/[0.06] px-2.5 py-2 text-xs text-app-muted lg:col-span-2">
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400" />
+                  <span><span className="font-semibold text-app-text">RPS:</span> {avisoRps}</span>
+                </div>
+              )}
             </div>
           </section>
 
           {pedidoRps && pedidoRps.lineas.length > 0 && (
             <section className="border-t border-[var(--border)] pt-4">
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-wider text-app-muted">Datos encontrados en RPS</p>
-                <span className="text-xs text-app-muted">{pedidoRps.numero}</span>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-app-muted">Líneas encontradas en RPS</p>
+                  <p className="mt-0.5 text-xs text-app-muted">Selecciona la línea que quieres registrar.</p>
+                </div>
+                <span className="rounded-lg border border-[var(--border)] bg-surface-2 px-2 py-1 font-mono text-xs font-semibold text-app-text">{pedidoRps.numero}</span>
               </div>
-              <div className="grid gap-2 lg:grid-cols-2">
-                {pedidoRps.lineas.map((linea) => (
-                  <div key={linea.numeroLinea} className="rounded-xl border border-[var(--border)] bg-surface-2/55 p-3">
+              <div className="space-y-2">
+                {pedidoRps.lineas.map((linea) => {
+                  const seleccionada = lineaRpsSeleccionada?.numeroLinea === linea.numeroLinea;
+                  return (
+                  <div
+                    key={linea.numeroLinea}
+                    className={`rounded-xl border p-3 transition-colors ${seleccionada
+                      ? "border-orange-400/50 bg-orange-500/[0.06] shadow-[inset_3px_0_0_#fb923c]"
+                      : "border-[var(--border)] bg-surface-2/55"}`}
+                  >
                     <div className="flex items-start justify-between gap-3">
-                      <div>
+                      <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-sm font-semibold text-app-text">Línea {linea.numeroLinea} · {linea.tipo}</span>
                           {linea.requiereRevision && <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-700 dark:text-amber-300">Revisar</span>}
@@ -454,11 +470,19 @@ function NuevoPedidoPageContent() {
                           {linea.aguas !== null && <span className="ml-2 font-sans text-xs font-normal text-app-muted">(alto base {linea.altoBase} + aguas {linea.aguas})</span>}
                         </p>
                       </div>
-                      <Button variant="secondary" onClick={() => aplicarLineaRps(linea)}>Usar datos</Button>
+                      <Button
+                        variant={seleccionada ? "primary" : "secondary"}
+                        className="shrink-0"
+                        onClick={() => aplicarLineaRps(linea)}
+                        aria-pressed={seleccionada}
+                      >
+                        {seleccionada ? "✓ Datos aplicados" : "Usar esta línea"}
+                      </Button>
                     </div>
                     <p className="mt-2 line-clamp-3 text-xs leading-5 text-app-muted" title={linea.detalle}>{linea.detalle || linea.descripcion}</p>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </section>
           )}
@@ -511,39 +535,42 @@ function NuevoPedidoPageContent() {
               />
             </Field>
           </section>
+
+          {avisoNumero && <Banner tone="warning">{avisoNumero}</Banner>}
+
+          {duplicadoTecnico && (
+            <Banner tone="warning">
+              Ya existe un pedido técnicamente igual: <span className="font-mono font-semibold">{duplicadoTecnico.numero_pedido}</span>{" "}
+              ({resumenMedidas(duplicadoTecnico, familiaNombre)}).
+              {confirmarDuplicado
+                ? " Pulsa Guardar igualmente para registrarlo."
+                : " Confirma antes de guardarlo nuevamente."}
+            </Banner>
+          )}
+
+          <section className="-mx-3 -mb-3 flex items-center justify-between gap-4 border-t border-[var(--border)] bg-surface-2/35 px-3 py-3">
+            <div className="min-w-0">
+              <p className={`text-sm font-semibold ${formularioListo ? "text-emerald-700 dark:text-emerald-300" : "text-app-text"}`}>
+                {formularioListo ? "Listo para guardar" : `Falta: ${faltantesGuardar.join(", ")}`}
+              </p>
+              <p className="mt-0.5 text-xs text-app-muted">
+                {lineaRpsSeleccionada
+                  ? `Se guardará vinculada a la línea ${lineaRpsSeleccionada.numeroLinea} de RPS.`
+                  : "Radio, recogidas y observaciones pueden quedar vacíos."}
+              </p>
+            </div>
+            <Button className="min-w-[168px] shrink-0" onClick={guardar} disabled={!puedeGuardar}>
+              {guardando
+                ? "Guardando…"
+                : duplicadoTecnico && !confirmarDuplicado
+                  ? "Confirmar duplicado"
+                  : duplicadoTecnico && confirmarDuplicado
+                    ? "Guardar igualmente"
+                    : "Guardar pedido"}
+            </Button>
+          </section>
         </div>
       </Card>}
-
-      {avisoNumero && (
-        <div className="mb-4">
-          <Banner tone="warning">{avisoNumero}</Banner>
-        </div>
-      )}
-
-      {duplicadoTecnico && (
-        <div className="mb-4">
-          <Banner tone="warning">
-            Ya existe un pedido técnicamente igual:{" "}
-            <span className="font-mono font-semibold">
-              {duplicadoTecnico.numero_pedido}
-            </span>{" "}
-            ({resumenMedidas(duplicadoTecnico, familiaNombre)}).
-            {confirmarDuplicado
-              ? " Pulsa de nuevo Guardar para registrarlo igualmente."
-              : " Puedes guardarlo igualmente confirmando."}
-          </Banner>
-        </div>
-      )}
-
-      {familiaNombre && <div className="flex gap-2">
-        <Button onClick={guardar} disabled={!puedeGuardar}>
-          {guardando
-            ? "Guardando…"
-            : duplicadoTecnico && confirmarDuplicado
-              ? "Guardar igualmente"
-              : "Guardar pedido"}
-        </Button>
-      </div>}
     </div>
   );
 }

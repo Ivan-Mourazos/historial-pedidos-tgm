@@ -59,7 +59,8 @@ function recogidaNormalizada(value: string | null | undefined): string {
 }
 
 // ¿Están completos los campos mínimos para buscar?
-// Aguas/radio son siempre opcionales. No requiere cliente.
+// Radio y recogidas son opcionales porque RPS no siempre los proporciona.
+// Si se indica que hay aguas, su valor sí debe estar informado. No requiere cliente.
 export function camposRequeridosCompletos(c: CriteriosBusqueda): boolean {
   if (c.familiaNombre === FAMILIA_REMOLQUES) {
     if (tipoNormalizado(c.tipo) === "") return false;
@@ -67,9 +68,7 @@ export function camposRequeridosCompletos(c: CriteriosBusqueda): boolean {
     if (!base) return false;
     if (esBaqueton(c.tipo)) return true;
     if (pideRadioYAguas(c.tipo)) {
-      const recogidaCompleta = !usaRecogidaRemolque(c.tipo)
-        || (c.recogidaDelante !== "" && c.recogidaAtras !== "");
-      return c.radio !== null && (!c.aguasActivas || c.aguas !== null) && recogidaCompleta;
+      return !c.aguasActivas || c.aguas !== null;
     }
     return true;
   }

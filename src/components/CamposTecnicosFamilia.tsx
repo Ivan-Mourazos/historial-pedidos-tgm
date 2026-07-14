@@ -209,7 +209,7 @@ export function CamposTecnicosFamilia({
     const fields = (
       <>
         <div className={inline ? "min-w-[110px] flex-[2]" : ""}>
-          <Field label="Tipo">
+          <Field label={freeInput ? "Tipo *" : "Tipo"}>
             {freeInput && onNuevoTipo ? (
               <div className="flex items-center gap-1">
                 <SelectControl
@@ -238,18 +238,18 @@ export function CamposTecnicosFamilia({
           </Field>
         </div>
         <div className={inline ? "min-w-[80px] flex-1" : ""}>
-          <MedidaSelect label="Largo"  value={valores.largo} onChange={(v) => onChange("largo", v)} disponibles={largosDisp} freeInput={freeInput} />
+          <MedidaSelect label={freeInput ? "Largo *" : "Largo"} value={valores.largo} onChange={(v) => onChange("largo", v)} disponibles={largosDisp} freeInput={freeInput} />
         </div>
         <div className={inline ? "min-w-[80px] flex-1" : ""}>
-          <MedidaSelect label="Ancho"  value={valores.ancho} onChange={(v) => onChange("ancho", v)} disponibles={anchosDisp} freeInput={freeInput} />
+          <MedidaSelect label={freeInput ? "Ancho *" : "Ancho"} value={valores.ancho} onChange={(v) => onChange("ancho", v)} disponibles={anchosDisp} freeInput={freeInput} />
         </div>
         <div className={inline ? "min-w-[80px] flex-1" : ""}>
-          <MedidaSelect label={usarBaqueton ? "Baquetón (alto)" : "Altura"} value={valores.alto}  onChange={(v) => onChange("alto",  v)} disponibles={altosDisp}  freeInput={freeInput} />
+          <MedidaSelect label={`${usarBaqueton ? "Baquetón (alto)" : "Altura"}${freeInput ? " *" : ""}`} value={valores.alto} onChange={(v) => onChange("alto", v)} disponibles={altosDisp} freeInput={freeInput} />
         </div>
         {usarRadioYAguas && (
           <>
             <div className={inline ? "min-w-[72px] flex-1" : ""}>
-              <MedidaSelect label="Radio"  value={valores.radio} onChange={(v) => onChange("radio", v)} disponibles={radiosDisp} freeInput={freeInput} />
+              <MedidaSelect label="Radio (opcional)" value={valores.radio} onChange={(v) => onChange("radio", v)} disponibles={radiosDisp} freeInput={freeInput} />
             </div>
             <div className={inline ? "min-w-[92px] flex-1" : ""}>
               <Field label="Aguas">
@@ -269,7 +269,7 @@ export function CamposTecnicosFamilia({
             </div>
             {valores.aguasActivas && (
               <div className={inline ? "min-w-[72px] flex-1" : ""}>
-                <MedidaSelect label="Nº aguas" value={valores.aguas} onChange={(v) => onChange("aguas", v)} disponibles={aguasDisp} freeInput={freeInput} />
+                <MedidaSelect label={freeInput ? "Nº aguas *" : "Nº aguas"} value={valores.aguas} onChange={(v) => onChange("aguas", v)} disponibles={aguasDisp} freeInput={freeInput} />
               </div>
             )}
           </>
@@ -277,7 +277,7 @@ export function CamposTecnicosFamilia({
         {usarRecogida && freeInput && (
           <>
             <div className={inline ? "min-w-[150px] flex-[2]" : ""}>
-              <Field label="Recoge delante *">
+              <Field label="Recoge delante (opcional)">
                 <SelectControl
                   value={valores.recogidaDelante}
                   onChange={(value) => onChange("recogidaDelante", value)}
@@ -287,7 +287,7 @@ export function CamposTecnicosFamilia({
               </Field>
             </div>
             <div className={inline ? "min-w-[150px] flex-[2]" : ""}>
-              <Field label="Recoge atrás *">
+              <Field label="Recoge atrás (opcional)">
                 <SelectControl
                   value={valores.recogidaAtras}
                   onChange={(value) => onChange("recogidaAtras", value)}
@@ -331,7 +331,7 @@ export function CamposTecnicosFamilia({
     const fields = (
       <>
         <div className={inline ? "min-w-[130px] flex-[2]" : ""}>
-          <Field label="Tipo">
+          <Field label={freeInput ? "Tipo *" : "Tipo"}>
             {freeInput && onNuevoTipo ? (
               <div className="flex items-center gap-1">
                 <SelectControl
@@ -360,10 +360,10 @@ export function CamposTecnicosFamilia({
           </Field>
         </div>
         <div className={inline ? "min-w-[80px] flex-1" : ""}>
-          <MedidaSelect label="Ancho" value={valores.ancho} onChange={(v) => onChange("ancho", v)} disponibles={anchosDisp} freeInput={freeInput} />
+          <MedidaSelect label={freeInput ? "Ancho *" : "Ancho"} value={valores.ancho} onChange={(v) => onChange("ancho", v)} disponibles={anchosDisp} freeInput={freeInput} />
         </div>
         <div className={inline ? "min-w-[80px] flex-1" : ""}>
-          <MedidaSelect label="Alto"  value={valores.alto}  onChange={(v) => onChange("alto",  v)} disponibles={altosDisp}  freeInput={freeInput} />
+          <MedidaSelect label={freeInput ? "Alto *" : "Alto"} value={valores.alto} onChange={(v) => onChange("alto", v)} disponibles={altosDisp} freeInput={freeInput} />
         </div>
         <div className={inline ? "min-w-[92px] flex-1" : ""}>
           <Field label="I.D.">
