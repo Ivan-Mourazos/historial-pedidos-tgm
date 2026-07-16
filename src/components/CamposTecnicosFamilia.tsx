@@ -15,7 +15,7 @@ import {
   ordenarTiposRemolque,
   tipoRemolqueCanonico,
 } from "@/lib/tipos-remolque";
-import { Button, Field, SelectControl, inputClass } from "./ui";
+import { Button, Field, SearchableSelect, SelectControl, inputClass } from "./ui";
 
 export interface CamposTecnicosValores {
   largo: string;
@@ -101,6 +101,7 @@ function MedidaSelect({
   disponibles,
   hint,
   freeInput = false,
+  searchInput = false,
 }: {
   label: string;
   value: string;
@@ -108,18 +109,48 @@ function MedidaSelect({
   disponibles: number[];
   hint?: string;
   freeInput?: boolean;
+  searchInput?: boolean;
 }) {
+  if (searchInput) {
+    return (
+      <Field label={label} hint={hint}>
+        <SearchableSelect
+          value={value}
+          onChange={onChange}
+          placeholder="Buscar…"
+          inputMode="decimal"
+          options={disponibles.map((medida) => {
+            const formatted = formatMedida(medida) || String(medida);
+            return { value: formatted, label: formatted };
+          })}
+        />
+      </Field>
+    );
+  }
   if (freeInput) {
     return (
       <Field label={label} hint={hint}>
-        <input
-          className={`${inputClass} tabular-nums`}
-          inputMode="decimal"
-          autoComplete="off"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="Ej. 250"
-        />
+        <div className="relative">
+          <input
+            className={`${inputClass} tabular-nums ${value ? "pr-8" : ""}`}
+            inputMode="decimal"
+            autoComplete="off"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="Ej. 250"
+          />
+          {value && (
+            <button
+              type="button"
+              aria-label={`Borrar ${label.toLocaleLowerCase("es-ES")}`}
+              title="Borrar"
+              className="absolute right-1.5 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-base text-app-muted hover:bg-surface-2 hover:text-app-text"
+              onClick={() => onChange("")}
+            >
+              ×
+            </button>
+          )}
+        </div>
       </Field>
     );
   }
@@ -150,6 +181,7 @@ export function CamposTecnicosFamilia({
   pedidosFamilia = [],
   inline = false,
   freeInput = false,
+  searchInput = false,
   onNuevoTipo,
   tiposRemolqueExtra = [],
 }: {
@@ -164,9 +196,11 @@ export function CamposTecnicosFamilia({
   pedidosFamilia?: Pedido[];
   inline?: boolean;
   freeInput?: boolean;
+  searchInput?: boolean;
   onNuevoTipo?: () => void;
   tiposRemolqueExtra?: string[];
 }) {
+  const editableInput = freeInput || searchInput;
   if (familiaNombre === FAMILIA_REMOLQUES) {
     const largoN = parseMedida(valores.largo);
     const anchoN = parseMedida(valores.ancho);
@@ -177,7 +211,7 @@ export function CamposTecnicosFamilia({
     const usarBaqueton = esBaqueton(valores.tipo);
     const usarRecogida = usaRecogidaRemolque(valores.tipo);
 
-    const tiposDisp = tiposRemolqueDisponibles(freeInput
+    const tiposDisp = tiposRemolqueDisponibles(editableInput
       ? [
           ...(tiposRemolque ?? []).map((t) => t.nombre),
           ...tiposRemolqueExtra,
@@ -218,7 +252,7 @@ export function CamposTecnicosFamilia({
     const radiosDisp = uniqueNums(compatiblesExcepto("radio").map((p) => p.radio));
     const hayMedidaSeleccionada = largoN !== null || anchoN !== null || altoN !== null
       || altoDelanteN !== null || altoAtrasN !== null || aguasN !== null || radioN !== null;
-    const tiposParaMostrar = !freeInput && hayMedidaSeleccionada
+    const tiposParaMostrar = !editableInput && hayMedidaSeleccionada
       ? tiposRemolqueDisponibles([
           ...compatiblesExcepto("tipo").map((p) => p.tipo),
         ])
@@ -228,7 +262,14 @@ export function CamposTecnicosFamilia({
       <>
         <div className={inline ? "min-w-[110px] flex-[2]" : ""}>
           <Field label={freeInput ? "Tipo *" : "Tipo"}>
-            {freeInput && onNuevoTipo ? (
+            {searchInput ? (
+              <SearchableSelect
+                value={valores.tipo}
+                onChange={(value) => onChange("tipo", value)}
+                placeholder="Buscar tipo…"
+                options={tiposParaMostrar.map((tipo) => ({ value: tipo, label: tipo }))}
+              />
+            ) : freeInput && onNuevoTipo ? (
               <div className="flex items-center gap-1">
                 <SelectControl
                   className="min-w-0 flex-1"
@@ -256,10 +297,10 @@ export function CamposTecnicosFamilia({
           </Field>
         </div>
         <div className={inline ? "min-w-[80px] flex-1" : ""}>
-          <MedidaSelect label={freeInput ? "Largo *" : "Largo"} value={valores.largo} onChange={(v) => onChange("largo", v)} disponibles={largosDisp} freeInput={freeInput} />
+          <MedidaSelect label={freeInput ? "Largo *" : "Largo"} value={valores.largo} onChange={(v) => onChange("largo", v)} disponibles={largosDisp} freeInput={freeInput} searchInput={searchInput} />
         </div>
         <div className={inline ? "min-w-[80px] flex-1" : ""}>
-          <MedidaSelect label={freeInput ? "Ancho *" : "Ancho"} value={valores.ancho} onChange={(v) => onChange("ancho", v)} disponibles={anchosDisp} freeInput={freeInput} />
+          <MedidaSelect label={freeInput ? "Ancho *" : "Ancho"} value={valores.ancho} onChange={(v) => onChange("ancho", v)} disponibles={anchosDisp} freeInput={freeInput} searchInput={searchInput} />
         </div>
         {!usarBaqueton && (
           <div className={inline ? "min-w-[130px] flex-[1.3]" : ""}>
@@ -284,21 +325,21 @@ export function CamposTecnicosFamilia({
         {valores.alturasDistintas && !usarBaqueton ? (
           <>
             <div className={inline ? "min-w-[95px] flex-1" : ""}>
-              <MedidaSelect label={`Alto delante${freeInput ? " *" : ""}`} value={valores.altoDelante} onChange={(v) => onChange("altoDelante", v)} disponibles={altosDelanteDisp} freeInput={freeInput} />
+              <MedidaSelect label={`Alto delante${freeInput ? " *" : ""}`} value={valores.altoDelante} onChange={(v) => onChange("altoDelante", v)} disponibles={altosDelanteDisp} freeInput={freeInput} searchInput={searchInput} />
             </div>
             <div className={inline ? "min-w-[95px] flex-1" : ""}>
-              <MedidaSelect label={`Alto detrás${freeInput ? " *" : ""}`} value={valores.altoAtras} onChange={(v) => onChange("altoAtras", v)} disponibles={altosAtrasDisp} freeInput={freeInput} />
+              <MedidaSelect label={`Alto detrás${freeInput ? " *" : ""}`} value={valores.altoAtras} onChange={(v) => onChange("altoAtras", v)} disponibles={altosAtrasDisp} freeInput={freeInput} searchInput={searchInput} />
             </div>
           </>
         ) : (
           <div className={inline ? "min-w-[80px] flex-1" : ""}>
-            <MedidaSelect label={`${usarBaqueton ? "Baquetón (alto)" : "Altura"}${freeInput ? " *" : ""}`} value={valores.alto} onChange={(v) => onChange("alto", v)} disponibles={altosDisp} freeInput={freeInput} />
+            <MedidaSelect label={`${usarBaqueton ? "Baquetón (alto)" : "Altura"}${freeInput ? " *" : ""}`} value={valores.alto} onChange={(v) => onChange("alto", v)} disponibles={altosDisp} freeInput={freeInput} searchInput={searchInput} />
           </div>
         )}
         {usarRadioYAguas && (
           <>
             <div className={inline ? "min-w-[72px] flex-1" : ""}>
-              <MedidaSelect label="Radio (opcional)" value={valores.radio} onChange={(v) => onChange("radio", v)} disponibles={radiosDisp} freeInput={freeInput} />
+              <MedidaSelect label="Radio (opcional)" value={valores.radio} onChange={(v) => onChange("radio", v)} disponibles={radiosDisp} freeInput={freeInput} searchInput={searchInput} />
             </div>
             <div className={inline ? "min-w-[92px] flex-1" : ""}>
               <Field label="Aguas">
@@ -318,7 +359,7 @@ export function CamposTecnicosFamilia({
             </div>
             {valores.aguasActivas && (
               <div className={inline ? "min-w-[72px] flex-1" : ""}>
-                <MedidaSelect label={freeInput ? "Nº aguas *" : "Nº aguas"} value={valores.aguas} onChange={(v) => onChange("aguas", v)} disponibles={aguasDisp} freeInput={freeInput} />
+                <MedidaSelect label={freeInput ? "Nº aguas *" : "Nº aguas"} value={valores.aguas} onChange={(v) => onChange("aguas", v)} disponibles={aguasDisp} freeInput={freeInput} searchInput={searchInput} />
               </div>
             )}
           </>
@@ -357,7 +398,7 @@ export function CamposTecnicosFamilia({
   if (familiaNombre === FAMILIA_PUERTAS) {
     const anchoN    = parseMedida(valores.ancho);
     const altoN = parseMedida(valores.alto);
-    const pedidosCompatiblesId = freeInput
+    const pedidosCompatiblesId = editableInput
       ? pedidosFamilia
       : pedidosFamilia.filter((p) => p.impresion_digital === valores.impresionDigital);
     const coincideTipo = (p: Pedido) => !valores.tipo || normStr(p.tipo) === normStr(valores.tipo);
@@ -367,10 +408,10 @@ export function CamposTecnicosFamilia({
     const altosDisp = uniqueNums(pedidosCompatiblesId
       .filter((p) => coincideTipo(p) && (anchoN === null || eq(p.ancho, anchoN)))
       .map((p) => p.alto));
-    const tiposPuertaBase = freeInput
+    const tiposPuertaBase = editableInput
       ? uniqueStrings(tiposPuerta.map((tipo) => tipo.nombre))
       : uniqueStrings(pedidosCompatiblesId.map((pedido) => pedido.tipo));
-    const tiposPuertaFiltrados = !freeInput && (anchoN !== null || altoN !== null)
+    const tiposPuertaFiltrados = !editableInput && (anchoN !== null || altoN !== null)
       ? tiposPuertaBase.filter((tipo) => pedidosCompatiblesId.some((p) =>
           normStr(p.tipo) === normStr(tipo)
           && (anchoN === null || eq(p.ancho, anchoN))
@@ -381,7 +422,14 @@ export function CamposTecnicosFamilia({
       <>
         <div className={inline ? "min-w-[130px] flex-[2]" : ""}>
           <Field label={freeInput ? "Tipo *" : "Tipo"}>
-            {freeInput && onNuevoTipo ? (
+            {searchInput ? (
+              <SearchableSelect
+                value={valores.tipo}
+                onChange={(value) => onChange("tipo", value)}
+                placeholder="Buscar tipo…"
+                options={tiposPuertaFiltrados.map((tipo) => ({ value: tipo, label: tipo }))}
+              />
+            ) : freeInput && onNuevoTipo ? (
               <div className="flex items-center gap-1">
                 <SelectControl
                   className="min-w-0 flex-1"
@@ -409,10 +457,10 @@ export function CamposTecnicosFamilia({
           </Field>
         </div>
         <div className={inline ? "min-w-[80px] flex-1" : ""}>
-          <MedidaSelect label={freeInput ? "Ancho *" : "Ancho"} value={valores.ancho} onChange={(v) => onChange("ancho", v)} disponibles={anchosDisp} freeInput={freeInput} />
+          <MedidaSelect label={freeInput ? "Ancho *" : "Ancho"} value={valores.ancho} onChange={(v) => onChange("ancho", v)} disponibles={anchosDisp} freeInput={freeInput} searchInput={searchInput} />
         </div>
         <div className={inline ? "min-w-[80px] flex-1" : ""}>
-          <MedidaSelect label={freeInput ? "Alto *" : "Alto"} value={valores.alto} onChange={(v) => onChange("alto", v)} disponibles={altosDisp} freeInput={freeInput} />
+          <MedidaSelect label={freeInput ? "Alto *" : "Alto"} value={valores.alto} onChange={(v) => onChange("alto", v)} disponibles={altosDisp} freeInput={freeInput} searchInput={searchInput} />
         </div>
         <div className={inline ? "min-w-[92px] flex-1" : ""}>
           <Field label="I.D.">

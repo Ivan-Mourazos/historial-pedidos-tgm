@@ -5,6 +5,7 @@
 
 import { getPool, SCHEMA, sql } from "./sqlserver";
 import { normalizarNombre } from "../normalize";
+import { searchTokens } from "../search";
 import type {
   Cliente,
   Familia,
@@ -441,7 +442,7 @@ export const dbServer = {
 
     const search = query.search?.trim();
     if (search) {
-      filters.push(`LOWER(CONCAT(
+      filters.push(`CONCAT(
         p.numero_pedido, N' ', c.nombre, N' ', p.tipo, N' ',
         CONVERT(NVARCHAR(50), p.largo), N' ',
         CONVERT(NVARCHAR(50), p.ancho), N' ',
@@ -449,14 +450,14 @@ export const dbServer = {
         CONVERT(NVARCHAR(50), p.alto_delante), N' ',
         CONVERT(NVARCHAR(50), p.alto_atras), N' ',
         p.recogida_delante, N' ', p.recogida_atras
-      )) LIKE @search`);
+      ) COLLATE Latin1_General_CI_AI LIKE @search`);
     }
 
     const where = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
     const bind = (request: ReturnType<typeof pool.request>) => {
       if (query.familiaId) request.input("familiaId", sql.UniqueIdentifier, query.familiaId);
       else if (query.familiaNombre) request.input("familiaNombre", sql.NVarChar(100), query.familiaNombre);
-      if (search) request.input("search", sql.NVarChar(400), `%${search.toLocaleLowerCase("es-ES")}%`);
+      if (search) request.input("search", sql.NVarChar(400), `%${searchTokens(search).join("%")}%`);
       if (query.tipo) request.input("tipo", sql.NVarChar(100), query.tipo);
       if (query.recogida) request.input("recogida", sql.NVarChar(100), query.recogida);
       if (query.fechaDesde) request.input("fechaDesde", sql.NVarChar(10), query.fechaDesde);

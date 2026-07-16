@@ -92,6 +92,14 @@ export interface SelectOption {
   label: string;
 }
 
+function normalizeFilter(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("es-ES")
+    .trim();
+}
+
 function ChevronIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -162,6 +170,7 @@ export function SelectControl({
   placeholder = "—",
   className = "",
   disabled = false,
+  clearable = false,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -169,6 +178,7 @@ export function SelectControl({
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  clearable?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -263,7 +273,7 @@ export function SelectControl({
       <button
         ref={triggerRef}
         type="button"
-        className={`${inputClass} flex items-center justify-between gap-2 text-left disabled:cursor-not-allowed disabled:opacity-60`}
+        className={`${inputClass} flex items-center justify-between gap-2 text-left disabled:cursor-not-allowed disabled:opacity-60 ${clearable && value ? "pr-14" : ""}`}
         onClick={() => !disabled && (open ? closeMenu() : openMenu())}
         onKeyDown={handleKeyDown}
         disabled={disabled}
@@ -279,6 +289,22 @@ export function SelectControl({
           <ChevronIcon />
         </span>
       </button>
+
+      {clearable && value && !disabled && (
+        <button
+          type="button"
+          aria-label="Borrar selección"
+          title="Borrar"
+          className="absolute right-7 top-1/2 z-10 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-base leading-none text-app-muted transition-colors hover:bg-surface-2 hover:text-app-text"
+          onClick={(event) => {
+            event.stopPropagation();
+            onChange("");
+            setOpen(false);
+          }}
+        >
+          ×
+        </button>
+      )}
 
       {open && menuStyle && typeof document !== "undefined" && createPortal(
         <div
@@ -315,6 +341,175 @@ export function SelectControl({
               >
                 <span className="truncate">{option.label}</span>
                 {active && <span className="text-xs">✓</span>}
+              </button>
+            );
+          })}
+        </div>,
+        document.body,
+      )}
+    </div>
+  );
+}
+
+export function SearchableSelect({
+  value,
+  onChange,
+  options,
+  placeholder = "Escribe para buscar…",
+  className = "",
+  disabled = false,
+  inputMode,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: SelectOption[];
+  placeholder?: string;
+  className?: string;
+  disabled?: boolean;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
+}) {
+  const selected = options.find((option) => option.value === value);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState(selected?.label ?? "");
+  const [activeIndex, setActiveIndex] = useState(0);
+  const ref = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const listboxId = useId();
+  const menuStyle = useFloatingMenuStyle(open, ref, undefined, 286);
+  const normalizedQuery = normalizeFilter(query);
+  const filtered = useMemo(() => normalizedQuery
+    ? options.filter((option) => normalizeFilter(option.label).includes(normalizedQuery))
+    : options, [normalizedQuery, options]);
+
+  useEffect(() => {
+    if (open) optionRefs.current[activeIndex]?.scrollIntoView({ block: "nearest" });
+  }, [activeIndex, open]);
+
+  useEffect(() => {
+    function onPointerDown(event: PointerEvent) {
+      const target = event.target as Node;
+      if (!ref.current?.contains(target) && !menuRef.current?.contains(target)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, []);
+
+  function choose(option: SelectOption) {
+    onChange(option.value);
+    setQuery(option.label);
+    setOpen(false);
+    inputRef.current?.focus();
+  }
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      setOpen(true);
+      setActiveIndex((current) => event.key === "ArrowDown"
+        ? Math.min(filtered.length - 1, current + 1)
+        : Math.max(0, current - 1));
+    } else if (event.key === "Enter" && open && filtered[activeIndex]) {
+      event.preventDefault();
+      choose(filtered[activeIndex]);
+    } else if (event.key === "Escape") {
+      setOpen(false);
+      setQuery(selected?.label ?? "");
+    }
+  }
+
+  return (
+    <div ref={ref} className={`relative ${className}`}>
+      <input
+        ref={inputRef}
+        role="combobox"
+        aria-autocomplete="list"
+        aria-controls={open ? listboxId : undefined}
+        aria-expanded={open}
+        aria-activedescendant={open && filtered[activeIndex] ? `${listboxId}-option-${activeIndex}` : undefined}
+        autoComplete="off"
+        className={`${inputClass} pr-14`}
+        disabled={disabled}
+        inputMode={inputMode}
+        placeholder={placeholder}
+        value={open ? query : selected?.label ?? ""}
+        onClick={(event) => {
+          if (!disabled) {
+            if (!open) setQuery(selected?.label ?? "");
+            setOpen(true);
+            event.currentTarget.select();
+          }
+        }}
+        onFocus={() => {
+          if (!disabled && !open) {
+            setQuery(selected?.label ?? "");
+            setOpen(true);
+          }
+        }}
+        onChange={(event) => {
+          if (value) onChange("");
+          setQuery(event.target.value);
+          setActiveIndex(0);
+          setOpen(true);
+        }}
+        onKeyDown={handleKeyDown}
+      />
+      {value && !disabled && (
+        <button
+          type="button"
+          aria-label="Borrar selección"
+          title="Borrar"
+          className="absolute right-7 top-1/2 z-10 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-base text-app-muted hover:bg-surface-2 hover:text-app-text"
+          onClick={() => {
+            onChange("");
+            setQuery("");
+            setOpen(false);
+          }}
+        >×</button>
+      )}
+      <button
+        type="button"
+        aria-label={open ? "Cerrar opciones" : "Mostrar opciones"}
+        className="absolute right-1 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-app-muted hover:bg-surface-2 hover:text-app-text"
+        onClick={() => {
+          if (disabled) return;
+          setOpen((current) => !current);
+          inputRef.current?.focus();
+        }}
+      >
+        <span className={`transition-transform ${open ? "rotate-180" : ""}`}><ChevronIcon /></span>
+      </button>
+
+      {open && menuStyle && typeof document !== "undefined" && createPortal(
+        <div
+          ref={menuRef}
+          id={listboxId}
+          role="listbox"
+          className="scrollbar-none overflow-y-auto rounded-[14px] border border-white/10 bg-white p-1.5 shadow-2xl ring-1 ring-black/10 dark:bg-[#080a12] dark:ring-white/10"
+          style={menuStyle}
+        >
+          {filtered.length === 0 ? (
+            <p className="px-3 py-3 text-sm text-app-muted">No hay coincidencias</p>
+          ) : filtered.map((option, index) => {
+            const active = option.value === value;
+            const highlighted = index === activeIndex;
+            return (
+              <button
+                key={`${option.value}-${option.label}`}
+                id={`${listboxId}-option-${index}`}
+                ref={(element) => { optionRefs.current[index] = element; }}
+                type="button"
+                role="option"
+                aria-selected={active}
+                className={`flex min-h-9 w-full items-center justify-between gap-2 rounded-[10px] px-3 py-2 text-left text-sm transition-colors ${active ? "bg-brand text-white" : highlighted ? "bg-surface-2 text-app-text" : "text-app-text hover:bg-surface-2"}`}
+                onPointerMove={() => setActiveIndex(index)}
+                onClick={() => choose(option)}
+              >
+                <span className="truncate">{option.label}</span>
+                {active && <span aria-hidden="true" className="text-xs">✓</span>}
               </button>
             );
           })}

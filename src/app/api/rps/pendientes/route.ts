@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    return NextResponse.json(await obtenerPendientesRps());
+    return NextResponse.json(await obtenerPendientesRps(true));
   } catch (error) {
     const message = error instanceof Error ? error.message : "No se pudieron consultar los pedidos pendientes.";
     console.error("[api/rps/pendientes]", message);

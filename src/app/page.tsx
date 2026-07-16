@@ -16,6 +16,7 @@ import {
   Card,
   DatePicker,
   Field,
+  SearchableSelect,
   SelectControl,
   inputClass,
   labelClass,
@@ -351,7 +352,7 @@ function BuscadorPageContent() {
         <div>
           <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.18em] text-brand">Archivo técnico</p>
           <h1 className="text-xl font-bold tracking-tight text-app-text">Buscar pedidos</h1>
-          <p className="mt-1 text-sm text-app-muted">Selecciona cualquier dato; las demás opciones se adaptan automáticamente.</p>
+          <p className="mt-1 text-sm text-app-muted">Escribe dentro de cualquier desplegable; sus opciones se filtran al momento.</p>
         </div>
         {hayAlgoDato && (
           <button type="button" onClick={limpiarBusqueda} className="rounded-lg px-3 py-2 text-sm font-medium text-app-muted transition-colors hover:bg-surface-2 hover:text-app-text">
@@ -391,18 +392,15 @@ function BuscadorPageContent() {
           <div className="min-w-[160px] flex-[2]">
             <span className={labelClass}>Cliente</span>
             <div className="flex items-center gap-1.5">
-              <SelectControl
+              <SearchableSelect
                 className="min-w-0 flex-1"
                 value={clienteId ?? ""}
                 onChange={(next) => {
                   setClienteId(next || null);
                   setLimiteResultados(50);
                 }}
-                placeholder="— Todos —"
-                options={[
-                  { value: "", label: "— Todos —" },
-                  ...clientesDeFamilia.map((c) => ({ value: c.id, label: c.nombre })),
-                ]}
+                placeholder="Escribe un cliente…"
+                options={clientesDeFamilia.map((c) => ({ value: c.id, label: c.nombre }))}
               />
             </div>
           </div>
@@ -416,6 +414,7 @@ function BuscadorPageContent() {
               tiposPuerta={cat.tiposPuerta}
               tiposRemolque={cat.tiposRemolque}
               pedidosFamilia={pedidosParaOpciones}
+              searchInput
               inline
             />
           )}

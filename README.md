@@ -137,12 +137,14 @@ Para almacenar la recogida delantera y trasera de las lonas de remolque, aplica 
 Para vincular los clientes con su código de RPS, aplica con una cuenta con permisos DDL
 [`db/migration-2026-07-12-codigo-cliente-rps.sql`](db/migration-2026-07-12-codigo-cliente-rps.sql).
 
-Para separar pedidos pendientes y realizados por línea de RPS, y excluir los pendientes
-de las coincidencias, aplica también
+Para relacionar cada pedido con su línea de RPS y separar el trabajo pendiente del
+histórico verificado, aplica también
 [`db/migration-2026-07-13-estados-planteo-rps.sql`](db/migration-2026-07-13-estados-planteo-rps.sql).
-La actualización de RPS usa la tarea `PLANTEAR...`: progreso 100 significa realizado;
-las líneas sin esa tarea quedan pendientes en nuevas importaciones y pueden confirmarse
-manualmente desde el histórico.
+La pantalla Pendientes carga todas las líneas de remolques y puertas desde RPS y comprueba
+las carpetas configuradas. Sin CAD ni Excel el trabajo continúa pendiente. Si encuentra
+un archivo pero faltan medidas, exige revisión. Solo los registros con archivo y datos
+completos pasan al Histórico; el progreso de la tarea de RPS se conserva como información,
+pero ya no determina por sí solo que el trabajo esté hecho.
 
 Para registrar remolques cuya altura cambia entre la parte delantera y trasera,
 aplica antes de desplegar el código

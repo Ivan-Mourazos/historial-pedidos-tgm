@@ -169,7 +169,7 @@ export function buscarConCriteriosParciales(
     if (c.clienteId && p.cliente_id !== c.clienteId) return false;
 
     if (c.familiaNombre === FAMILIA_REMOLQUES) {
-      if (c.tipo && tipoNormalizado(c.tipo) !== "" && tipoNormalizado(p.tipo) !== tipoNormalizado(c.tipo)) return false;
+      if (c.tipo && tipoNormalizado(c.tipo) !== "" && !tipoNormalizado(p.tipo).includes(tipoNormalizado(c.tipo))) return false;
       if (c.largo !== null && !igualMedida(p.largo, c.largo)) return false;
       if (c.ancho !== null && !igualMedida(p.ancho, c.ancho)) return false;
       if (c.alturasDistintas) {
@@ -186,7 +186,7 @@ export function buscarConCriteriosParciales(
       if (c.recogidaAtras && recogidaNormalizada(p.recogida_atras) !== recogidaNormalizada(c.recogidaAtras)) return false;
     } else if (c.familiaNombre === FAMILIA_PUERTAS) {
       if (p.impresion_digital !== c.impresionDigital) return false;
-      if (c.tipo && tipoNormalizado(c.tipo) !== "" && tipoNormalizado(p.tipo) !== tipoNormalizado(c.tipo)) return false;
+      if (c.tipo && tipoNormalizado(c.tipo) !== "" && !tipoNormalizado(p.tipo).includes(tipoNormalizado(c.tipo))) return false;
       if (c.ancho !== null && !igualMedida(p.ancho, c.ancho)) return false;
       if (c.alto !== null && !igualMedida(p.alto, c.alto)) return false;
     } else {
@@ -222,7 +222,7 @@ export function buscarConCriteriosParciales(
 export function calcularDiferencias(pedido: Pedido, c: CriteriosBusqueda): string[] {
   const diffs: string[] = [];
   if (c.familiaNombre === FAMILIA_REMOLQUES) {
-    if (c.tipo && tipoNormalizado(pedido.tipo) !== tipoNormalizado(c.tipo)) diffs.push("tipo");
+    if (c.tipo && !tipoNormalizado(pedido.tipo).includes(tipoNormalizado(c.tipo))) diffs.push("tipo");
     if (c.largo !== null && !igualMedida(pedido.largo, c.largo)) diffs.push("largo");
     if (c.ancho !== null && !igualMedida(pedido.ancho, c.ancho)) diffs.push("ancho");
     if (c.alturasDistintas) {
@@ -234,7 +234,7 @@ export function calcularDiferencias(pedido: Pedido, c: CriteriosBusqueda): strin
     if (c.recogidaDelante && recogidaNormalizada(pedido.recogida_delante) !== recogidaNormalizada(c.recogidaDelante)) diffs.push("recogida_delante");
     if (c.recogidaAtras && recogidaNormalizada(pedido.recogida_atras) !== recogidaNormalizada(c.recogidaAtras)) diffs.push("recogida_atras");
   } else if (c.familiaNombre === FAMILIA_PUERTAS) {
-    if (c.tipo && tipoNormalizado(pedido.tipo) !== tipoNormalizado(c.tipo)) diffs.push("tipo");
+    if (c.tipo && !tipoNormalizado(pedido.tipo).includes(tipoNormalizado(c.tipo))) diffs.push("tipo");
     if (c.ancho !== null && !igualMedida(pedido.ancho, c.ancho)) diffs.push("ancho");
     if (c.alto !== null && !igualMedida(pedido.alto, c.alto)) diffs.push("alto");
     if (pedido.impresion_digital !== c.impresionDigital) diffs.push("impresion_digital");
