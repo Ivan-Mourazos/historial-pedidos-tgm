@@ -39,10 +39,12 @@ export function AbrirZwcadButton({
   numeroPedido,
   label,
   className = "",
+  compact = false,
 }: {
   numeroPedido: string;
   label?: string;
   className?: string;
+  compact?: boolean;
 }) {
   const [estado, setEstado] = useState<Estado>("idle");
 
@@ -96,11 +98,14 @@ export function AbrirZwcadButton({
     }
   }
 
+  const showText = !compact && !!label;
   const text = estado === "opening" ? "Abriendo…" : estado === "ok" ? "Abierto" : label;
   const title = `Abrir ${numeroPedido}.dwg en ZWCAD`;
-  const baseClass = label
-    ? "inline-flex h-8 items-center justify-center gap-1.5 rounded-full border border-sky-200/70 bg-sky-50/80 px-3 text-xs font-semibold text-sky-900 shadow-sm ring-1 ring-black/5 transition-colors hover:bg-sky-100 disabled:cursor-wait disabled:opacity-70 dark:border-sky-400/20 dark:bg-sky-400/10 dark:text-sky-200 dark:ring-white/10 dark:hover:border-sky-400/30 dark:hover:bg-sky-400/15"
-    : "inline-flex h-7 w-7 items-center justify-center rounded-full text-app-muted transition-colors hover:bg-surface-2/80 hover:text-brand disabled:cursor-wait disabled:opacity-70";
+  const baseClass = compact
+    ? "inline-flex h-8 items-center justify-center rounded-full border border-sky-200/70 bg-sky-50/80 px-2.5 text-sky-900 shadow-sm ring-1 ring-black/5 transition-colors hover:bg-sky-100 disabled:cursor-wait disabled:opacity-70 dark:border-sky-400/20 dark:bg-sky-400/10 dark:text-sky-200 dark:ring-white/10 dark:hover:border-sky-400/30 dark:hover:bg-sky-400/15"
+    : label
+      ? "inline-flex h-8 items-center justify-center gap-1.5 rounded-full border border-sky-200/70 bg-sky-50/80 px-3 text-xs font-semibold text-sky-900 shadow-sm ring-1 ring-black/5 transition-colors hover:bg-sky-100 disabled:cursor-wait disabled:opacity-70 dark:border-sky-400/20 dark:bg-sky-400/10 dark:text-sky-200 dark:ring-white/10 dark:hover:border-sky-400/30 dark:hover:bg-sky-400/15"
+      : "inline-flex h-7 w-7 items-center justify-center rounded-full text-app-muted transition-colors hover:bg-surface-2/80 hover:text-brand disabled:cursor-wait disabled:opacity-70";
 
   return (
     <button
@@ -112,7 +117,7 @@ export function AbrirZwcadButton({
       aria-label={title}
     >
       <CadIcon />
-      {label && <span>{text}</span>}
+      {showText && <span>{text}</span>}
     </button>
   );
 }

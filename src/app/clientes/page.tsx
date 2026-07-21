@@ -129,8 +129,8 @@ export default function ClientesPage() {
 
               {/* Pedidos expandidos */}
               {c.expandido && c.pedidos.length > 0 && (
-                <div className="border-t border-[var(--border)]">
-                  <table className="w-full text-sm">
+                <div className="overflow-x-auto border-t border-[var(--border)]">
+                  <table className="w-full min-w-[560px] text-sm">
                     <thead>
                       <tr className="border-b border-[var(--border)] bg-surface-2/55">
                         {["Nº PEDIDO", "FAMILIA", "MEDIDAS", "FECHA", "ARCHIVOS"].map((h) => (
@@ -166,24 +166,19 @@ export default function ClientesPage() {
                               {resumenMedidas(p, p.familia?.nombre ?? "")}
                             </td>
                             <td className="px-3 py-2 text-app-muted">{formatFecha(p.fecha)}</td>
-                            <td className="w-[230px] px-3 py-2">
-                              <div className="flex h-8 items-center gap-2">
+                            <td className="w-[132px] px-3 py-2">
+                              <div className="flex h-8 items-center gap-1.5">
                                 {esRemolque && (
-                                  <div className="flex w-[86px] items-center justify-start">
-                                    <AbrirExcelButton
-                                      numeroPedido={p.numero_pedido}
-                                      familiaNombre={p.familia?.nombre ?? ""}
-                                      className="w-[86px]"
-                                    />
-                                  </div>
-                                )}
-                                <div className="flex w-[86px] items-center justify-start">
-                                  <AbrirZwcadButton
+                                  <AbrirExcelButton
                                     numeroPedido={p.numero_pedido}
-                                    label="CAD"
-                                    className="w-[86px]"
+                                    familiaNombre={p.familia?.nombre ?? ""}
+                                    compact
                                   />
-                                </div>
+                                )}
+                                <AbrirZwcadButton
+                                  numeroPedido={p.numero_pedido}
+                                  compact
+                                />
                                 {p.observaciones && (
                                   <button
                                     onClick={() => setVerComentario(p)}

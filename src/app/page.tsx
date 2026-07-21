@@ -687,7 +687,7 @@ function BuscadorPageContent() {
         ) : (
           <div className="overflow-x-auto">
             {esRemolques ? (
-              <table className={`w-full text-sm ${esBusquedaBaqueton ? "table-fixed" : "min-w-[820px]"}`}>
+              <table className={`w-full text-sm ${esBusquedaBaqueton ? "table-fixed" : "min-w-[720px]"}`}>
                 {esBusquedaBaqueton && (
                   <colgroup>
                     <col className="w-[16%]" />
@@ -710,7 +710,7 @@ function BuscadorPageContent() {
                     {mostrarRadioYAguas && <Th>AGUAS</Th>}
                     {mostrarRadioYAguas && <Th>RADIO</Th>}
                     {mostrarRecogida && <Th>RECOGIDA</Th>}
-                    <Th className="w-[190px]">ARCHIVOS</Th>
+                    <Th className="w-[96px]">ARCHIVOS</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -792,22 +792,17 @@ function BuscadorPageContent() {
                             <span className="block"><strong>Atr.:</strong> {pr.recogida_atras ?? "—"}</span>
                           </td>
                         )}
-                        <td className="w-[190px] px-3 py-2.5">
-                          <div className="flex h-8 items-center gap-2">
-                            <div className="flex w-[86px] items-center justify-start">
+                        <td className="w-[96px] px-3 py-2.5">
+                          <div className="flex h-8 items-center gap-1.5">
                             <AbrirExcelButton
                               numeroPedido={pr.numero_pedido}
                               familiaNombre={familiaNombre}
-                              className="w-[86px]"
+                              compact
                             />
-                            </div>
-                            <div className="flex w-[86px] items-center justify-start">
-                              <AbrirZwcadButton
-                                numeroPedido={pr.numero_pedido}
-                                label="CAD"
-                                className="w-[86px]"
-                              />
-                            </div>
+                            <AbrirZwcadButton
+                              numeroPedido={pr.numero_pedido}
+                              compact
+                            />
                           </div>
                         </td>
                       </tr>
@@ -825,7 +820,7 @@ function BuscadorPageContent() {
                     <Th>ANCHO</Th>
                     <Th>ALTO</Th>
                     <Th>I.D.</Th>
-                    <Th className="w-[100px]">CAD</Th>
+                    <Th className="w-[64px]">CAD</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -886,11 +881,10 @@ function BuscadorPageContent() {
                         }`}>
                           {pr.impresion_digital ? "Sí" : "No"}
                         </td>
-                        <td className="w-[100px] px-3 py-2.5">
+                        <td className="w-[64px] px-3 py-2.5">
                           <AbrirZwcadButton
                             numeroPedido={pr.numero_pedido}
-                            label="CAD"
-                            className="w-[86px]"
+                            compact
                           />
                         </td>
                       </tr>

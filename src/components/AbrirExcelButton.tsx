@@ -39,12 +39,14 @@ export function AbrirExcelButton({
   label,
   files,
   className = "",
+  compact = false,
 }: {
   numeroPedido: string;
   familiaNombre: string;
   label?: string;
   files?: ExcelFileOption[];
   className?: string;
+  compact?: boolean;
 }) {
   const eligible = familiaPuedeTenerExcel(familiaNombre);
   const [estado, setEstado] = useState<Estado>("idle");
@@ -198,14 +200,14 @@ export function AbrirExcelButton({
         type="button"
         onClick={() => void handleTrigger()}
         disabled={estado === "checking" || estado === "opening"}
-        className={`${baseClass} w-full`}
+        className={`${baseClass} ${compact ? "" : "w-full"}`}
         title={`Abrir Excel de ${numeroPedido}`}
         aria-label={`Abrir Excel de ${numeroPedido}`}
         aria-expanded={menuAbierto}
         aria-haspopup="menu"
       >
         <span aria-hidden="true">{EXCEL_EMOJI}</span>
-        <span className="truncate">{text}</span>
+        {!compact && <span className="truncate">{text}</span>}
         {(visibleFiles?.length ?? 0) > 1 && <span aria-hidden="true" className="text-[10px]">▾</span>}
       </button>
 

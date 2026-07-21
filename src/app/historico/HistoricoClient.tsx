@@ -283,18 +283,18 @@ export function HistoricoClient({
           <p className="px-4 py-6 text-sm text-app-muted">No hay pedidos que coincidan.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1070px] table-fixed text-sm">
+            <table className="w-full min-w-[910px] table-fixed text-sm">
               <colgroup>
-                <col className="w-[105px]" />
-                <col className="w-[140px]" />
+                <col className="w-[98px]" />
+                <col className="w-[128px]" />
                 <col className="w-[80px]" />
-                <col className="w-[130px]" />
+                <col className="w-[120px]" />
                 {isTrailers && <col className="w-[60px]" />}
                 {isTrailers && <col className="w-[60px]" />}
-                {isTrailers && <col className="w-[130px]" />}
+                {isTrailers && <col className="w-[112px]" />}
                 {isDoors && <col className="w-[64px]" />}
                 <col className="w-[85px]" />
-                <col className="w-[278px]" />
+                <col className="w-[168px]" />
               </colgroup>
               <thead className="bg-surface/95">
                 <tr className="border-b border-[var(--border)]">
@@ -351,9 +351,9 @@ export function HistoricoClient({
                       <td className="px-3 py-3">
                         <div className="flex h-8 items-center gap-1.5">
                           {excelEligible && (
-                            <AbrirExcelButton numeroPedido={pedido.numero_pedido} familiaNombre={familyName} className="w-[86px]" />
+                            <AbrirExcelButton numeroPedido={pedido.numero_pedido} familiaNombre={familyName} compact />
                           )}
-                          <AbrirZwcadButton numeroPedido={pedido.numero_pedido} label="CAD" className="w-[86px]" />
+                          <AbrirZwcadButton numeroPedido={pedido.numero_pedido} compact />
                           {pedido.observaciones && (
                             <button
                               type="button"
