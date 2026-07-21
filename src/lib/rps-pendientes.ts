@@ -36,10 +36,19 @@ interface CachePendientesRps {
 }
 
 const CACHE_PENDIENTES_MS = 5 * 60 * 1000;
+// Meses hacia atrás que barre la actualización rutinaria. El escaneo completo
+// (completo=true) ignora esta ventana y recorre desde el primer AR del histórico.
+const VENTANA_MESES = Number(process.env.RPS_VENTANA_MESES ?? 3);
 const globalPendientes = globalThis as typeof globalThis & {
-  __cachePendientesRps?: CachePendientesRps;
+  __cachePendientesRps?: Map<string, CachePendientesRps>;
 };
-const cachePendientes = globalPendientes.__cachePendientesRps ??= { expiresAt: 0 };
+const cachePorModo = globalPendientes.__cachePendientesRps ??= new Map();
+const getCache = (completo: boolean): CachePendientesRps => {
+  const clave = completo ? "completo" : "reciente";
+  let cache = cachePorModo.get(clave);
+  if (!cache) cachePorModo.set(clave, cache = { expiresAt: 0 });
+  return cache;
+};
 
 interface LineaLocal {
   id: string;
@@ -173,17 +182,26 @@ async function guardarEstadosRps(actualizaciones: ActualizacionEstadoRps[]): Pro
   }
 }
 
-async function calcularPendientesRps(sincronizarEstados: boolean): Promise<ResumenPendientesRps> {
+async function calcularPendientesRps(sincronizarEstados: boolean, completo: boolean): Promise<ResumenPendientesRps> {
   const pool = await getPool();
-  const inicioResult = await pool.request().query(
-    `SELECT TOP 1 UPPER(REPLACE(REPLACE(numero_pedido, '.', ''), ' ', '')) AS numero
-     FROM ${SCHEMA}.pedidos
-     WHERE UPPER(REPLACE(REPLACE(numero_pedido, '.', ''), ' ', '')) LIKE 'AR[0-9][0-9]%'
-     ORDER BY UPPER(REPLACE(REPLACE(numero_pedido, '.', ''), ' ', '')) ASC`,
-  );
-  const numeroArMasAntiguo = String(inicioResult.recordset[0]?.numero ?? "");
-  const anioPedido = numeroArMasAntiguo.match(/^AR(\d{2})/)?.[1];
-  const fechaDesde = anioPedido ? `20${anioPedido}-01-01` : new Date().toISOString().slice(0, 10);
+  let fechaDesde: string;
+  if (completo) {
+    // Escaneo completo: desde el primer AR registrado en el histórico.
+    const inicioResult = await pool.request().query(
+      `SELECT TOP 1 UPPER(REPLACE(REPLACE(numero_pedido, '.', ''), ' ', '')) AS numero
+       FROM ${SCHEMA}.pedidos
+       WHERE UPPER(REPLACE(REPLACE(numero_pedido, '.', ''), ' ', '')) LIKE 'AR[0-9][0-9]%'
+       ORDER BY UPPER(REPLACE(REPLACE(numero_pedido, '.', ''), ' ', '')) ASC`,
+    );
+    const numeroArMasAntiguo = String(inicioResult.recordset[0]?.numero ?? "");
+    const anioPedido = numeroArMasAntiguo.match(/^AR(\d{2})/)?.[1];
+    fechaDesde = anioPedido ? `20${anioPedido}-01-01` : new Date().toISOString().slice(0, 10);
+  } else {
+    // Actualización rutinaria: solo los últimos VENTANA_MESES meses.
+    const desde = new Date();
+    desde.setMonth(desde.getMonth() - VENTANA_MESES);
+    fechaDesde = desde.toISOString().slice(0, 10);
+  }
   const [pedidosRps, localesResult] = await Promise.all([
     pedidosRpsDesde(fechaDesde),
     pool.request().query(`SELECT p.id, p.numero_pedido AS numero, f.nombre AS familia, p.tipo,
@@ -326,41 +344,42 @@ async function calcularPendientesRps(sincronizarEstados: boolean): Promise<Resum
   };
 }
 
-export async function obtenerPendientesRps(sincronizarEstados = false): Promise<ResumenPendientesRps> {
-  if (!sincronizarEstados && cachePendientes.value && cachePendientes.expiresAt > Date.now()) {
-    return cachePendientes.value;
+export async function obtenerPendientesRps(sincronizarEstados = false, completo = false): Promise<ResumenPendientesRps> {
+  const cache = getCache(completo);
+  if (!sincronizarEstados && cache.value && cache.expiresAt > Date.now()) {
+    return cache.value;
   }
 
   if (sincronizarEstados) {
-    if (cachePendientes.sincronizacion) return cachePendientes.sincronizacion;
-    const sincronizacion = calcularPendientesRps(true);
-    cachePendientes.sincronizacion = sincronizacion;
+    if (cache.sincronizacion) return cache.sincronizacion;
+    const sincronizacion = calcularPendientesRps(true, completo);
+    cache.sincronizacion = sincronizacion;
     try {
       const value = await sincronizacion;
-      cachePendientes.value = value;
-      cachePendientes.expiresAt = Date.now() + CACHE_PENDIENTES_MS;
+      cache.value = value;
+      cache.expiresAt = Date.now() + CACHE_PENDIENTES_MS;
       return value;
     } finally {
-      if (cachePendientes.sincronizacion === sincronizacion) cachePendientes.sincronizacion = undefined;
+      if (cache.sincronizacion === sincronizacion) cache.sincronizacion = undefined;
     }
   }
 
-  if (cachePendientes.sincronizacion) return cachePendientes.sincronizacion;
-  if (cachePendientes.consulta) return cachePendientes.consulta;
-  const consulta = calcularPendientesRps(false);
-  cachePendientes.consulta = consulta;
+  if (cache.sincronizacion) return cache.sincronizacion;
+  if (cache.consulta) return cache.consulta;
+  const consulta = calcularPendientesRps(false, completo);
+  cache.consulta = consulta;
   try {
     const value = await consulta;
-    cachePendientes.value = value;
-    cachePendientes.expiresAt = Date.now() + CACHE_PENDIENTES_MS;
+    cache.value = value;
+    cache.expiresAt = Date.now() + CACHE_PENDIENTES_MS;
     return value;
   } finally {
-    if (cachePendientes.consulta === consulta) cachePendientes.consulta = undefined;
+    if (cache.consulta === consulta) cache.consulta = undefined;
   }
 }
 
-export async function importarPendientesRps(): Promise<ResultadoImportacionRps> {
-  const resumen = await obtenerPendientesRps(true);
+export async function importarPendientesRps(completo = false): Promise<ResultadoImportacionRps> {
+  const resumen = await obtenerPendientesRps(true, completo);
   const importables = resumen.pendientes.filter(esImportable);
   const familias = await dbServer.getFamilias();
   const familiaPorNombre = new Map(familias.map((familia) => [familia.nombre, familia.id]));
@@ -407,8 +426,8 @@ export async function importarPendientesRps(): Promise<ResultadoImportacionRps> 
     }));
   }
 
-  cachePendientes.value = undefined;
-  cachePendientes.expiresAt = 0;
+  // Se han añadido pedidos: invalida ambos modos (reciente y completo).
+  cachePorModo.clear();
 
   return {
     importados,

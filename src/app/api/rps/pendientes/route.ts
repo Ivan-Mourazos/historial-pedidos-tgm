@@ -6,7 +6,10 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    return NextResponse.json(await obtenerPendientesRps(true));
+    // Carga inicial de la página: solo lectura (sirve caché de 5 min si está
+    // caliente). La sincronización con escritura de estados la dispara
+    // explícitamente el botón "Actualizar RPS" (POST accion=SINCRONIZAR).
+    return NextResponse.json(await obtenerPendientesRps(false));
   } catch (error) {
     const message = error instanceof Error ? error.message : "No se pudieron consultar los pedidos pendientes.";
     console.error("[api/rps/pendientes]", message);
@@ -16,14 +19,15 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json() as { confirmar?: string; accion?: string };
-    if (body.accion === "SINCRONIZAR") {
-      return NextResponse.json(await obtenerPendientesRps(true));
+    const body = await request.json() as { confirmar?: string; accion?: string; completo?: boolean };
+    const completo = Boolean(body.completo) || body.accion === "ESCANEO_COMPLETO";
+    if (body.accion === "SINCRONIZAR" || body.accion === "ESCANEO_COMPLETO") {
+      return NextResponse.json(await obtenerPendientesRps(true, completo));
     }
     if (body.confirmar !== "IMPORTAR") {
       return NextResponse.json({ error: "Falta confirmar la importación." }, { status: 400 });
     }
-    return NextResponse.json(await importarPendientesRps());
+    return NextResponse.json(await importarPendientesRps(completo));
   } catch (error) {
     const message = error instanceof Error ? error.message : "No se pudieron importar los pedidos.";
     console.error("[api/rps/pendientes/importar]", message);

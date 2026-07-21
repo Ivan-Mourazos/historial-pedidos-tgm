@@ -17,7 +17,9 @@ export function getRpsPool(): Promise<sql.ConnectionPool> {
         readOnlyIntent: true,
       },
       pool: { min: 0, max: 5, idleTimeoutMillis: 30_000 },
-      requestTimeout: 15_000,
+      // La consulta de pendientes barre años de pedidos del ERP; 15 s se
+      // quedaban cortos. Configurable por si el servidor RPS va más lento.
+      requestTimeout: Number(process.env.RPS_SQLSERVER_REQUEST_TIMEOUT ?? 60_000),
     }).connect().catch((error) => {
       poolPromise = null;
       throw error;

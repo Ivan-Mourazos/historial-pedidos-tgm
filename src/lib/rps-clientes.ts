@@ -190,7 +190,9 @@ export async function pedidosRpsDesde(fechaDesde: string): Promise<PedidoRps[]> 
         ORDER BY CASE WHEN t.CodMOTask = '5' THEN 0 ELSE 1 END, t.[Order]
       ) planteo
       WHERE o.CodCompany = '001' AND o.OrderDate >= @fechaDesde
-        AND REPLACE(REPLACE(UPPER(o.CodOrder), '.', ''), ' ', '') LIKE 'AR%'
+        -- Sargable: permite usar el índice de CodOrder. Los pedidos AR
+        -- empiezan literalmente por "AR" (sin espacios/puntos delante).
+        AND o.CodOrder LIKE 'AR%'
         AND (
           article.CodArticle IN ('LONAREMOLQUE', 'LONAREMGANA')
           OR UPPER(COALESCE(l.Description, '') + ' ' + COALESCE(l.Comment, '')) LIKE '%LONA REMOLQUE%'

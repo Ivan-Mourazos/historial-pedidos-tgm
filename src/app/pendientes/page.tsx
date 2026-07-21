@@ -66,16 +66,18 @@ export default function PendientesPage() {
   const [pagina, setPagina] = useState(1);
   const [importando, setImportando] = useState(false);
   const [okMsg, setOkMsg] = useState<string | null>(null);
+  const [modoCompleto, setModoCompleto] = useState(false);
 
-  async function cargar() {
+  async function cargar(completo: boolean) {
     setCargando(true);
     setError(null);
+    setModoCompleto(completo);
     try {
       const response = await fetch("/api/rps/pendientes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         cache: "no-store",
-        body: JSON.stringify({ accion: "SINCRONIZAR" }),
+        body: JSON.stringify({ accion: completo ? "ESCANEO_COMPLETO" : "SINCRONIZAR" }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "No se pudo consultar RPS.");
@@ -98,12 +100,12 @@ export default function PendientesPage() {
       const response = await fetch("/api/rps/pendientes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirmar: "IMPORTAR" }),
+        body: JSON.stringify({ confirmar: "IMPORTAR", completo: modoCompleto }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "No se pudieron registrar los pedidos.");
       setOkMsg(`${payload.importados} pedidos verificados añadidos al histórico. ${payload.pendientesRevision} continúan pendientes.`);
-      await cargar();
+      await cargar(modoCompleto);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "No se pudieron registrar los pedidos.");
     } finally {
@@ -158,7 +160,8 @@ export default function PendientesPage() {
         subtitle={`Todos los trabajos de RPS que aún no están verificados en el histórico, desde ${inicio}.`}
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="secondary" disabled={cargando || importando} onClick={() => void cargar()}>{cargando ? "Actualizando…" : "Actualizar RPS"}</Button>
+            <Button variant="secondary" disabled={cargando || importando} onClick={() => void cargar(false)}>{cargando && !modoCompleto ? "Actualizando…" : "Actualizar RPS"}</Button>
+            <Button variant="secondary" disabled={cargando || importando} onClick={() => void cargar(true)} title="Recorre todo el histórico (más lento)">{cargando && modoCompleto ? "Escaneando…" : "Escaneo completo"}</Button>
             <Button disabled={cargando || importando || !resumen?.totalImportables} onClick={() => void importarSeguros()}>
               {importando ? "Verificando…" : `Pasar al histórico${resumen?.totalImportables ? ` (${resumen.totalImportables})` : ""}`}
             </Button>
@@ -237,7 +240,7 @@ export default function PendientesPage() {
         {!cargando && filtrados.length === 0 ? (
           <div className="px-5 py-10 text-center">
             <p className="text-sm font-semibold text-app-text">No quedan líneas pendientes con estos filtros.</p>
-            <p className="mt-1 text-xs text-app-muted">Actualiza RPS para comprobar si han entrado nuevos pedidos.</p>
+            <p className="mt-1 text-xs text-app-muted">{modoCompleto ? "Actualiza RPS para comprobar si han entrado nuevos pedidos." : "Se muestran los últimos meses. Usa “Escaneo completo” para revisar todo el histórico."}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
