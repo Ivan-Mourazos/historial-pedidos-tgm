@@ -772,7 +772,7 @@ function BuscadorPageContent() {
                           </span>
                         </td>
                         <td className="px-3 py-2.5 text-app-muted">
-                          <span className="block truncate" title={pr.cliente?.nombre ?? undefined}>{pr.cliente?.nombre ?? "—"}</span>
+                          <span className="block truncate" title={pr.cliente ? formatNombreEmpresa(pr.cliente.nombre) : undefined}>{pr.cliente ? formatNombreEmpresa(pr.cliente.nombre) : "—"}</span>
                         </td>
                         <td className={`px-3 py-2.5 ${
                           criterios.tipo && !diffs.includes("tipo")
@@ -846,7 +846,7 @@ function BuscadorPageContent() {
                             <CoincidenciaBadge exacta={isExacto} />
                           </span>
                         </td>
-                        <td className="px-3 py-2.5 text-app-muted">{pr.cliente?.nombre ?? "—"}</td>
+                        <td className="px-3 py-2.5 text-app-muted">{pr.cliente ? formatNombreEmpresa(pr.cliente.nombre) : "—"}</td>
                         <td className={`px-3 py-2.5 ${
                           criterios.tipo && !diffs.includes("tipo")
                             ? "text-emerald-400 font-semibold"

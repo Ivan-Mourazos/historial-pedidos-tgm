@@ -20,7 +20,7 @@ import {
   todayInputValue,
 } from "@/components/ui";
 import { dbService } from "@/lib/db/db-service";
-import { resumenMedidas } from "@/lib/display";
+import { formatNombreEmpresa, resumenMedidas } from "@/lib/display";
 import { ordenarFamilias } from "@/lib/familias";
 import { claveTipoRemolque } from "@/lib/tipos-remolque";
 import { usaRecogidaRemolque } from "@/lib/recogida-remolque";
@@ -226,7 +226,7 @@ function NuevoPedidoPageContent() {
       await cat.recargarClientes();
       setClienteId(local.id);
       setPedidoRps(payload.pedido ?? null);
-      setAvisoRps([payload.cliente.codigo, payload.cliente.alias, payload.cliente.nombre].filter(Boolean).join(" · "));
+      setAvisoRps([payload.cliente.codigo, payload.cliente.alias ? formatNombreEmpresa(payload.cliente.alias) : null, formatNombreEmpresa(payload.cliente.nombre)].filter(Boolean).join(" · "));
     } catch (e) {
       setAvisoRps(e instanceof Error ? e.message : "No se pudo consultar RPS");
     }
@@ -273,7 +273,7 @@ function NuevoPedidoPageContent() {
         const familiaDestino = familiasCatalogo.find((familia) => familia.nombre === linea.familia);
         setClienteId(local.id);
         setPedidoRps(payload.pedido);
-        setAvisoRps([payload.cliente.codigo, payload.cliente.alias, payload.cliente.nombre].filter(Boolean).join(" · "));
+        setAvisoRps([payload.cliente.codigo, payload.cliente.alias ? formatNombreEmpresa(payload.cliente.alias) : null, formatNombreEmpresa(payload.cliente.nombre)].filter(Boolean).join(" · "));
         if (familiaDestino) setFamiliaId(familiaDestino.id);
         setValores({
           ...camposTecnicosVacios,

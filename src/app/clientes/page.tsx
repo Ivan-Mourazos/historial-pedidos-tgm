@@ -11,7 +11,7 @@ import {
   modalPanelClass,
 } from "@/components/ui";
 import { dbService } from "@/lib/db/db-service";
-import { resumenMedidas, formatFecha } from "@/lib/display";
+import { formatFecha, formatNombreEmpresa, resumenMedidas } from "@/lib/display";
 import type { Cliente, PedidoConRelaciones } from "@/lib/types";
 
 interface ClienteConPedidos extends Cliente {
@@ -104,7 +104,7 @@ export default function ClientesPage() {
                 onClick={() => toggle(c.id)}
               >
                 <div className="flex items-center gap-2.5">
-                  <span className="font-medium text-app-text">{c.nombre}</span>
+                  <span className="font-medium text-app-text">{formatNombreEmpresa(c.nombre)}</span>
                   {c.codigo_cliente && <span className="font-mono text-xs font-semibold text-brand">{c.codigo_cliente}</span>}
                   {!c.activo && (
                     <span className="rounded-full border border-[var(--border-strong)] px-2 py-0.5 text-xs text-app-muted">

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Banner, Button, Card, PageTitle, SelectControl, inputClass } from "@/components/ui";
+import { formatNombreEmpresa } from "@/lib/display";
 
 interface Pendiente {
   numero: string;
@@ -272,8 +273,8 @@ export default function PendientesPage() {
                       <p className="mt-1 text-[11px] text-app-muted">{fecha(pendiente.fecha)}</p>
                     </td>
                     <td className="px-3 py-3">
-                      <p className="truncate text-sm font-medium text-app-text" title={pendiente.cliente.alias ?? pendiente.cliente.nombre}>{pendiente.cliente.alias ?? pendiente.cliente.nombre}</p>
-                      {pendiente.cliente.alias && <p className="truncate text-xs text-app-muted" title={pendiente.cliente.nombre}>{pendiente.cliente.nombre}</p>}
+                      <p className="truncate text-sm font-medium text-app-text" title={formatNombreEmpresa(pendiente.cliente.alias ?? pendiente.cliente.nombre)}>{formatNombreEmpresa(pendiente.cliente.alias ?? pendiente.cliente.nombre)}</p>
+                      {pendiente.cliente.alias && <p className="truncate text-xs text-app-muted" title={formatNombreEmpresa(pendiente.cliente.nombre)}>{formatNombreEmpresa(pendiente.cliente.nombre)}</p>}
                       <p className="mt-0.5 font-mono text-xs text-app-muted">{pendiente.cliente.codigo}</p>
                     </td>
                     <td className="px-3 py-3">

@@ -14,7 +14,7 @@ import {
   modalOverlayClass,
   modalPanelClass,
 } from "@/components/ui";
-import { formatAlturaRemolque, formatFecha, formatMedida } from "@/lib/display";
+import { formatAlturaRemolque, formatFecha, formatMedida, formatNombreEmpresa } from "@/lib/display";
 import { familiaPuedeTenerExcel, getFamiliaDefinition } from "@/lib/familias";
 import { tipoRemolqueCanonico } from "@/lib/tipos-remolque";
 import { TIPOS_RECOGIDA_REMOLQUE } from "@/lib/recogida-remolque";
@@ -326,7 +326,7 @@ export function HistoricoClient({
                         <p className="font-mono text-sm font-semibold text-app-text"><SearchHighlight text={pedido.numero_pedido} query={currentSearch} /></p>
                         <span className="mt-1 inline-flex rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-700 dark:text-emerald-300">Verificado</span>
                       </td>
-                      <td className="max-w-[180px] truncate px-3 py-3 text-app-text" title={pedido.cliente?.nombre}><SearchHighlight text={pedido.cliente?.nombre ?? "—"} query={currentSearch} /></td>
+                      <td className="max-w-[180px] truncate px-3 py-3 text-app-text" title={pedido.cliente ? formatNombreEmpresa(pedido.cliente.nombre) : undefined}><SearchHighlight text={pedido.cliente ? formatNombreEmpresa(pedido.cliente.nombre) : "—"} query={currentSearch} /></td>
                       <td className="max-w-[150px] truncate px-3 py-3 text-app-muted">
                         <SearchHighlight text={isTrailers ? tipoRemolqueCanonico(pedido.tipo) || "—" : pedido.tipo ?? "—"} query={currentSearch} />
                       </td>

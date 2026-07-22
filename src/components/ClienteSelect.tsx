@@ -79,7 +79,7 @@ export function ClienteSelect({
       onChange(existente.id);
       setCreando(false);
       setNombre("");
-      setError(`Ya existía ese cliente: se ha seleccionado "${existente.nombre}".`);
+      setError(`Ya existía ese cliente: se ha seleccionado "${formatNombreEmpresa(existente.nombre)}".`);
       return;
     }
     setGuardando(true);
