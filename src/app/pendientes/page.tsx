@@ -247,11 +247,11 @@ export default function PendientesPage() {
             <table className="w-full table-fixed border-collapse text-left">
               <colgroup>
                 <col className="w-[14%]" />
-                <col className="w-[24%]" />
-                <col className="w-[17%]" />
-                <col className="w-[15%]" />
+                <col className="w-[21%]" />
+                <col className="w-[16%]" />
+                <col className="w-[14%]" />
                 <col className="w-[20%]" />
-                <col className="w-[10%]" />
+                <col className="w-[15%]" />
               </colgroup>
               <thead className="bg-surface-2/70 text-[11px] uppercase tracking-wide text-app-muted">
                 <tr>

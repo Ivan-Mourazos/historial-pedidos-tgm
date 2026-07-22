@@ -255,7 +255,10 @@ export function HistoricoClient({
               onChange={(value) => navigate({ tipo: value || null, page: null })}
               options={[
                 { value: "", label: "Todos" },
-                ...(isTrailers ? tiposRemolque : tiposPuerta).map((tipo) => ({ value: tipo.nombre, label: tipo.nombre })),
+                ...(isTrailers ? tiposRemolque : tiposPuerta).map((tipo) => ({
+                  value: tipo.nombre,
+                  label: isTrailers ? tipoRemolqueCanonico(tipo.nombre) : tipo.nombre,
+                })),
               ]}
             />
           </div>
