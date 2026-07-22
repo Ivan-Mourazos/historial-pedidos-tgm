@@ -23,7 +23,7 @@ import {
   todayInputValue,
 } from "@/components/ui";
 import { dbService } from "@/lib/db/db-service";
-import { formatAlturaRemolque, formatMedida } from "@/lib/display";
+import { formatAlturaRemolque, formatMedida, formatNombreEmpresa } from "@/lib/display";
 import { ordenarFamilias } from "@/lib/familias";
 import { claveTipoRemolque, tipoRemolqueCanonico } from "@/lib/tipos-remolque";
 import { usaRecogidaRemolque } from "@/lib/recogida-remolque";
@@ -400,7 +400,7 @@ function BuscadorPageContent() {
                   setLimiteResultados(50);
                 }}
                 placeholder="Escribe un cliente…"
-                options={clientesDeFamilia.map((c) => ({ value: c.id, label: c.nombre }))}
+                options={clientesDeFamilia.map((c) => ({ value: c.id, label: formatNombreEmpresa(c.nombre) }))}
               />
             </div>
           </div>
@@ -565,7 +565,7 @@ function BuscadorPageContent() {
                     placeholder="— Cliente —"
                     options={[
                       { value: "", label: "— Cliente —" },
-                      ...clientesDeFamilia.map((c) => ({ value: c.id, label: c.nombre })),
+                      ...clientesDeFamilia.map((c) => ({ value: c.id, label: formatNombreEmpresa(c.nombre) })),
                     ]}
                   />
                   <Button variant="secondary" onClick={() => setModalCliente(true)}>+</Button>

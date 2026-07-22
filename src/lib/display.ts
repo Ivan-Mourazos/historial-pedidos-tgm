@@ -1,6 +1,42 @@
 import { formatMedida, formatMedidaCm } from "./normalize";
 import { FAMILIA_PUERTAS, FAMILIA_REMOLQUES, type Pedido } from "./types";
 
+const CONECTORES_NOMBRE = new Set(["de", "del", "el", "la", "las", "los", "y", "e"]);
+const FORMAS_JURIDICAS = new Map([
+  ["sa", "S.A."],
+  ["sl", "S.L."],
+  ["slu", "S.L.U."],
+  ["slne", "S.L.N.E."],
+  ["cb", "C.B."],
+  ["sc", "S.C."],
+  ["scoop", "S.Coop."],
+  ["ute", "UTE"],
+]);
+
+/** Convierte nombres íntegramente en mayúsculas a una lectura natural sin tocar el dato original. */
+export function formatNombreEmpresa(nombre: string): string {
+  const limpio = nombre.trim();
+  if (!limpio || /\p{Ll}/u.test(limpio)) return limpio;
+
+  let esPrimeraPalabra = true;
+  return limpio
+    .toLocaleLowerCase("es-ES")
+    .split(/(\s+|[·/(),&-]+)/)
+    .map((parte) => {
+      if (!/\p{L}/u.test(parte)) return parte;
+      const clave = parte.replace(/[^a-záéíóúüñ]/gu, "");
+      const formaJuridica = FORMAS_JURIDICAS.get(clave);
+      if (formaJuridica) {
+        esPrimeraPalabra = false;
+        return formaJuridica;
+      }
+      if (!esPrimeraPalabra && CONECTORES_NOMBRE.has(clave)) return parte;
+      esPrimeraPalabra = false;
+      return parte.replace(/\p{L}/u, (letra) => letra.toLocaleUpperCase("es-ES"));
+    })
+    .join("");
+}
+
 export function formatAlturaRemolque(
   pedido: Pick<Pedido, "alto" | "alto_delante" | "alto_atras">,
 ): string {

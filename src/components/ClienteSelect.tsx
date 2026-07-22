@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { dbService } from "@/lib/db/db-service";
+import { formatNombreEmpresa } from "@/lib/display";
 import { normalizarNombre } from "@/lib/normalize";
 import type { Cliente } from "@/lib/types";
 import { Button, SelectControl, inputClass, labelClass } from "./ui";
@@ -141,13 +142,18 @@ export function ClienteSelect({
                     key={cliente.codigo}
                     type="button"
                     onClick={() => seleccionarRps(cliente)}
-                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm hover:bg-surface-2"
+                    className="block w-full rounded-lg px-3 py-2 text-left transition-colors hover:bg-surface-2"
                   >
-                    <span className="w-16 shrink-0 font-mono font-semibold text-brand">{cliente.codigo}</span>
-                    <span className="min-w-0">
-                      {cliente.alias && <span className="block truncate font-semibold text-app-text">{cliente.alias}</span>}
-                      <span className="block truncate text-xs text-app-muted">{cliente.nombre}</span>
+                    <span className="block truncate text-sm font-medium leading-5 text-app-text">
+                      {cliente.alias ? (
+                        <>
+                          <span className="font-semibold">{formatNombreEmpresa(cliente.alias)}</span>
+                          <span aria-hidden="true" className="text-app-muted"> · </span>
+                        </>
+                      ) : null}
+                      <span>{formatNombreEmpresa(cliente.nombre)}</span>
                     </span>
+                    <span className="mt-0.5 block font-mono text-xs font-medium leading-4 text-app-muted">{cliente.codigo}</span>
                   </button>
                 ))}
               </div>
@@ -161,7 +167,7 @@ export function ClienteSelect({
             placeholder="— Selecciona cliente —"
             options={[
               { value: "", label: "— Selecciona cliente —" },
-              ...clientes.map((c) => ({ value: c.id, label: c.nombre })),
+              ...clientes.map((c) => ({ value: c.id, label: formatNombreEmpresa(c.nombre) })),
             ]}
           />
           {permitirCrear && (
